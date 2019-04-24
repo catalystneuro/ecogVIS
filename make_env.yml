@@ -1,0 +1,11 @@
+name: ecog_gui
+channels:
+- anaconda
+- defaults
+dependencies:
+- jupyter
+- matplotlib
+- pip:
+  - .
+prefix: ~/anaconda/envs/ecog_gui
+
