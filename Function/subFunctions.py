@@ -179,6 +179,8 @@ class ecogTSGUI:
                     c = 'b'
                 plt.plot(timebaseGuiUnits, plotData[i], pen = c, width = 1)
 
+        badch = np.intersect1d(channelsToShow, self.badChannels)
+
         plt.setXRange(timebaseGuiUnits[0], timebaseGuiUnits[-1], padding = 0.003)
         plt.setYRange(y[0, 0], y[-1, 0], padding = 0.06)
 #        %MAKE TRANSPARENT BOX AROUND BAD TIME SEGMENTS
