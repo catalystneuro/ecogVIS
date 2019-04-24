@@ -17,26 +17,35 @@ import Function.BadTimesConverterGUI as f
 import pyqtgraph as pg
 from PyQt5 import QtGui
 
+import pynwb
+import nwbext_ecog
+
 class ecogTSGUI:
     def __init__(self, par, pathName, parameters):
 
         self.parent = par
         #self.pathName = pathName
-        self.pathName = os.path.split(os.path.abspath(pathName))[0]
-        self.fileName = os.path.split(os.path.abspath(pathName))[1]
+        self.pathName = os.path.split(os.path.abspath(pathName))[0] #path
+        self.fileName = os.path.split(os.path.abspath(pathName))[1] #file
         self.axesParams = parameters
-        out = self.loadBlock()
-        self.ecog = out['ecogDS']
+        #out = self.loadBlock()
+        #self.ecog = out['ecogDS']
+        nwb = pynwb.NWBHDF5IO(pathName,'r').read()  #reads NWB file
+        self.ecog = nwb.acquisition['ECoG']  #ecog signal
+
         self.x_cur = []
         self.y_cur = []
         self.h = []
         self.text = []
-        n_ch = np.shape(self.ecog['data'])[1]
+        #n_ch = np.shape(self.ecog['data'])[1]
+        n_ch = self.ecog.data.shape[1]
         self.channelScrollDown = np.arange(0, int(self.axesParams['editLine']['qLine0'].text()))
         self.indexToSelectedChannels = np.arange(0, int(self.axesParams['editLine']['qLine0'].text()))
         self.selectedChannels = np.arange(0, n_ch)
         self.channelSelector = np.arange(0, n_ch)
-        self.rawecog = out['ecogDS']
+        #self.rawecog = out['ecogDS']
+        self.rawecog = self.ecog.data
+        self.fs_signal = self.ecog.rate
         self.badIntervals = out['badTimeSegments']
         self.t1 = 0
         self.current_rect = []
@@ -148,6 +157,7 @@ class ecogTSGUI:
         for channels in enumerate(channelsToShow):
             if np.any(str(channels) in self.badChannels):
                 np.append(badch, channels)
+
         if not np.empty(badch):
             if len(np.where(self.badChannels == 999)) > 0:
                 for i in range(nrows):
@@ -254,94 +264,94 @@ class ecogTSGUI:
 
         return badTimeSegments
 
-    def loadBadCh(self):
-        filename = os.path.join(self.pathName, 'Artifacts', 'badChannels.txt')
-        if os.path.exists(filename):
-            with open(filename)  as f:
-                badChannels = f.read()
-#                print 'Bad Channels : {}'.format(badChannels)
-        else:
-            os.mkdir(os.path.join(self.pathName, 'Artifcats'))
-            with open(filename, 'w') as f:
-                f.write('')
-                f.close()
-            badChannels = []
-        return badChannels
+#     def loadBadCh(self):
+#         filename = os.path.join(self.pathName, 'Artifacts', 'badChannels.txt')
+#         if os.path.exists(filename):
+#             with open(filename)  as f:
+#                 badChannels = f.read()
+# #                print 'Bad Channels : {}'.format(badChannels)
+#         else:
+#             os.mkdir(os.path.join(self.pathName, 'Artifcats'))
+#             with open(filename, 'w') as f:
+#                 f.write('')
+#                 f.close()
+#             badChannels = []
+#         return badChannels
 
 
-    def fileParts(self):
-        parts = self.pathName.split('\\')
-        return parts[-1]
+    # def fileParts(self):
+    #     parts = self.pathName.split('\\')
+    #     return parts[-1]
 
 #def getEcog(pathName, newfs):
 
-    def loadBlock(self, *argv):
-
-        try:
-            saveopt = argv[0]
-
-        except:
-            saveopt = 0
-
-
-        try:
-            newfs = argv[1]
-        except:
-            newfs = 400
-
-        if saveopt:
-            auto = 1
-        else:
-            auto = 0
-
-
-        if not os.path.exists(self.pathName):
-            self.pathName = QFileDialog().getExistingDirectory(self.parent, 'Open File')
-
-
-
-        if os.path.exists(os.path.join(self.pathName, 'RawHTK')) and \
-            os.path.exists(os.path.join(self.pathName, 'ecog400')) and \
-            os.path.exists(os.path.join(self.pathName, 'ecog600')) and \
-            os.path.exists(os.path.join(self.pathName, 'ecog1000')) and \
-            os.path.exists(os.path.join(self.pathName, 'ecog2000')):
-
-                print('Please choose a block folder that contains the RawHTK, ecog400 or ecog600 folder, e.g. EC34_B5')
-
-
-
-
-        blockName = self.fileParts()
-#        print blockName
-
-    #automatically load bad time segments
-
-        badTimeSegments = self.loadBadTimes()
-        badChannels = self.loadBadCh()
-
-    #load data
-
-    #try to find downsampled data
-        file_ = os.path.join(self.pathName, 'ecog' + str(newfs), 'ecog.mat')
-        out = dict()
-        if os.path.exists(file_):
-#            print 'Loading downsampled ecog....'
-            loadmatfile = h5py.File(file_)
-#            print 'done'
-
-        elif os.path.exists(os.path.join(self.pathName, 'RawHTK')):
-#            print 'Loading downsampled ecog...'
-            loadmatfile = h5py.File(file_)
-#            print 'done'
-            ## LEFT to be implemented
-
-
-        out['badTimeSegments'] = badTimeSegments
-        out['badChannels'] = badChannels
-        out['blockName'] = blockName
-        out['ecogDS'] = loadmatfile['ecogDS']
-
-        return out
+#     def loadBlock(self, *argv):
+#
+#         try:
+#             saveopt = argv[0]
+#
+#         except:
+#             saveopt = 0
+#
+#
+#         try:
+#             newfs = argv[1]
+#         except:
+#             newfs = 400
+#
+#         if saveopt:
+#             auto = 1
+#         else:
+#             auto = 0
+#
+#
+#         if not os.path.exists(self.pathName):
+#             self.pathName = QFileDialog().getExistingDirectory(self.parent, 'Open File')
+#
+#
+#
+#         if os.path.exists(os.path.join(self.pathName, 'RawHTK')) and \
+#             os.path.exists(os.path.join(self.pathName, 'ecog400')) and \
+#             os.path.exists(os.path.join(self.pathName, 'ecog600')) and \
+#             os.path.exists(os.path.join(self.pathName, 'ecog1000')) and \
+#             os.path.exists(os.path.join(self.pathName, 'ecog2000')):
+#
+#                 print('Please choose a block folder that contains the RawHTK, ecog400 or ecog600 folder, e.g. EC34_B5')
+#
+#
+#
+#
+#         blockName = self.fileParts()
+# #        print blockName
+#
+#     #automatically load bad time segments
+#
+#         badTimeSegments = self.loadBadTimes()
+#         badChannels = self.loadBadCh()
+#
+#     #load data
+#
+#     #try to find downsampled data
+#         file_ = os.path.join(self.pathName, 'ecog' + str(newfs), 'ecog.mat')
+#         out = dict()
+#         if os.path.exists(file_):
+# #            print 'Loading downsampled ecog....'
+#             loadmatfile = h5py.File(file_)
+# #            print 'done'
+#
+#         elif os.path.exists(os.path.join(self.pathName, 'RawHTK')):
+# #            print 'Loading downsampled ecog...'
+#             loadmatfile = h5py.File(file_)
+# #            print 'done'
+#             ## LEFT to be implemented
+#
+#
+#         out['badTimeSegments'] = badTimeSegments
+#         out['badChannels'] = badChannels
+#         out['blockName'] = blockName
+#         out['ecogDS'] = loadmatfile['ecogDS']
+#
+#         return out
 
     def channel_Scroll_Up(self):
         blockIndices = self.channelScrollDown

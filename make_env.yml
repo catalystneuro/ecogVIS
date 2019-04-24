@@ -6,7 +6,7 @@ dependencies:
 - jupyter
 - matplotlib
 - pip:
-  - nwbext-ecog=0.6.0
+  - nwbext-ecog==0.6.0
   - .
 prefix: ~/anaconda/envs/ecog_gui
 
