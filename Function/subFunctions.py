@@ -45,12 +45,18 @@ class ecogTSGUI:
         self.channelSelector = np.arange(0, n_ch)
         #self.rawecog = out['ecogDS']
         self.rawecog = self.ecog.data
-        self.fs_signal = self.ecog.rate
-        self.badIntervals = out['badTimeSegments']
+        self.fs_signal = self.ecog.rate     #sampling frequency [Hz]
+        self.tbin_signal = 1/self.fs_signal #time bin duration [seconds]
         self.t1 = 0
+
         self.current_rect = []
-        self.badChannels = out['badChannels']
-        if os.path.exists(os.path.join(pathName, 'Analog', 'ANIN4.htk')):#menu('load audio?','yes','no') == 1
+        self.badChannels = np.where( nwb.electrodes['bad'][:] )
+        self.badIntervals = nwb.invalid_times
+        if self.badIntervals == None:
+            self.badIntervals = np.array([])
+
+        # menu('load audio?','yes','no') == 1
+        if os.path.exists(os.path.join(pathName, 'Analog', 'ANIN4.htk')):
             self.disp_audio = 1
             self.audio = readHTK(os.path.join(pathName, 'Analog', 'ANIN4.htk'))
 
@@ -58,14 +64,13 @@ class ecogTSGUI:
             self.audio['sampling_rate'] = self.audio['sampling_rate']/10000
             self.fs_audio = self.audio['sampling_rate']/10
             self.taudio = np.arange(1, np.shape(self.downsampled)[0])/self.fs_audio
-
         else:
             self.disp_audio = 0
 
-        total_dur = len(self.ecog['data'])/self.ecog['sampFreq'][0][0]
+        total_dur = np.shape(self.ecog.data)[0]/self.fs_signal
         self.axesParams['pars']['Figure'][1].plot([0, total_dur], [0.5, 0.5], pen = 'k', width = 0.5)
 
-#        %plot bad time segments on timeline
+        # plot bad time segments on timeline
         BIs = self.badIntervals
         self.BIRects = np.array([], dtype = 'object')
         for i in range(np.shape(BIs)[0]):
@@ -75,10 +80,6 @@ class ecogTSGUI:
             c.setBrush(QtGui.QColor(255, 0, 0, 255))
             a.addItem(c)
             self.BIRects = np.append(self.BIRects, c)
-
-
-
-
 
 #        BIs(all(~BIs,2),:) = []; % fix row of all zeros
 #        for i=1:size(BIs,1)
@@ -96,24 +97,32 @@ class ecogTSGUI:
         endSamp = int(math.floor(self.intervalEndSamples))
 
         channelsToShow = self.selectedChannels[self.indexToSelectedChannels]
+        nChToShow = len(channelsToShow)
         self.verticalScaleFactor = float(self.axesParams['editLine']['qLine4'].text())
-        scaleFac = np.var(self.ecog['data'][: (endSamp - startSamp), :], axis = 0)/self.verticalScaleFactor #We use on fixed interval for the scaling factor to keep things comparable
 
-        scaleVec = np.arange(1, len(channelsToShow) + 1) * max(scaleFac) * 1/50 #The multiplier is arbitrary. Find a better solution
+        # We use on fixed interval for the scaling factor to keep things comparable
+        #scaleFac = np.var(self.ecog.data[: (endSamp - startSamp), :], axis = 0)/self.verticalScaleFactor
+        scaleFac = np.std(self.ecog.data[startSamp:endSamp, channelsToShow], axis=0)/self.verticalScaleFactor
+        # The multiplier is arbitrary. Find a better solution
+        scaleVec = np.arange(1, nChToShow + 1) * np.max(scaleFac) #* 1/50
 
         timebaseGuiUnits = np.arange(startSamp - 1, endSamp) * (self.intervalStartGuiUnits/self.intervalStartSamples)
 
         scaleV = np.zeros([len(scaleVec), 1])
         scaleV[:, 0] = scaleVec
-        try:
-            data = self.ecog['data'][startSamp - 1 : endSamp, channelsToShow].T
-            plotData = data + np.tile(scaleV, (1, endSamp - startSamp + 1)) #data + offset
-        except:
-#            #if time segment shorter than window.
-            data = self.ecog['data'][:, channelsToShow].T
-            plotData = data + np.tile(scaleV, (1, endSamp - startSamp + 1)) # %data + offset
 
-###### Rectangle Plot
+        # constrains the plotData to the chosen interval (and transpose matix)
+        # plotData dims=[plotInterval,nChToShow]
+        try:
+            data = self.ecog.data[startSamp - 1 : endSamp, channelsToShow].T
+            plotData = data #+ np.tile(scaleV, (1, endSamp - startSamp + 1)) # data + offset
+        except:
+            #if time segment shorter than window.
+            data = self.ecog.data[:, channelsToShow].T
+            plotData = data #+ np.tile(scaleV, (1, endSamp - startSamp + 1)) # data + offset
+
+
+        ## Rectangle Plot
         x = float(self.axesParams['editLine']['qLine2'].text())
         w = float(self.axesParams['editLine']['qLine3'].text())
 
@@ -133,14 +142,14 @@ class ecogTSGUI:
             plt2.addItem(self.BIRects[i])
 
 
-######       Rectangle Plot
-
-#        %bad_t=handles.ecog.bad_t;
-#        %A line indicating zero for every channel
+        ## Rectangle Plot
+        #bad_t=handles.ecog.bad_t;
+        # A line indicating zero for every channel
         x = np.tile([timebaseGuiUnits[0], timebaseGuiUnits[-1]], (len(scaleVec), 1))
         y = np.hstack((scaleV, scaleV))
         plt = self.axesParams['pars']['Figure'][0]
-        plt.clear()                                                             #clear plot
+        # Clear plot
+        plt.clear()
         for l in range(np.shape(x)[0]):
             plt.plot(x[l], y[l], pen = 'r')
         plt.setLabel('bottom', 'Time', units = 'sec')
@@ -152,38 +161,54 @@ class ecogTSGUI:
         plt.getAxis('left').setTicks([ticks])
 
 
-        badch = np.array([])
+
+        # Find bad and valid channels from channelsToShow
+        badCh = np.intersect1d(channelsToShow, self.badChannels)
+        validCh = np.setdiff1d(channelsToShow, self.badChannels)
         nrows, ncols = np.shape(plotData)
-        for channels in enumerate(channelsToShow):
-            if np.any(str(channels) in self.badChannels):
-                np.append(badch, channels)
 
-        if not np.empty(badch):
-            if len(np.where(self.badChannels == 999)) > 0:
-                for i in range(nrows):
-                    c = 'g'
-                    if i%2 == 0:
-                        c = 'b'
-                    plt.plot(timebaseGuiUnits, plotData[i], pen = pg.mkPen(c, width = 1))
-                    if i in badch:
-                        plt.plot(timebaseGuiUnits, plotData[i], pen = 'r', width = 1)
+        # Iterate over chosen channels, plot one at a time
+        for i in range(nrows):
+            if i in badCh:
+                plt.plot(timebaseGuiUnits, plotData[i], pen = 'r', width = 1)
             else:
-                plotData[badch, :] = np.nan
-                ph = plt.plot(timebaseGuiUnits, plotData.T)
-
-        else:
-            #PLOT CHANNELS
-            for i in range(nrows):
                 c = 'g'
                 if i%2 == 0:
                     c = 'b'
-                plt.plot(timebaseGuiUnits, plotData[i], pen = c, width = 1)
+                plt.plot(timebaseGuiUnits, plotData[i], pen = pg.mkPen(c, width = 1))
 
-        badch = np.intersect1d(channelsToShow, self.badChannels)
+        # badch = np.array([])
+        # nrows, ncols = np.shape(plotData)
+        # for channels in enumerate(channelsToShow):
+        #     if np.any(str(channels) in self.badChannels):
+        #         np.append(badch, channels)
+        #
+        # if not np.empty(badch):
+        #     if len(np.where(self.badChannels == 999)) > 0:
+        #         for i in range(nrows):
+        #             c = 'g'
+        #             if i%2 == 0:
+        #                 c = 'b'
+        #             plt.plot(timebaseGuiUnits, plotData[i], pen = pg.mkPen(c, width = 1))
+        #             if i in badch:
+        #                 plt.plot(timebaseGuiUnits, plotData[i], pen = 'r', width = 1)
+        #     else:
+        #         plotData[badch, :] = np.nan
+        #         ph = plt.plot(timebaseGuiUnits, plotData.T)
+        #
+        # else:
+        #     #PLOT CHANNELS
+        #     for i in range(nrows):
+        #         c = 'g'
+        #         if i%2 == 0:
+        #             c = 'b'
+        #         plt.plot(timebaseGuiUnits, plotData[i], pen = c, width = 1)
+
 
         plt.setXRange(timebaseGuiUnits[0], timebaseGuiUnits[-1], padding = 0.003)
         plt.setYRange(y[0, 0], y[-1, 0], padding = 0.06)
-#        %MAKE TRANSPARENT BOX AROUND BAD TIME SEGMENTS
+
+        # Make transparent box around bad time segments
         self.plotData = []
         self.plotData = plotData
         self.showChan = channelsToShow
@@ -206,8 +231,8 @@ class ecogTSGUI:
             self.text2.setPos(BI[1], ymax)
             plt.addItem(self.text2)
 
-
-        if self.disp_audio:#    % PLOT AUDIO
+        # Plot audio
+        if self.disp_audio:
             begin = self.intervalStartGuiUnits
             stop = self.intervalStartGuiUnits + self.intervalLengthGuiUnits
             plt1 = self.axesParams['pars']['Figure'][2]
@@ -216,8 +241,7 @@ class ecogTSGUI:
             x_axis = np.linspace(xmin, xmax, len(self.downsampled[ind_disp]))
             plt1.plot(x_axis, self.downsampled[ind_disp], pen = 'r', width = 2)
             plt1.setXLink(plt)
-#        plt2.setXLink(plt)
-
+            # plt2.setXLink(plt)
 
 
 
@@ -227,19 +251,22 @@ class ecogTSGUI:
 
     def getCurXAxisPosition(self):
         self.intervalStartGuiUnits = float(self.axesParams['editLine']['qLine2'].text())
-
         self.intervalLengthGuiUnits = float(self.axesParams['editLine']['qLine3'].text())
 
-
-        total_dur = np.shape(self.ecog['data'])[0] * self.ecog['sampDur'][0][0]/1000
+        # Total duration in seconds: signal_length * sample_dur / 1000
+        #total_dur = np.shape(self.ecog.data)[0] * self.ecog['sampDur'][0][0]/1000
+        total_dur = np.shape(self.ecog.data)[0] * self.tbin_signal
         if self.intervalLengthGuiUnits > total_dur:
             self.intervalLengthGuiUnits = total_dur
 
-        self.intervalLengthSamples = self.intervalLengthGuiUnits * (1000/self.ecog['sampDur'][0][0])
-
-        self.intervalStartSamples = self.intervalStartGuiUnits * (1000/self.ecog['sampDur'][0][0]) # assumes seconds in GUI and milliseconds in  ecog.sampDur
-        self.intervalEndSamples = self.intervalStartSamples + self.intervalLengthSamples - 1 #We assume that the intervall length is specified in samples
-        #%should always work because plausibility has been checked when channels were entered (
+        # Assumes seconds in GUI and milliseconds in ecog.sampDur
+        #self.intervalLengthSamples = self.intervalLengthGuiUnits * (1000/self.ecog['sampDur'][0][0])
+        #self.intervalStartSamples = self.intervalStartGuiUnits * (1000/self.ecog['sampDur'][0][0])
+        self.intervalLengthSamples = self.intervalLengthGuiUnits / self.tbin_signal
+        self.intervalStartSamples = self.intervalStartGuiUnits / self.tbin_signal
+        # We assume that the interval length is specified in samples
+        self.intervalEndSamples = self.intervalStartSamples + self.intervalLengthSamples - 1
+        # Should always work because plausibility has been checked when channels were entered
         self.indexToSelectedChannels = self.channelScrollDown
 
     def downsample(self, n):
@@ -378,7 +405,7 @@ class ecogTSGUI:
         self.refreshScreen()
 
     def page_forward(self):
-        n, m = np.shape(self.ecog['data'])
+        n, m = np.shape(self.ecog.data)
         self.getCurXAxisPosition()
         # check if inteval length is appropriate
         if self.intervalLengthSamples > n:
@@ -399,17 +426,17 @@ class ecogTSGUI:
         self.refreshScreen()
 
     def setXAxisPositionSamples(self):
-        t = 1000/self.ecog['sampDur'][0][0]
+        t = self.tbin_signal #1000/self.ecog['sampDur'][0][0]
         self.axesParams['editLine']['qLine2'].setText(str(self.intervalStartSamples/t))
         self.axesParams['editLine']['qLine3'].setText(str(self.intervalLengthSamples/t))
 
     def page_back(self):
-        n, m = np.shape(self.ecog['data'])
+        #n, m = np.shape(self.ecog['data'])
         self.getCurXAxisPosition()
-        #new interval start
+        # New interval start
         self.intervalStartSamples = self.intervalStartSamples - self.intervalLengthSamples
 
-        # if the last sample of the new interval is beyond is the available data
+        # If the last sample of the new interval is beyond is the available data
         # set start such that intserval is in a valid range
         if self.intervalStartSamples < 1:
             self.intervalStartSamples = 1
@@ -418,12 +445,12 @@ class ecogTSGUI:
         self.refreshScreen()
 
     def scroll_back(self):
-        n, m = np.shape(self.ecog['data'])
+        #n, m = np.shape(self.ecog['data'])
         self.getCurXAxisPosition()
-        #new interval start
+        # New interval start
         self.intervalStartSamples = self.intervalStartSamples - self.intervalLengthSamples/3
 
-        # if the last sample of the new interval is beyond is the available data
+        # If the last sample of the new interval is beyond is the available data
         # set start such that intserval is in a valid range
         if self.intervalStartSamples < 1:
             self.intervalStartSamples = 1
@@ -432,18 +459,18 @@ class ecogTSGUI:
         self.refreshScreen()
 
     def scroll_forward(self):
-        n, m = np.shape(self.ecog['data'])
+        n, m = np.shape(self.ecog.data)
         self.getCurXAxisPosition()
-        # check if inteval length is appropriate
+        # Check if inteval length is appropriate
         if self.intervalLengthSamples > n:
-            #set interval length to available data
+            # Set interval length to available data
             self.intervalLengthSamples = n
         #new interval start
 
         self.intervalStartSamples = self.intervalStartSamples \
         + self.intervalLengthSamples/3
 
-        #if the last sample of the new interval is beyond is the available data
+        # If the last sample of the new interval is beyond is the available data
         # set start such that intserval is in a valid range
         if self.intervalStartSamples + self.intervalLengthSamples > n:
             self.intervalStartSamples = n - self.intervalLengthSamples + 1
@@ -463,11 +490,12 @@ class ecogTSGUI:
 
     def plot_interval(self):
         plotIntervalGuiUnits = float(self.axesParams['editLine']['qLine3'].text())
-        sam = self.ecog['sampDur'][0][0]
-        n = np.shape(self.ecog['data'])[0]
+        sam = self.tbin_signal #self.ecog['sampDur'][0][0]
+        n = np.shape(self.ecog.data)[0]
 
+        # Minimum time interval
         if plotIntervalGuiUnits * 1000 < sam:
-            plotIntervalGuiUnits = self.ecog['sampDur'][0][0]/1000
+            plotIntervalGuiUnits = sam/1000 #self.ecog['sampDur'][0][0]/1000
             self.axesParams['editLine']['qLine3'].setText(str(plotIntervalGuiUnits))
         elif plotIntervalGuiUnits * 1000/sam > n:
             plotIntervalGuiUnits = (n - 1) * sam/1000
@@ -476,15 +504,14 @@ class ecogTSGUI:
 
     def start_location(self):
         self.getCurXAxisPosition()
-        #interval at least one sample long
-        if self.intervalStartSamples < self.ecog['sampDur'][0][0]:
+        # Interval at least one sample long
+        #if self.intervalStartSamples < self.ecog['sampDur'][0][0]:
+        if self.intervalStartSamples < self.tbin_signal:
             self.intervalStartSamples = 1 #set to the first sample
             self.setXAxisPositionSamples()
 
-        if self.intervalStartSamples + self.intervalLengthSamples - 1 > \
-        np.shape(self.ecog['data'])[0]:
-            self.intervalStartSamples = np.shape(self.ecog['data'])[0] - \
-            self.intervalLengthSamples + 1
+        if self.intervalStartSamples + self.intervalLengthSamples - 1 > np.shape(self.ecog.data)[0]:
+            self.intervalStartSamples = np.shape(self.ecog.data)[0] - self.intervalLengthSamples + 1
             self.setXAxisPositionSamples()
 
         self.refreshScreen()
@@ -504,7 +531,7 @@ class ecogTSGUI:
         self.refreshScreen()
 
     def addBadTimeSeg(self, BadInterval):
-#        axes(handles.timeline_axes);
+        #axes(handles.timeline_axes);
         x = BadInterval[0]
         y = 0
         w = np.diff(np.array(BadInterval))[0]
@@ -568,7 +595,7 @@ class ecogTSGUI:
             index = np.where(points == round(x, 2))
 
             DataIndex = index[0][0]
-#            print(index)
+            #print(index)
             y_points = self.plotData[:, DataIndex]
             diff_ = abs(np.array(y_points) - y)
             index = np.argmin(diff_)
@@ -581,7 +608,7 @@ class ecogTSGUI:
             yaxis = plt.getAxis('left').range
             ymin, ymax = yaxis[0], yaxis[1]
 
-#            plt.setTitle('Selected Channel:' + str(channel))
+            #plt.setTitle('Selected Channel:' + str(channel))
             if self.h != []:
                 plt.removeItem(self.h)
             text_ = 'x:' + str(round(x, 2)) + '\n' + 'y:' + str(round(y, 2))

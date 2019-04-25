@@ -3,10 +3,16 @@ channels:
 - anaconda
 - defaults
 dependencies:
+- python=3.7
+- pip
+- numpy
+- scipy
 - jupyter
 - matplotlib
+- cycler
+- h5py
+- pyqtgraph
 - pip:
+  - PyQt5
   - nwbext-ecog==0.6.0
-  - .
-prefix: ~/anaconda/envs/ecog_gui
 
