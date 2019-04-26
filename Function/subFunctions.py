@@ -22,29 +22,28 @@ import nwbext_ecog
 
 class ecogTSGUI:
     def __init__(self, par, pathName, parameters):
-
         self.parent = par
-        #self.pathName = pathName
         self.pathName = os.path.split(os.path.abspath(pathName))[0] #path
         self.fileName = os.path.split(os.path.abspath(pathName))[1] #file
         self.axesParams = parameters
-        #out = self.loadBlock()
-        #self.ecog = out['ecogDS']
-        nwb = pynwb.NWBHDF5IO(pathName,'r').read()  #reads NWB file
-        self.ecog = nwb.acquisition['ECoG']  #ecog signal
+
+        nwb = pynwb.NWBHDF5IO(pathName,'r').read()      #reads NWB file
+        self.ecog = nwb.acquisition['ECoG']             #ecog
 
         self.x_cur = []
         self.y_cur = []
         self.h = []
         self.text = []
-        #n_ch = np.shape(self.ecog['data'])[1]
-        n_ch = self.ecog.data.shape[1]
-        self.channelScrollDown = np.arange(0, int(self.axesParams['editLine']['qLine0'].text()))
-        self.indexToSelectedChannels = np.arange(0, int(self.axesParams['editLine']['qLine0'].text()))
-        self.selectedChannels = np.arange(0, n_ch)
-        self.channelSelector = np.arange(0, n_ch)
-        #self.rawecog = out['ecogDS']
-        self.rawecog = self.ecog.data
+
+        self.nChTotal = self.ecog.data.shape[1]     #total number of channels
+        self.allChannels = np.arange(0, self.nChTotal)  #array with all channels
+        # Channels to show
+        self.firstCh = int(self.axesParams['editLine']['qLine1'].text())
+        self.lastCh = int(self.axesParams['editLine']['qLine0'].text())
+        self.nChToShow = self.lastCh - self.firstCh + 1
+        self.selectedChannels = np.arange(self.firstCh, self.lastCh + 1)
+
+        self.rawecog = self.ecog.data       #ecog signals
         self.fs_signal = self.ecog.rate     #sampling frequency [Hz]
         self.tbin_signal = 1/self.fs_signal #time bin duration [seconds]
         self.t1 = 0
@@ -88,39 +87,35 @@ class ecogTSGUI:
 
         self.refreshScreen()
 
+
     def refreshScreen(self):
         self.AR_plotter()
+
 
     def AR_plotter(self):
         self.getCurAxisParameters()
         startSamp = int(math.ceil(self.intervalStartSamples))
         endSamp = int(math.floor(self.intervalEndSamples))
-
-        channelsToShow = self.selectedChannels[self.indexToSelectedChannels]
-        nChToShow = len(channelsToShow)
-        self.verticalScaleFactor = float(self.axesParams['editLine']['qLine4'].text())
-
-        # We use on fixed interval for the scaling factor to keep things comparable
-        #scaleFac = np.var(self.ecog.data[: (endSamp - startSamp), :], axis = 0)/self.verticalScaleFactor
-        scaleFac = np.std(self.ecog.data[startSamp:endSamp, channelsToShow], axis=0)/self.verticalScaleFactor
-        # The multiplier is arbitrary. Find a better solution
-        scaleVec = np.arange(1, nChToShow + 1) * np.max(scaleFac) #* 1/50
-
         timebaseGuiUnits = np.arange(startSamp - 1, endSamp) * (self.intervalStartGuiUnits/self.intervalStartSamples)
+
+        # Use the same scaling factor for all channels, to keep things comparable
+        self.verticalScaleFactor = float(self.axesParams['editLine']['qLine4'].text())
+        scaleFac = .5*np.std(self.ecog.data[startSamp:endSamp, self.selectedChannels-1], axis=0)/self.verticalScaleFactor
+
+        # Offset for each channel
+        scaleVec = np.arange(1, self.nChToShow + 1) * np.max(scaleFac)
 
         scaleV = np.zeros([len(scaleVec), 1])
         scaleV[:, 0] = scaleVec
 
         # constrains the plotData to the chosen interval (and transpose matix)
-        # plotData dims=[plotInterval,nChToShow]
+        # plotData dims=[plotInterval,self.nChToShow]
         try:
-            data = self.ecog.data[startSamp - 1 : endSamp, channelsToShow].T
-            plotData = data #+ np.tile(scaleV, (1, endSamp - startSamp + 1)) # data + offset
-        except:
-            #if time segment shorter than window.
-            data = self.ecog.data[:, channelsToShow].T
-            plotData = data #+ np.tile(scaleV, (1, endSamp - startSamp + 1)) # data + offset
-
+            data = self.ecog.data[startSamp - 1 : endSamp, self.selectedChannels-1].T
+            plotData = data + np.tile(scaleV, (1, endSamp - startSamp + 1)) # data + offset
+        except:  #if time segment shorter than window.
+            data = self.ecog.data[:, self.selectedChannels-1].T
+            plotData = data + np.tile(scaleV, (1, endSamp - startSamp + 1)) # data + offset
 
         ## Rectangle Plot
         x = float(self.axesParams['editLine']['qLine2'].text())
@@ -141,7 +136,6 @@ class ecogTSGUI:
         for i in range(len(self.BIRects)):
             plt2.addItem(self.BIRects[i])
 
-
         ## Rectangle Plot
         #bad_t=handles.ecog.bad_t;
         # A line indicating zero for every channel
@@ -155,16 +149,14 @@ class ecogTSGUI:
         plt.setLabel('bottom', 'Time', units = 'sec')
         plt.setLabel('left', 'Channel #')
 
-        labels = [str(ch + 1) for ch in channelsToShow]
+        labels = [str(ch) for ch in self.selectedChannels]
         ticks = list(zip(y[:, 0], labels))
 
         plt.getAxis('left').setTicks([ticks])
 
-
-
-        # Find bad and valid channels from channelsToShow
-        badCh = np.intersect1d(channelsToShow, self.badChannels)
-        validCh = np.setdiff1d(channelsToShow, self.badChannels)
+        # Find bad and valid channels from self.selectedChannels
+        badCh = np.intersect1d(self.selectedChannels, self.badChannels)
+        validCh = np.setdiff1d(self.selectedChannels, self.badChannels)
         nrows, ncols = np.shape(plotData)
 
         # Iterate over chosen channels, plot one at a time
@@ -211,7 +203,6 @@ class ecogTSGUI:
         # Make transparent box around bad time segments
         self.plotData = []
         self.plotData = plotData
-        self.showChan = channelsToShow
         yaxis = plt.getAxis('left').range
         ymin, ymax = yaxis[0], yaxis[1]
         xaxis = plt.getAxis('bottom').range
@@ -249,6 +240,7 @@ class ecogTSGUI:
     def getCurAxisParameters(self):
         self.getCurXAxisPosition()
 
+
     def getCurXAxisPosition(self):
         self.intervalStartGuiUnits = float(self.axesParams['editLine']['qLine2'].text())
         self.intervalLengthGuiUnits = float(self.axesParams['editLine']['qLine3'].text())
@@ -259,15 +251,12 @@ class ecogTSGUI:
         if self.intervalLengthGuiUnits > total_dur:
             self.intervalLengthGuiUnits = total_dur
 
-        # Assumes seconds in GUI and milliseconds in ecog.sampDur
-        #self.intervalLengthSamples = self.intervalLengthGuiUnits * (1000/self.ecog['sampDur'][0][0])
-        #self.intervalStartSamples = self.intervalStartGuiUnits * (1000/self.ecog['sampDur'][0][0])
+        # Assumes seconds in GUI and in ecog tbin intervals
         self.intervalLengthSamples = self.intervalLengthGuiUnits / self.tbin_signal
         self.intervalStartSamples = self.intervalStartGuiUnits / self.tbin_signal
         # We assume that the interval length is specified in samples
         self.intervalEndSamples = self.intervalStartSamples + self.intervalLengthSamples - 1
-        # Should always work because plausibility has been checked when channels were entered
-        self.indexToSelectedChannels = self.channelScrollDown
+
 
     def downsample(self, n):
         L = self.audio['num_samples']
@@ -293,144 +282,63 @@ class ecogTSGUI:
 
         return badTimeSegments
 
-#     def loadBadCh(self):
-#         filename = os.path.join(self.pathName, 'Artifacts', 'badChannels.txt')
-#         if os.path.exists(filename):
-#             with open(filename)  as f:
-#                 badChannels = f.read()
-# #                print 'Bad Channels : {}'.format(badChannels)
-#         else:
-#             os.mkdir(os.path.join(self.pathName, 'Artifcats'))
-#             with open(filename, 'w') as f:
-#                 f.write('')
-#                 f.close()
-#             badChannels = []
-#         return badChannels
 
 
-    # def fileParts(self):
-    #     parts = self.pathName.split('\\')
-    #     return parts[-1]
+    def channel_Scroll_Up(self): # Button: ^
+        # Test upper limit
+        if self.lastCh < self.nChTotal:
+            # Add +1 to first and last channels
+            self.firstCh += 1
+            self.lastCh += 1
+            self.axesParams['editLine']['qLine0'].setText(str(self.lastCh))
+            self.axesParams['editLine']['qLine1'].setText(str(self.firstCh))
+            self.nChToShow = self.lastCh - self.firstCh + 1
+            self.selectedChannels = np.arange(self.firstCh, self.lastCh + 1)
 
-#def getEcog(pathName, newfs):
-
-#     def loadBlock(self, *argv):
-#
-#         try:
-#             saveopt = argv[0]
-#
-#         except:
-#             saveopt = 0
-#
-#
-#         try:
-#             newfs = argv[1]
-#         except:
-#             newfs = 400
-#
-#         if saveopt:
-#             auto = 1
-#         else:
-#             auto = 0
-#
-#
-#         if not os.path.exists(self.pathName):
-#             self.pathName = QFileDialog().getExistingDirectory(self.parent, 'Open File')
-#
-#
-#
-#         if os.path.exists(os.path.join(self.pathName, 'RawHTK')) and \
-#             os.path.exists(os.path.join(self.pathName, 'ecog400')) and \
-#             os.path.exists(os.path.join(self.pathName, 'ecog600')) and \
-#             os.path.exists(os.path.join(self.pathName, 'ecog1000')) and \
-#             os.path.exists(os.path.join(self.pathName, 'ecog2000')):
-#
-#                 print('Please choose a block folder that contains the RawHTK, ecog400 or ecog600 folder, e.g. EC34_B5')
-#
-#
-#
-#
-#         blockName = self.fileParts()
-# #        print blockName
-#
-#     #automatically load bad time segments
-#
-#         badTimeSegments = self.loadBadTimes()
-#         badChannels = self.loadBadCh()
-#
-#     #load data
-#
-#     #try to find downsampled data
-#         file_ = os.path.join(self.pathName, 'ecog' + str(newfs), 'ecog.mat')
-#         out = dict()
-#         if os.path.exists(file_):
-# #            print 'Loading downsampled ecog....'
-#             loadmatfile = h5py.File(file_)
-# #            print 'done'
-#
-#         elif os.path.exists(os.path.join(self.pathName, 'RawHTK')):
-# #            print 'Loading downsampled ecog...'
-#             loadmatfile = h5py.File(file_)
-# #            print 'done'
-#             ## LEFT to be implemented
-#
-#
-#         out['badTimeSegments'] = badTimeSegments
-#         out['badChannels'] = badChannels
-#         out['blockName'] = blockName
-#         out['ecogDS'] = loadmatfile['ecogDS']
-#
-#         return out
-
-    def channel_Scroll_Up(self):
-        blockIndices = self.channelScrollDown
-        self.nChannelsDisplayed = int(self.axesParams['editLine']['qLine0'].text())
-        nChanToShow = self.nChannelsDisplayed
-        chanToShow = self.channelSelector
-        blockIndices  = blockIndices + nChanToShow
-        if blockIndices[-1] > len(chanToShow):
-            blockIndices = np.arange(len(chanToShow) - len(blockIndices) + 1, len(chanToShow))
-#        print blockIndices
-        self.channelScrollDown = blockIndices
         self.refreshScreen()
 
-    def channel_Scroll_Down(self):
-        blockIndices = self.channelScrollDown
-        nChanToShow = int(self.axesParams['editLine']['qLine0'].text())
-        blockIndices = blockIndices - nChanToShow
-        if blockIndices[0] <= 0:
-            blockIndices = np.arange(0, nChanToShow) #first possible block
 
-        self.channelScrollDown = blockIndices
+    def channel_Scroll_Down(self): # Button: v
+        # Test lower limit
+        if self.firstCh > 1:
+            # Subtract 1 from first and last channels
+            self.firstCh -= 1
+            self.lastCh -= 1
+            self.axesParams['editLine']['qLine0'].setText(str(self.lastCh))
+            self.axesParams['editLine']['qLine1'].setText(str(self.firstCh))
+            self.nChToShow = self.lastCh - self.firstCh + 1
+            self.selectedChannels = np.arange(self.firstCh, self.lastCh + 1)
+
         self.refreshScreen()
 
-    def page_forward(self):
+
+    def page_forward(self): # Button: >>
         n, m = np.shape(self.ecog.data)
         self.getCurXAxisPosition()
         # check if inteval length is appropriate
         if self.intervalLengthSamples > n:
             #set interval length to available data
             self.intervalLengthSamples = n
-        #new interval start
 
-        self.intervalStartSamples = self.intervalStartSamples \
-        + self.intervalLengthSamples
+        #new interval start
+        self.intervalStartSamples = self.intervalStartSamples + self.intervalLengthSamples
 
         #if the last sample of the new interval is beyond is the available data
         # set start such that intserval is in a valid range
         if self.intervalStartSamples + self.intervalLengthSamples > n:
             self.intervalStartSamples = n - self.intervalLengthSamples + 1
 
-
         self.setXAxisPositionSamples()
         self.refreshScreen()
+
 
     def setXAxisPositionSamples(self):
         t = self.tbin_signal #1000/self.ecog['sampDur'][0][0]
         self.axesParams['editLine']['qLine2'].setText(str(self.intervalStartSamples/t))
         self.axesParams['editLine']['qLine3'].setText(str(self.intervalLengthSamples/t))
 
-    def page_back(self):
+
+    def page_backward(self): # Button: <<
         #n, m = np.shape(self.ecog['data'])
         self.getCurXAxisPosition()
         # New interval start
@@ -444,7 +352,8 @@ class ecogTSGUI:
         self.setXAxisPositionSamples()
         self.refreshScreen()
 
-    def scroll_back(self):
+
+    def scroll_backward(self): # Button: <
         #n, m = np.shape(self.ecog['data'])
         self.getCurXAxisPosition()
         # New interval start
@@ -458,7 +367,8 @@ class ecogTSGUI:
         self.setXAxisPositionSamples()
         self.refreshScreen()
 
-    def scroll_forward(self):
+
+    def scroll_forward(self): # Button: >
         n, m = np.shape(self.ecog.data)
         self.getCurXAxisPosition()
         # Check if inteval length is appropriate
@@ -478,15 +388,18 @@ class ecogTSGUI:
         self.setXAxisPositionSamples()
         self.refreshScreen()
 
+
     def verticalScaleIncrease(self):
         scaleFac = float(self.axesParams['editLine']['qLine4'].text())
         self.axesParams['editLine']['qLine4'].setText(str(scaleFac * 2))
         self.refreshScreen()
 
+
     def verticalScaleDecrease(self):
         scaleFac = float(self.axesParams['editLine']['qLine4'].text())
         self.axesParams['editLine']['qLine4'].setText(str(scaleFac/2.0))
         self.refreshScreen()
+
 
     def plot_interval(self):
         plotIntervalGuiUnits = float(self.axesParams['editLine']['qLine3'].text())
@@ -502,6 +415,7 @@ class ecogTSGUI:
             self.axesParams['editLine']['qLine3'].setText(str(plotIntervalGuiUnits))
         self.refreshScreen()
 
+
     def start_location(self):
         self.getCurXAxisPosition()
         # Interval at least one sample long
@@ -516,19 +430,34 @@ class ecogTSGUI:
 
         self.refreshScreen()
 
-    def nChannels_Displayed(self):
-        nChanToShow = int(self.axesParams['editLine']['qLine0'].text())
-#        nChanToShow = nChanToShow(1)# %make sure we have a scalar
-#         make we have sure indices will be in a valid range
-        chanToShow = self.channelSelector
-        if nChanToShow < 1:
-            nChanToShow = 1
-        elif nChanToShow > len(chanToShow):
-            nChanToShow = len(chanToShow)
-        self.axesParams['editLine']['qLine0'].setText(str(nChanToShow))
 
-        self.channelScrollDown = np.arange(0, nChanToShow)
+    def nChannels_Displayed(self):
+        # Update channels to show
+        self.firstCh = int(self.axesParams['editLine']['qLine1'].text())
+        self.lastCh = int(self.axesParams['editLine']['qLine0'].text())
+
+        # Make sure indices are in a valid range
+        if self.firstCh < 1:
+            self.firstCh = 1
+
+        if self.firstCh > self.nChTotal:
+            self.firstCh = self.nChTotal
+            self.lastCh = self.nChTotal
+
+        if self.lastCh < 1:
+            self.lastCh = self.firstCh
+
+        if self.lastCh > self.nChTotal:
+            self.lastCh = self.nChTotal
+
+        if self.lastCh - self.firstCh < 1:
+            self.lastCh = self.firstCh
+
+        self.nChToShow = self.lastCh - self.firstCh + 1
+        self.selectedChannels = np.arange(self.firstCh, self.lastCh + 1)
+
         self.refreshScreen()
+
 
     def addBadTimeSeg(self, BadInterval):
         #axes(handles.timeline_axes);
@@ -581,6 +510,7 @@ class ecogTSGUI:
             fileid.write(' ' + datetime.datetime.today().strftime('%Y-%m-%d'))
             fileid.close()
 
+
     def getChannel(self):
         x = self.x_cur
         y = self.y_cur
@@ -599,9 +529,8 @@ class ecogTSGUI:
             y_points = self.plotData[:, DataIndex]
             diff_ = abs(np.array(y_points) - y)
             index = np.argmin(diff_)
-            chanel = self.showChan + 1
+            chanel = self.selectedChannels
             channel = chanel[index]
-
 
 
             plt = self.axesParams['pars']['Figure'][0]

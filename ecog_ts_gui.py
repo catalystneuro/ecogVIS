@@ -19,11 +19,13 @@ release_ = False
 position = None
 class Application(QWidget):
     keyPressed = QtCore.pyqtSignal(QtCore.QEvent)
-    def __init__(self, filename, parent = None):  
+    def __init__(self, filename, parent = None):
         global model
         global release
-        pathName = filename#'/home/anand/Downloads/EC125_B22_matlab_data'
-        self.temp = []        
+
+        # e.g.: /home/User/freesurfer_subjects/Subject_XX.nwb
+        pathName = filename
+        self.temp = []
         self.state = False
         self.cursor_ = False
         self.channel_ = False
@@ -32,26 +34,26 @@ class Application(QWidget):
         self.error = None
         super(Application, self).__init__()
         self.keyPressed.connect(self.on_key)
-        self.init_gui()        
-        self.setWindowTitle('')          
+        self.init_gui()
+        self.setWindowTitle('')
         self.showMaximized()
         '''
         run the main file
         '''
-        
+
         parameters = {}
         parameters['pars'] = {'Figure': [self.win1, self.win2, self.win3]}
-        parameters['editLine'] = {'qLine0': self.qline0, 'qLine1': self.qline1, 'qLine2': self.qline2, 'qLine3': self.qline3, 
+        parameters['editLine'] = {'qLine0': self.qline0, 'qLine1': self.qline1, 'qLine2': self.qline2, 'qLine3': self.qline3,
                   'qLine4': self.qline4}
 #        '''
 #        main file
 #        '''
 ##        try:
         model = ecogTSGUI(self, pathName, parameters)
-#            
-#        except Exception as ex:            
+#
+#        except Exception as ex:
 #            self.log_error(str(ex))
-            
+
 
     def log_error(self, error):
         pwd = os.getcwd()
@@ -64,11 +66,11 @@ class Application(QWidget):
             file.write(datetime.datetime.today().strftime('%Y-%m-%d  %H:%M:%S') + ' ' + error + '\n')
 
         file.close()
-            
-    def keyPressEvent(self, event): 
+
+    def keyPressEvent(self, event):
         super(Application, self).keyPressEvent(event)
-        self.keyPressed.emit(event) 
-        
+        self.keyPressed.emit(event)
+
     def on_key(self, event):
         if event.key() == QtCore.Qt.Key_Up:
             model.channel_Scroll_Up()
@@ -78,22 +80,18 @@ class Application(QWidget):
             model.page_back()
         elif event.key() == QtCore.Qt.Key_Right:
             model.page_forward()
-            
-        
+
+
         event.accept()
-                    
+
+
     def init_gui(self):
         '''
         create a horizontal box layout
         '''
-        
-        
-        
-        hbox = QHBoxLayout()      
-        
-        vbox = QVBoxLayout()     
-        
-        
+        hbox = QHBoxLayout()
+        vbox = QVBoxLayout()
+
         groupbox1 = QGroupBox('Channels Plot')
         vb = CustomViewBox()
         self.win1 = pg.PlotWidget(viewBox = vb)
@@ -105,19 +103,16 @@ class Application(QWidget):
         self.win1.setMouseEnabled(x = False, y = False)
         self.win2.setMouseEnabled(x = False, y = False)
         self.win3.setMouseEnabled(x = False, y = False)
-        
-        self.figure1 = self.win1.plot(x = [], y = [])  
-        
-        
+
+        self.figure1 = self.win1.plot(x = [], y = [])
+
         self.win2.hideAxis('left')
         self.win2.hideAxis('bottom')
         self.win3.hideAxis('left')
         self.win3.hideAxis('bottom')
 
-        form5layout = QGridLayout()#QVBoxLayout()
-#
+        form5layout = QGridLayout() #QVBoxLayout()
         form5layout.setSpacing(0.0)
-#
         form5layout.setRowStretch(0, 1)
         form5layout.setRowStretch(1, 8)
         form5layout.setRowStretch(2, 1)
@@ -125,12 +120,11 @@ class Application(QWidget):
         form5layout.addWidget(self.win1)
         form5layout.addWidget(self.win3)
 
-
         groupbox1.setLayout(form5layout)
-        
-        vbox.addWidget(groupbox1)  
-        
-        
+
+        vbox.addWidget(groupbox1)
+
+
         '''
         Another vertical box layout
         '''
@@ -138,7 +132,7 @@ class Application(QWidget):
         panel1 = QGroupBox('Panel')
         panel1.setFixedWidth(200)
         panel1.setFixedHeight(200)
-        form1 = QFormLayout()        
+        form1 = QFormLayout()
         self.push1 = QPushButton('Data Cursor On')
         self.push1.setFixedWidth(150)
         self.push1.clicked.connect(self.Data_Cursor)
@@ -154,15 +148,15 @@ class Application(QWidget):
         self.push5 = QPushButton('Delete Intervals')
         self.push5.clicked.connect(self.DeleteBadInterval)
         self.push5.setFixedWidth(150)
-        
+
         form1.addWidget(self.push1)
         form1.addWidget(self.push2)
-        
+
         form1.addWidget(self.push4)
         form1.addWidget(self.push5)
         form1.addWidget(self.push3)
-        panel1.setLayout(form1)       
-        
+        panel1.setLayout(form1)
+
         panel2 = QGroupBox('Signal Type')
         panel2.setFixedWidth(200)
         panel2.setFixedHeight(100)
@@ -174,8 +168,7 @@ class Application(QWidget):
         form2.addWidget(self.rbtn1)
         form2.addWidget(self.rbtn2)
         panel2.setLayout(form2)
-        
-        
+
         panel3 = QGroupBox('Plot Controls')
         panel3.setFixedWidth(200)
         form3 = QGridLayout()
@@ -186,21 +179,23 @@ class Application(QWidget):
         qlabel2 = QLabel('Interval \nstart(s)')
         qlabel3 = QLabel('Window \nSize')
         qlabel4 = QLabel('Vertical\nScale')
-        self.qline1 = QLineEdit()
-        self.qline1.setEnabled(False)
-        self.qline1.setText('1')
         self.qline0 = QLineEdit('16')
         self.qline0.setEnabled(False)
+        self.qline1 = QLineEdit('1')
+        self.qline1.setEnabled(False)
         self.qline2 = QLineEdit('0.01')
         self.qline2.setEnabled(False)
         self.qline3 = QLineEdit('25')
         self.qline3.setEnabled(False)
         self.qline4 = QLineEdit('1')
         self.qline4.setEnabled(False)
-        self.qline3.returnPressed.connect(self.plot_interval)
-        self.qline2.returnPressed.connect(self.start_location)
+
         self.qline0.returnPressed.connect(self.channelDisplayed)
+        self.qline1.returnPressed.connect(self.channelDisplayed)
+        self.qline2.returnPressed.connect(self.start_location)
+        self.qline3.returnPressed.connect(self.plot_interval)
         self.qline4.returnPressed.connect(self.verticalScale)
+
         self.pushbtn1 = QPushButton('^')
         self.pushbtn1.clicked.connect(self.scroll_up)
         self.pushbtn2 = QPushButton('v')
@@ -217,12 +212,13 @@ class Application(QWidget):
         self.pushbtn7.clicked.connect(self.verticalScaleIncrease)
         self.pushbtn8 = QPushButton('/2')
         self.pushbtn8.clicked.connect(self.verticalScaleDecrease)
+
         form3.addWidget(self.enableButton, 0, 1)
         form3.addWidget(qlabel1, 1, 0)
-        form3.addWidget(self.qline1, 1, 1)
+        form3.addWidget(self.qline0, 1, 1)
         form3.addWidget(self.pushbtn1, 1, 2)
         form3.addWidget(QLabel(''), 2, 0)
-        form3.addWidget(self.qline0, 2, 1)
+        form3.addWidget(self.qline1, 2, 1)
         form3.addWidget(self.pushbtn2, 2, 2)
         form3.addWidget(QLabel(''), 3, 0)
         form3.addWidget(self.pushbtn3, 3, 1)
@@ -243,102 +239,97 @@ class Application(QWidget):
         vbox1.addWidget(panel1)
         vbox1.addWidget(panel2)
         vbox1.addWidget(panel3)
-        
+
         hbox.addLayout(vbox1)
         hbox.addLayout(vbox)
-        self.setLayout(hbox) 
-        
+        self.setLayout(hbox)
+
     def check_status(self):
         global release_
         if self.state:
-            
             self.state = False
-            
+
         if self.press_:
-            
             self.press_ = False
-            
-        if release_:            
+
+        if release_:
             release_ = False
-            
+
         if self.channel_:
-            
             self.channel_ = False
-            
+
         if self.cursor_:
-            
             self.cursor_ = False
-        
-    def SaveBadIntervals(self):        
-        self.check_status() 
+
+    def SaveBadIntervals(self):
+        self.check_status()
         try:
             model.pushSave()
         except Exception as ex:
-            
+
             self.log_error(str(ex))
-        
+
 #    def press_down(self, event):
-#        self.x1 = event.xdata        
-#        
-#    def release_btn(self, event):        
+#        self.x1 = event.xdata
+#
+#    def release_btn(self, event):
 #        self.x2 = event.xdata
-#        BadInterval = [round(self.x1, 3), round(self.x2, 3)]        
+#        BadInterval = [round(self.x1, 3), round(self.x2, 3)]
 #        model.addBadTimeSeg(BadInterval)
 #        model.refreshScreen()
-        
-    def SelectBadInterval(self):  
+
+    def SelectBadInterval(self):
         global release_
-        self.check_status() 
-        
+        self.check_status()
+
         if self.temp != []:
             self.win1.removeItem(self.temp)
 
         release_ = True
-        
-             
-    def On_Click(self):  
-        self.check_status()        
-        self.channel = self.win1.scene().sigMouseClicked.connect(self.get_channel)       
+
+
+    def On_Click(self):
+        self.check_status()
+        self.channel = self.win1.scene().sigMouseClicked.connect(self.get_channel)
         self.channel_ = True
-        
+
     def get_channel(self, event):
         mousePoint = self.win1.plotItem.vb.mapSceneToView(event.scenePos())
         x = mousePoint.x()
         y = mousePoint.y()
         model.x_cur = x
-        model.y_cur = y      
+        model.y_cur = y
 
         model.getChannel()
-        
 
-                 
+
     def DeleteBadInterval(self):
         self.check_status()
         self.win1.scene().sigMouseClicked.connect(self.get_coordinates)
         self.state = True
-            
+
+
     def get_coordinates(self, event):
         mousePoint = self.win1.plotItem.vb.mapSceneToView(event.scenePos())
-        x = mousePoint.x()         
+        x = mousePoint.x()
         try:
-            
             model.deleteInterval(round(x, 3))
         except Exception as ex:
             self.log_error(str(ex))
-        
-        
-    def get_cursor_position(self, event): 
-#        pos = self.win1.plotItem.vb.mapSceneToView(event.scenePos())        
+
+
+    def get_cursor_position(self, event):
+#        pos = self.win1.plotItem.vb.mapSceneToView(event.scenePos())
         mousePoint = self.win1.plotItem.vb.mapSceneToView(event.scenePos())
         x = mousePoint.x()
         y = mousePoint.y()
         model.x_cur = x
         model.y_cur = y
-        text = 'x:' + str(round(x, 2)) + '\n' + 'y:' + str(round(y, 2))   
-        
+        text = 'x:' + str(round(x, 2)) + '\n' + 'y:' + str(round(y, 2))
+
         t = pg.TextItem(text, color = pg.mkColor(70, 70, 70), border = pg.mkPen(200, 200, 200), fill = pg.mkBrush(250, 250, 150, 180))
         t.setPos(x, y)
-        self.win1.addItem(t)        
+        self.win1.addItem(t)
         if self.temp == []:
             self.temp = t
         else:
@@ -346,8 +337,10 @@ class Application(QWidget):
                 self.win1.removeItem(self.temp)
                 self.temp = t
             except Exception as ex:
-                self.log_error(str(ex))            
+                self.log_error(str(ex))
 #        self.figure1.canvas.draw()
+
+
     def enable(self):
         if self.enableButton.text() == 'Enable':
             self.enableButton.setText('Disable')
@@ -357,7 +350,7 @@ class Application(QWidget):
             self.qline3.setEnabled(True)
             self.qline4.setEnabled(True)
         else:
-            self.enableButton.setText('Disable')
+            self.enableButton.setText('Enable')
             self.qline0.setEnabled(False)
             self.qline1.setEnabled(False)
             self.qline2.setEnabled(False)
@@ -365,92 +358,86 @@ class Application(QWidget):
             self.qline4.setEnabled(False)
 
 
-    def Data_Cursor(self): 
-#        self.check_status()
-        
+    def Data_Cursor(self):
+        #self.check_status()
         if self.push1.text() == 'Data Cursor On':
             self.push1.setText('Data Cursor Off')
-            self.p = self.win1.scene().sigMouseClicked.connect(self.get_cursor_position)   
-
+            self.p = self.win1.scene().sigMouseClicked.connect(self.get_cursor_position)
             self.cursor_ = True
-            
+
         elif self.push1.text() == 'Data Cursor Off':
             self.win1.removeItem(self.p)
-            self.push1.setText('Data Cursor On')           
-
+            self.push1.setText('Data Cursor On')
             self.cursor_ = False
             if self.temp != []:
                 self.win1.removeItem(self.temp)
                 self.temp = []
-                
-                
-            
-            
-    def scroll_up(self):        
-        model.channel_Scroll_Up()      
-            
+
+
+
+    def scroll_up(self):
+        model.channel_Scroll_Up()
+
     def scroll_down(self):
         model.channel_Scroll_Down()
-        
+
     def page_backward(self):
-        model.page_back()
-        
+        model.page_backward()
+
     def scroll_backward(self):
-        model.scroll_back()
-        
+        model.scroll_backward()
+
     def page_forward(self):
         model.page_forward()
-        
+
     def scroll_forward(self):
         model.scroll_forward()
-    
+
     def verticalScale(self):
         model.refreshScreen()
-    
+
     def verticalScaleIncrease(self):
         model.verticalScaleIncrease()
-        
+
     def verticalScaleDecrease(self):
         model.verticalScaleDecrease()
-        
+
     def plot_interval(self):
         model.plot_interval()
-        
+
     def start_location(self):
         model.start_location()
-        
-    def channelDisplayed(self):        
+
+    def channelDisplayed(self):
         model.nChannels_Displayed()
-        
+
 class CustomViewBox(pg.ViewBox):
     def __init__(self):
         pg.ViewBox.__init__(self)
-             
+
     def mouseDragEvent(self, ev):
         global position
         if release_:
-            if ev.button() == QtCore.Qt.RightButton:            
-                ev.ignore()            
-            else:            
+            if ev.button() == QtCore.Qt.RightButton:
+                ev.ignore()
+            else:
                 pg.ViewBox.mouseDragEvent(self, ev)
-                
-                if ev.isStart():                
-                    pos1 = self.mapSceneToView(ev.scenePos())  
+                if ev.isStart():
+                    pos1 = self.mapSceneToView(ev.scenePos())
                     position = pos1.x()
                 elif ev.isFinish():
                     pos = self.mapSceneToView(ev.scenePos())
-                    if position is not None:                        
-                        BadInterval = [round(position, 3), round(pos.x(), 3)]        
+                    if position is not None:
+                        BadInterval = [round(position, 3), round(pos.x(), 3)]
                         model.addBadTimeSeg(BadInterval)
                         model.refreshScreen()
-                    
-                    
-        
+
+
+
 def main(filename):
     app = QCoreApplication.instance()
     if app is None:
         app = QApplication(sys.argv)
     ex = Application(filename)
-    
 
     sys.exit(app.exec_())
