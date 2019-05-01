@@ -1,5 +1,4 @@
 # -*- coding: utf-8 -*-
-#! /usr/bin/env python
 import sys
 from PyQt5 import QtCore, QtGui, Qt
 
@@ -192,8 +191,8 @@ class Application(QWidget):
 
         self.qline0.returnPressed.connect(self.channelDisplayed)
         self.qline1.returnPressed.connect(self.channelDisplayed)
-        self.qline2.returnPressed.connect(self.start_location)
-        self.qline3.returnPressed.connect(self.plot_interval)
+        self.qline2.returnPressed.connect(self.interval_start)
+        self.qline3.returnPressed.connect(self.time_window_size)
         self.qline4.returnPressed.connect(self.verticalScale)
 
         self.pushbtn1 = QPushButton('^')
@@ -382,16 +381,16 @@ class Application(QWidget):
         model.channel_Scroll_Down()
 
     def page_backward(self):
-        model.page_backward()
+        model.time_scroll(scroll=-1)
 
     def scroll_backward(self):
-        model.scroll_backward()
+        model.time_scroll(scroll=-1/3)
 
     def page_forward(self):
-        model.page_forward()
+        model.time_scroll(scroll=1)
 
     def scroll_forward(self):
-        model.scroll_forward()
+        model.time_scroll(scroll=1/3)
 
     def verticalScale(self):
         model.refreshScreen()
@@ -402,11 +401,11 @@ class Application(QWidget):
     def verticalScaleDecrease(self):
         model.verticalScaleDecrease()
 
-    def plot_interval(self):
-        model.plot_interval()
+    def time_window_size(self):
+        model.updateCurXAxisPosition()
 
-    def start_location(self):
-        model.start_location()
+    def interval_start(self):
+        model.updateCurXAxisPosition()
 
     def channelDisplayed(self):
         model.nChannels_Displayed()

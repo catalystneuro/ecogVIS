@@ -10,7 +10,6 @@ import scipy.io
 import numpy as np
 import h5py
 from Function.read_HTK import readHTK
-import math
 from PyQt5.QtWidgets import QInputDialog, QLineEdit, QFileDialog
 import datetime
 import Function.BadTimesConverterGUI as f
@@ -35,6 +34,7 @@ class ecogTSGUI:
         self.h = []
         self.text = []
 
+        self.nBins = self.ecog.data.shape[0]     #total number of bins
         self.nChTotal = self.ecog.data.shape[1]     #total number of channels
         self.allChannels = np.arange(0, self.nChTotal)  #array with all channels
         # Channels to show
@@ -46,7 +46,6 @@ class ecogTSGUI:
         self.rawecog = self.ecog.data       #ecog signals
         self.fs_signal = self.ecog.rate     #sampling frequency [Hz]
         self.tbin_signal = 1/self.fs_signal #time bin duration [seconds]
-        self.t1 = 0
 
         self.current_rect = []
         self.badChannels = np.where( nwb.electrodes['bad'][:] )
@@ -85,6 +84,9 @@ class ecogTSGUI:
 #            handles.BIRects(i) = rectangle('Position',[BIs(i,1),0,max(BIs(i,2)-BIs(i,1),.01),1],'FaceColor','r');
 #        end
 
+        # Initiate interval to show
+        self.getCurAxisParameters()
+
         self.refreshScreen()
 
 
@@ -93,14 +95,14 @@ class ecogTSGUI:
 
 
     def AR_plotter(self):
-        self.getCurAxisParameters()
-        startSamp = int(math.ceil(self.intervalStartSamples))
-        endSamp = int(math.floor(self.intervalEndSamples))
+        #self.getCurAxisParameters()
+        startSamp = self.intervalStartSamples
+        endSamp = self.intervalEndSamples
         timebaseGuiUnits = np.arange(startSamp - 1, endSamp) * (self.intervalStartGuiUnits/self.intervalStartSamples)
 
         # Use the same scaling factor for all channels, to keep things comparable
         self.verticalScaleFactor = float(self.axesParams['editLine']['qLine4'].text())
-        scaleFac = .5*np.std(self.ecog.data[startSamp:endSamp, self.selectedChannels-1], axis=0)/self.verticalScaleFactor
+        scaleFac = 2*np.std(self.ecog.data[startSamp:endSamp, self.selectedChannels-1], axis=0)/self.verticalScaleFactor
 
         # Offset for each channel
         scaleVec = np.arange(1, self.nChToShow + 1) * np.max(scaleFac)
@@ -117,6 +119,7 @@ class ecogTSGUI:
             data = self.ecog.data[:, self.selectedChannels-1].T
             plotData = data + np.tile(scaleV, (1, endSamp - startSamp + 1)) # data + offset
 
+
         ## Rectangle Plot
         x = float(self.axesParams['editLine']['qLine2'].text())
         w = float(self.axesParams['editLine']['qLine3'].text())
@@ -130,14 +133,12 @@ class ecogTSGUI:
         self.current_rect.setBrush(QtGui.QColor(0, 255, 0, 200))
         plt2.addItem(self.current_rect)
 
-
         for i in range(len(self.BIRects)):
             plt2.removeItem(self.BIRects[i])
         for i in range(len(self.BIRects)):
             plt2.addItem(self.BIRects[i])
 
         ## Rectangle Plot
-        #bad_t=handles.ecog.bad_t;
         # A line indicating zero for every channel
         x = np.tile([timebaseGuiUnits[0], timebaseGuiUnits[-1]], (len(scaleVec), 1))
         y = np.hstack((scaleV, scaleV))
@@ -238,24 +239,71 @@ class ecogTSGUI:
 
 
     def getCurAxisParameters(self):
-        self.getCurXAxisPosition()
+        self.updateCurXAxisPosition()
 
 
-    def getCurXAxisPosition(self):
+    # Updates the time interval selected from the user forms,
+    # with checks for allowed values
+    def updateCurXAxisPosition(self):
+        # Read from user forms
         self.intervalStartGuiUnits = float(self.axesParams['editLine']['qLine2'].text())
         self.intervalLengthGuiUnits = float(self.axesParams['editLine']['qLine3'].text())
 
-        # Total duration in seconds: signal_length * sample_dur / 1000
-        #total_dur = np.shape(self.ecog.data)[0] * self.ecog['sampDur'][0][0]/1000
-        total_dur = np.shape(self.ecog.data)[0] * self.tbin_signal
-        if self.intervalLengthGuiUnits > total_dur:
-            self.intervalLengthGuiUnits = total_dur
+        max_dur = self.nBins * self.tbin_signal  # Max duration in seconds
+        min_len = 1000*self.tbin_signal          # Min accepted length
 
-        # Assumes seconds in GUI and in ecog tbin intervals
-        self.intervalLengthSamples = self.intervalLengthGuiUnits / self.tbin_signal
-        self.intervalStartSamples = self.intervalStartGuiUnits / self.tbin_signal
-        # We assume that the interval length is specified in samples
-        self.intervalEndSamples = self.intervalStartSamples + self.intervalLengthSamples - 1
+        # Check for max and min allowed values: START
+        if  self.intervalStartGuiUnits < 0.001:
+            self.intervalStartGuiUnits = 0.001
+        elif self.intervalStartGuiUnits > max_dur-min_len:
+            self.intervalStartGuiUnits = max_dur-min_len
+
+        # Check for max and min allowed values: LENGTH
+        if self.intervalLengthGuiUnits + self.intervalStartGuiUnits > max_dur:
+            self.intervalLengthGuiUnits = max_dur - self.intervalStartGuiUnits
+        elif self.intervalLengthGuiUnits < min_len:
+            self.intervalLengthGuiUnits = min_len
+
+        # Updates form values (round to miliseconds for display)
+        self.intervalStartGuiUnits = np.round(self.intervalStartGuiUnits,3)
+        self.intervalLengthGuiUnits = np.round(self.intervalLengthGuiUnits,3)
+        self.axesParams['editLine']['qLine2'].setText(str(self.intervalStartGuiUnits))
+        self.axesParams['editLine']['qLine3'].setText(str(self.intervalLengthGuiUnits))
+
+        # Updates times in samples
+        self.intervalLengthSamples = int(np.floor(self.intervalLengthGuiUnits / self.tbin_signal))
+        self.intervalStartSamples = int(np.floor(self.intervalStartGuiUnits / self.tbin_signal))
+        self.intervalEndSamples = self.intervalStartSamples + self.intervalLengthSamples
+
+        self.refreshScreen()
+
+
+    # Updates the plotting time interval for scrolling
+    # Buttons: >>, >, <<, <
+    def time_scroll(self, scroll=0):
+        #new interval start
+        self.intervalStartSamples = self.intervalStartSamples \
+                                    + int(scroll * self.intervalLengthSamples)
+
+        #if the last sample of the new interval is beyond is the available data
+        # set start such that intserval is in a valid range
+        if self.intervalStartSamples + self.intervalLengthSamples > self.nBins:
+            self.intervalStartSamples = self.nBins - self.intervalLengthSamples
+        elif self.intervalStartSamples < 1:
+            self.intervalStartSamples = 1
+
+        #new interval end
+        self.intervalEndSamples = self.intervalStartSamples + self.intervalLengthSamples
+
+        # Updates start time in seconds (first avoid <0.001 values)
+        self.intervalStartGuiUnits = max(self.intervalStartSamples*self.tbin_signal,0.001)
+        # Round to miliseconds for display
+        self.intervalStartGuiUnits = np.round(self.intervalStartGuiUnits,3)
+        self.intervalEndGuiUnits = self.intervalEndSamples*self.tbin_signal
+        self.axesParams['editLine']['qLine2'].setText(str(self.intervalStartGuiUnits))
+
+        self.refreshScreen()
+
 
 
     def downsample(self, n):
@@ -312,82 +360,6 @@ class ecogTSGUI:
         self.refreshScreen()
 
 
-    def page_forward(self): # Button: >>
-        n, m = np.shape(self.ecog.data)
-        self.getCurXAxisPosition()
-        # check if inteval length is appropriate
-        if self.intervalLengthSamples > n:
-            #set interval length to available data
-            self.intervalLengthSamples = n
-
-        #new interval start
-        self.intervalStartSamples = self.intervalStartSamples + self.intervalLengthSamples
-
-        #if the last sample of the new interval is beyond is the available data
-        # set start such that intserval is in a valid range
-        if self.intervalStartSamples + self.intervalLengthSamples > n:
-            self.intervalStartSamples = n - self.intervalLengthSamples + 1
-
-        self.setXAxisPositionSamples()
-        self.refreshScreen()
-
-
-    def setXAxisPositionSamples(self):
-        t = self.tbin_signal #1000/self.ecog['sampDur'][0][0]
-        self.axesParams['editLine']['qLine2'].setText(str(self.intervalStartSamples/t))
-        self.axesParams['editLine']['qLine3'].setText(str(self.intervalLengthSamples/t))
-
-
-    def page_backward(self): # Button: <<
-        #n, m = np.shape(self.ecog['data'])
-        self.getCurXAxisPosition()
-        # New interval start
-        self.intervalStartSamples = self.intervalStartSamples - self.intervalLengthSamples
-
-        # If the last sample of the new interval is beyond is the available data
-        # set start such that intserval is in a valid range
-        if self.intervalStartSamples < 1:
-            self.intervalStartSamples = 1
-
-        self.setXAxisPositionSamples()
-        self.refreshScreen()
-
-
-    def scroll_backward(self): # Button: <
-        #n, m = np.shape(self.ecog['data'])
-        self.getCurXAxisPosition()
-        # New interval start
-        self.intervalStartSamples = self.intervalStartSamples - self.intervalLengthSamples/3
-
-        # If the last sample of the new interval is beyond is the available data
-        # set start such that intserval is in a valid range
-        if self.intervalStartSamples < 1:
-            self.intervalStartSamples = 1
-
-        self.setXAxisPositionSamples()
-        self.refreshScreen()
-
-
-    def scroll_forward(self): # Button: >
-        n, m = np.shape(self.ecog.data)
-        self.getCurXAxisPosition()
-        # Check if inteval length is appropriate
-        if self.intervalLengthSamples > n:
-            # Set interval length to available data
-            self.intervalLengthSamples = n
-        #new interval start
-
-        self.intervalStartSamples = self.intervalStartSamples \
-        + self.intervalLengthSamples/3
-
-        # If the last sample of the new interval is beyond is the available data
-        # set start such that intserval is in a valid range
-        if self.intervalStartSamples + self.intervalLengthSamples > n:
-            self.intervalStartSamples = n - self.intervalLengthSamples + 1
-
-        self.setXAxisPositionSamples()
-        self.refreshScreen()
-
 
     def verticalScaleIncrease(self):
         scaleFac = float(self.axesParams['editLine']['qLine4'].text())
@@ -401,31 +373,31 @@ class ecogTSGUI:
         self.refreshScreen()
 
 
-    def plot_interval(self):
+    def time_window_size(self):
         plotIntervalGuiUnits = float(self.axesParams['editLine']['qLine3'].text())
-        sam = self.tbin_signal #self.ecog['sampDur'][0][0]
-        n = np.shape(self.ecog.data)[0]
+        n = self.ecog.data.shape[0]
 
         # Minimum time interval
-        if plotIntervalGuiUnits * 1000 < sam:
-            plotIntervalGuiUnits = sam/1000 #self.ecog['sampDur'][0][0]/1000
+        if plotIntervalGuiUnits < self.tbin_signal:
+            plotIntervalGuiUnits = self.tbin_signal
             self.axesParams['editLine']['qLine3'].setText(str(plotIntervalGuiUnits))
-        elif plotIntervalGuiUnits * 1000/sam > n:
-            plotIntervalGuiUnits = (n - 1) * sam/1000
+        elif plotIntervalGuiUnits/self.tbin_signal > n:
+            plotIntervalGuiUnits = (n - 1) * self.tbin_signal
             self.axesParams['editLine']['qLine3'].setText(str(plotIntervalGuiUnits))
         self.refreshScreen()
 
 
-    def start_location(self):
-        self.getCurXAxisPosition()
+    def interval_start(self):
+        self.updateCurXAxisPosition()
+
         # Interval at least one sample long
-        #if self.intervalStartSamples < self.ecog['sampDur'][0][0]:
         if self.intervalStartSamples < self.tbin_signal:
-            self.intervalStartSamples = 1 #set to the first sample
+            self.intervalStartSamples = 1   #set to the first sample
             self.setXAxisPositionSamples()
 
-        if self.intervalStartSamples + self.intervalLengthSamples - 1 > np.shape(self.ecog.data)[0]:
-            self.intervalStartSamples = np.shape(self.ecog.data)[0] - self.intervalLengthSamples + 1
+        # Maximum interval size
+        if self.intervalStartSamples + self.intervalLengthSamples - 1 > self.nBins:
+            self.intervalStartSamples = self.nBins - self.intervalLengthSamples + 1
             self.setXAxisPositionSamples()
 
         self.refreshScreen()
@@ -453,8 +425,11 @@ class ecogTSGUI:
         if self.lastCh - self.firstCh < 1:
             self.lastCh = self.firstCh
 
+        #Update variables and values displayed on forms
         self.nChToShow = self.lastCh - self.firstCh + 1
         self.selectedChannels = np.arange(self.firstCh, self.lastCh + 1)
+        self.axesParams['editLine']['qLine0'].setText(str(self.lastCh))
+        self.axesParams['editLine']['qLine1'].setText(str(self.firstCh))
 
         self.refreshScreen()
 
