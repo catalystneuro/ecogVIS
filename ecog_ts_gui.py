@@ -36,10 +36,10 @@ class Application(QWidget):
         self.init_gui()
         self.setWindowTitle('')
         self.showMaximized()
+
         '''
         run the main file
         '''
-
         parameters = {}
         parameters['pars'] = {'Figure': [self.win1, self.win2, self.win3]}
         parameters['editLine'] = {'qLine0': self.qline0, 'qLine1': self.qline1, 'qLine2': self.qline2, 'qLine3': self.qline3,
@@ -93,9 +93,9 @@ class Application(QWidget):
 
         groupbox1 = QGroupBox('Channels Plot')
         vb = CustomViewBox()
-        self.win1 = pg.PlotWidget(viewBox = vb)
-        self.win2 = pg.PlotWidget(border = 'k')
-        self.win3 = pg.PlotWidget()
+        self.win1 = pg.PlotWidget(viewBox = vb)   #middle signals plot
+        self.win2 = pg.PlotWidget(border = 'k')   #upper horizontal bar
+        self.win3 = pg.PlotWidget()               #lower audio plot
         self.win1.setBackground('w')
         self.win2.setBackground('w')
         self.win3.setBackground('w')
@@ -184,7 +184,7 @@ class Application(QWidget):
         self.qline1.setEnabled(False)
         self.qline2 = QLineEdit('0.01')
         self.qline2.setEnabled(False)
-        self.qline3 = QLineEdit('25')
+        self.qline3 = QLineEdit('2')
         self.qline3.setEnabled(False)
         self.qline4 = QLineEdit('1')
         self.qline4.setEnabled(False)
@@ -239,8 +239,8 @@ class Application(QWidget):
         vbox1.addWidget(panel2)
         vbox1.addWidget(panel3)
 
-        hbox.addLayout(vbox1)
-        hbox.addLayout(vbox)
+        hbox.addLayout(vbox1)   #add panels first
+        hbox.addLayout(vbox)    #add plots second
         self.setLayout(hbox)
 
     def check_status(self):
@@ -260,6 +260,7 @@ class Application(QWidget):
         if self.cursor_:
             self.cursor_ = False
 
+
     def SaveBadIntervals(self):
         self.check_status()
         try:
@@ -277,14 +278,14 @@ class Application(QWidget):
 #        model.addBadTimeSeg(BadInterval)
 #        model.refreshScreen()
 
+
     def SelectBadInterval(self):
         global release_
         self.check_status()
-
         if self.temp != []:
             self.win1.removeItem(self.temp)
-
         release_ = True
+
 
 
     def On_Click(self):
@@ -424,7 +425,9 @@ class CustomViewBox(pg.ViewBox):
                 if ev.isStart():
                     pos1 = self.mapSceneToView(ev.scenePos())
                     position = pos1.x()
+                    print('start')
                 elif ev.isFinish():
+                    print('end')
                     pos = self.mapSceneToView(ev.scenePos())
                     if position is not None:
                         BadInterval = [round(position, 3), round(pos.x(), 3)]

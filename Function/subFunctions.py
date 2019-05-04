@@ -49,9 +49,18 @@ class ecogTSGUI:
 
         self.current_rect = []
         self.badChannels = np.where( nwb.electrodes['bad'][:] )
-        self.badIntervals = nwb.invalid_times
-        if self.badIntervals == None:
+
+        # Bad intervals
+        if nwb.invalid_times == None:
             self.badIntervals = np.array([])
+        else:
+            self.nBI = nwb.invalid_times.columns[0][:].shape[0] #number of BI
+            self.badIntervals = np.empty([self.nBI,2])
+            for ii in np.arange(self.nBI):
+                # start of bad interval
+                self.badIntervals[ii,0] = nwb.invalid_times.columns[0][ii]
+                # end of bad interval
+                self.badIntervals[ii,1] = nwb.invalid_times.columns[1][ii]
 
         # menu('load audio?','yes','no') == 1
         if os.path.exists(os.path.join(pathName, 'Analog', 'ANIN4.htk')):
@@ -71,7 +80,7 @@ class ecogTSGUI:
         # plot bad time segments on timeline
         BIs = self.badIntervals
         self.BIRects = np.array([], dtype = 'object')
-        for i in range(np.shape(BIs)[0]):
+        for i in range(self.nBI):
             c = pg.QtGui.QGraphicsRectItem(BIs[i][0], 0, max([BIs[i][1] - BIs[i][0], 0.01]), 1)
             a = self.axesParams['pars']['Figure'][1]
             c.setPen(pg.mkPen(color = 'r'))
@@ -168,34 +177,8 @@ class ecogTSGUI:
                 c = 'g'
                 if i%2 == 0:
                     c = 'b'
-                plt.plot(timebaseGuiUnits, plotData[i], pen = pg.mkPen(c, width = 1))
-
-        # badch = np.array([])
-        # nrows, ncols = np.shape(plotData)
-        # for channels in enumerate(channelsToShow):
-        #     if np.any(str(channels) in self.badChannels):
-        #         np.append(badch, channels)
-        #
-        # if not np.empty(badch):
-        #     if len(np.where(self.badChannels == 999)) > 0:
-        #         for i in range(nrows):
-        #             c = 'g'
-        #             if i%2 == 0:
-        #                 c = 'b'
-        #             plt.plot(timebaseGuiUnits, plotData[i], pen = pg.mkPen(c, width = 1))
-        #             if i in badch:
-        #                 plt.plot(timebaseGuiUnits, plotData[i], pen = 'r', width = 1)
-        #     else:
-        #         plotData[badch, :] = np.nan
-        #         ph = plt.plot(timebaseGuiUnits, plotData.T)
-        #
-        # else:
-        #     #PLOT CHANNELS
-        #     for i in range(nrows):
-        #         c = 'g'
-        #         if i%2 == 0:
-        #             c = 'b'
-        #         plt.plot(timebaseGuiUnits, plotData[i], pen = c, width = 1)
+                #plt.plot(timebaseGuiUnits, plotData[i], pen = pg.mkPen(c, width = 1))
+                plt.plot(timebaseGuiUnits, plotData[i], pen = c, width = 1)
 
 
         plt.setXRange(timebaseGuiUnits[0], timebaseGuiUnits[-1], padding = 0.003)
@@ -209,17 +192,17 @@ class ecogTSGUI:
         xaxis = plt.getAxis('bottom').range
         xmin, xmax = xaxis[0], xaxis[1]
 
-        for i in range(np.shape(self.badIntervals)[0]):
+        for i in range(self.nBI):
             BI = self.badIntervals[i]
             x1, y1, w, h = BI[0], ymin, BI[1] - BI[0], ymax
             c = pg.QtGui.QGraphicsRectItem(x1, y1, w, h)
             c.setPen(pg.mkPen(color = (255, 255, 200)))
-            c.setBrush(QtGui.QColor(255, 255, 200, 150))
+            c.setBrush(QtGui.QColor(255, 0, 0, 200))
             plt.addItem(c)
-            self.text1 = pg.TextItem(str(round(BI[0], 4)), color = 'r')
+            self.text1 = pg.TextItem(str(round(BI[0], 3)), color = 'k')
             self.text1.setPos(BI[0], ymax)
             plt.addItem(self.text1)
-            self.text2 = pg.TextItem(str(round(BI[1], 4)), color = 'r')
+            self.text2 = pg.TextItem(str(round(BI[1], 3)), color = 'k')
             self.text2.setPos(BI[1], ymax)
             plt.addItem(self.text2)
 
