@@ -14,28 +14,25 @@ import datetime
 import numpy as np
 
 model = None
-release_ = False
-position = None
+selectBI_ = False
+deleteBI_ = False
 class Application(QWidget):
     keyPressed = QtCore.pyqtSignal(QtCore.QEvent)
     def __init__(self, filename, parent = None):
         global model
-        global release
 
         # e.g.: /home/User/freesurfer_subjects/Subject_XX.nwb
         pathName = filename
         self.temp = []
-        self.state = False
         self.cursor_ = False
         self.channel_ = False
-        self.press_ = False
-        self.release_ = False
         self.error = None
         super(Application, self).__init__()
         self.keyPressed.connect(self.on_key)
         self.init_gui()
         self.setWindowTitle('')
-        self.showMaximized()
+        self.show()
+        #self.Maximized()
 
         '''
         run the main file
@@ -66,9 +63,11 @@ class Application(QWidget):
 
         file.close()
 
+
     def keyPressEvent(self, event):
         super(Application, self).keyPressEvent(event)
         self.keyPressed.emit(event)
+
 
     def on_key(self, event):
         if event.key() == QtCore.Qt.Key_Up:
@@ -136,17 +135,19 @@ class Application(QWidget):
         self.push1.setFixedWidth(150)
         self.push1.clicked.connect(self.Data_Cursor)
         self.push2 = QPushButton('Get Channel')
-        self.push2.clicked.connect(self.On_Click)
+        self.push2.clicked.connect(self.GetChannel)
         self.push2.setFixedWidth(150)
         self.push3 = QPushButton('Save Bad Intervals')
         self.push3.clicked.connect(self.SaveBadIntervals)
         self.push3.setFixedWidth(150)
-        self.push4 = QPushButton('Select Bad intervals')
+        self.push4 = QPushButton('Select Bad Intervals')
         self.push4.clicked.connect(self.SelectBadInterval)
         self.push4.setFixedWidth(150)
-        self.push5 = QPushButton('Delete Intervals')
+        self.push4.setCheckable(True)
+        self.push5 = QPushButton('Delete Bad Intervals')
         self.push5.clicked.connect(self.DeleteBadInterval)
         self.push5.setFixedWidth(150)
+        self.push5.setCheckable(True)
 
         form1.addWidget(self.push1)
         form1.addWidget(self.push2)
@@ -243,16 +244,19 @@ class Application(QWidget):
         hbox.addLayout(vbox)    #add plots second
         self.setLayout(hbox)
 
+
     def check_status(self):
-        global release_
-        if self.state:
-            self.state = False
+        global selectBI_
+        global deleteBI_
 
-        if self.press_:
-            self.press_ = False
+        #self.active_mode = 'default', 'selectBI', 'deleteBI', 'saveBI'
+        if self.active_mode != 'selectBI':
+            self.push4.setChecked(False)
+            selectBI_ = False
 
-        if release_:
-            release_ = False
+        if self.active_mode != 'deleteBI':
+            self.push5.setChecked(False)
+            deleteBI_ = False
 
         if self.channel_:
             self.channel_ = False
@@ -262,33 +266,52 @@ class Application(QWidget):
 
 
     def SaveBadIntervals(self):
+        self.active_mode = 'default'
         self.check_status()
         try:
             model.pushSave()
         except Exception as ex:
-
             self.log_error(str(ex))
-
-#    def press_down(self, event):
-#        self.x1 = event.xdata
-#
-#    def release_btn(self, event):
-#        self.x2 = event.xdata
-#        BadInterval = [round(self.x1, 3), round(self.x2, 3)]
-#        model.addBadTimeSeg(BadInterval)
-#        model.refreshScreen()
 
 
     def SelectBadInterval(self):
-        global release_
-        self.check_status()
-        if self.temp != []:
-            self.win1.removeItem(self.temp)
-        release_ = True
+        global selectBI_
+
+        #if self.temp != []:
+        #    self.win1.removeItem(self.temp)
+
+        if self.push4.isChecked():  #if button is pressed down
+            self.active_mode = 'selectBI'
+            self.check_status()
+            selectBI_ = True
+        else:
+            self.active_mode = 'default'
+            self.check_status()
 
 
+    def DeleteBadInterval(self):
+        global deleteBI_
 
-    def On_Click(self):
+        if self.push5.isChecked():  #if button is pressed down
+            self.active_mode = 'deleteBI'
+            self.check_status()
+            deleteBI_ = True
+            #self.win1.scene().sigMouseClicked.connect(self.DeleteBadInterval_coordinates)
+        else:
+            self.active_mode = 'default'
+            self.check_status()
+
+
+    # def DeleteBadInterval_coordinates(self, event):
+    #     mousePoint = self.win1.plotItem.vb.mapSceneToView(event.scenePos())
+    #     x = mousePoint.x()
+    #     try:
+    #         model.deleteInterval(round(x, 3))
+    #     except Exception as ex:
+    #         self.log_error(str(ex))
+
+
+    def GetChannel(self):
         self.check_status()
         self.channel = self.win1.scene().sigMouseClicked.connect(self.get_channel)
         self.channel_ = True
@@ -303,20 +326,21 @@ class Application(QWidget):
         model.getChannel()
 
 
-    def DeleteBadInterval(self):
-        self.check_status()
-        self.win1.scene().sigMouseClicked.connect(self.get_coordinates)
-        self.state = True
 
+    def Data_Cursor(self):
+        #self.check_status()
+        if self.push1.text() == 'Data Cursor On':
+            self.push1.setText('Data Cursor Off')
+            self.p = self.win1.scene().sigMouseClicked.connect(self.get_cursor_position)
+            self.cursor_ = True
 
-    def get_coordinates(self, event):
-        mousePoint = self.win1.plotItem.vb.mapSceneToView(event.scenePos())
-        x = mousePoint.x()
-        try:
-            model.deleteInterval(round(x, 3))
-        except Exception as ex:
-            self.log_error(str(ex))
-
+        elif self.push1.text() == 'Data Cursor Off':
+            self.win1.removeItem(self.p)
+            self.push1.setText('Data Cursor On')
+            self.cursor_ = False
+            if self.temp != []:
+                self.win1.removeItem(self.temp)
+                self.temp = []
 
     def get_cursor_position(self, event):
 #        pos = self.win1.plotItem.vb.mapSceneToView(event.scenePos())
@@ -341,6 +365,7 @@ class Application(QWidget):
 #        self.figure1.canvas.draw()
 
 
+    ## Lower-Left buttons
     def enable(self):
         if self.enableButton.text() == 'Enable':
             self.enableButton.setText('Disable')
@@ -356,24 +381,6 @@ class Application(QWidget):
             self.qline2.setEnabled(False)
             self.qline3.setEnabled(False)
             self.qline4.setEnabled(False)
-
-
-    def Data_Cursor(self):
-        #self.check_status()
-        if self.push1.text() == 'Data Cursor On':
-            self.push1.setText('Data Cursor Off')
-            self.p = self.win1.scene().sigMouseClicked.connect(self.get_cursor_position)
-            self.cursor_ = True
-
-        elif self.push1.text() == 'Data Cursor Off':
-            self.win1.removeItem(self.p)
-            self.push1.setText('Data Cursor On')
-            self.cursor_ = False
-            if self.temp != []:
-                self.win1.removeItem(self.temp)
-                self.temp = []
-
-
 
     def scroll_up(self):
         model.channel_Scroll_Up()
@@ -411,26 +418,46 @@ class Application(QWidget):
     def channelDisplayed(self):
         model.nChannels_Displayed()
 
+
+
 class CustomViewBox(pg.ViewBox):
     def __init__(self):
         pg.ViewBox.__init__(self)
 
+
+    def mouseClickEvent(self, ev):
+        global deleteBI_
+        if deleteBI_:
+            mousePoint = self.mapSceneToView(ev.scenePos())
+            x = mousePoint.x()
+            try:
+                model.deleteInterval(round(x, 3))
+            except Exception as ex:
+                print(str(ex))
+                #self.log_error(str(ex))
+
+
+
     def mouseDragEvent(self, ev):
-        global position
-        if release_:
+        global selectBI_
+        if selectBI_:
             if ev.button() == QtCore.Qt.RightButton:
                 ev.ignore()
             else:
                 pg.ViewBox.mouseDragEvent(self, ev)
-                if ev.isStart():
-                    pos1 = self.mapSceneToView(ev.scenePos())
-                    position = pos1.x()
-                    print('start')
-                elif ev.isFinish():
-                    print('end')
-                    pos = self.mapSceneToView(ev.scenePos())
-                    if position is not None:
-                        BadInterval = [round(position, 3), round(pos.x(), 3)]
+                if ev.isStart():    #first click before dragging
+                    a = self.mapSceneToView(ev.scenePos())
+                    self.pos1 = a.x()              #initial x mark
+                    model.DrawMarkTime(self.pos1)     #temporary line on x mark
+                elif ev.isFinish():  #release from dragging
+                    model.RemoveMarkTime()   #remove line on x mark
+                    a = self.mapSceneToView(ev.scenePos())
+                    self.pos2 = a.x()              #final x mark
+                    if self.pos1 is not None:
+                        if self.pos2 < self.pos1:     #marking from right to left
+                            BadInterval = [round(self.pos2, 3), round(self.pos1, 3)]
+                        else:               #marking from left to right
+                            BadInterval = [round(self.pos1, 3), round(self.pos2, 3)]
                         model.addBadTimeSeg(BadInterval)
                         model.refreshScreen()
 

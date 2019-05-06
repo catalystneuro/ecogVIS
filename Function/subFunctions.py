@@ -77,21 +77,26 @@ class ecogTSGUI:
         total_dur = np.shape(self.ecog.data)[0]/self.fs_signal
         self.axesParams['pars']['Figure'][1].plot([0, total_dur], [0.5, 0.5], pen = 'k', width = 0.5)
 
-        # plot bad time segments on timeline
+        # plot bad time segments
         BIs = self.badIntervals
-        self.BIRects = np.array([], dtype = 'object')
+        self.BIRects1 = np.array([], dtype = 'object')   #red rectangles at upper bar plot
+        self.BIRects2 = np.array([], dtype = 'object')   #red rectangles at middle signal plot
         for i in range(self.nBI):
+            # on timeline
             c = pg.QtGui.QGraphicsRectItem(BIs[i][0], 0, max([BIs[i][1] - BIs[i][0], 0.01]), 1)
-            a = self.axesParams['pars']['Figure'][1]
+            self.BIRects1 = np.append(self.BIRects1, c)
             c.setPen(pg.mkPen(color = 'r'))
             c.setBrush(QtGui.QColor(255, 0, 0, 255))
+            a = self.axesParams['pars']['Figure'][1]
             a.addItem(c)
-            self.BIRects = np.append(self.BIRects, c)
+            # on signals plot
+            c = pg.QtGui.QGraphicsRectItem(BIs[i][0], 0, max([BIs[i][1] - BIs[i][0], 0.01]), 1)
+            self.BIRects2 = np.append(self.BIRects2, c)
+            c.setPen(pg.mkPen(color = 'r'))
+            c.setBrush(QtGui.QColor(255, 0, 0, 255))
+            a = self.axesParams['pars']['Figure'][0]
+            a.addItem(c)
 
-#        BIs(all(~BIs,2),:) = []; % fix row of all zeros
-#        for i=1:size(BIs,1)
-#            handles.BIRects(i) = rectangle('Position',[BIs(i,1),0,max(BIs(i,2)-BIs(i,1),.01),1],'FaceColor','r');
-#        end
 
         # Initiate interval to show
         self.getCurAxisParameters()
@@ -127,12 +132,14 @@ class ecogTSGUI:
         except:  #if time segment shorter than window.
             data = self.ecog.data[:, self.selectedChannels-1].T
             plotData = data + np.tile(scaleV, (1, endSamp - startSamp + 1)) # data + offset
-
+        self.plotData = []
+        self.plotData = plotData
 
         ## Rectangle Plot
         x = float(self.axesParams['editLine']['qLine2'].text())
         w = float(self.axesParams['editLine']['qLine3'].text())
 
+        # Upper horizontal bar
         plt2 = self.axesParams['pars']['Figure'][1]
         if self.current_rect != []:
             plt2.removeItem(self.current_rect)
@@ -142,16 +149,17 @@ class ecogTSGUI:
         self.current_rect.setBrush(QtGui.QColor(0, 255, 0, 200))
         plt2.addItem(self.current_rect)
 
-        for i in range(len(self.BIRects)):
-            plt2.removeItem(self.BIRects[i])
-        for i in range(len(self.BIRects)):
-            plt2.addItem(self.BIRects[i])
+        for i in range(len(self.BIRects1)):
+            plt2.removeItem(self.BIRects1[i])
+        for i in range(len(self.BIRects1)):
+            plt2.addItem(self.BIRects1[i])
 
-        ## Rectangle Plot
+
+        # Middle signals plot
         # A line indicating zero for every channel
         x = np.tile([timebaseGuiUnits[0], timebaseGuiUnits[-1]], (len(scaleVec), 1))
         y = np.hstack((scaleV, scaleV))
-        plt = self.axesParams['pars']['Figure'][0]
+        plt = self.axesParams['pars']['Figure'][0]   #middle signal plot
         # Clear plot
         plt.clear()
         for l in range(np.shape(x)[0]):
@@ -184,27 +192,31 @@ class ecogTSGUI:
         plt.setXRange(timebaseGuiUnits[0], timebaseGuiUnits[-1], padding = 0.003)
         plt.setYRange(y[0, 0], y[-1, 0], padding = 0.06)
 
-        # Make transparent box around bad time segments
-        self.plotData = []
-        self.plotData = plotData
+        # Make red box around bad time segments
         yaxis = plt.getAxis('left').range
         ymin, ymax = yaxis[0], yaxis[1]
         xaxis = plt.getAxis('bottom').range
         xmin, xmax = xaxis[0], xaxis[1]
 
-        for i in range(self.nBI):
-            BI = self.badIntervals[i]
-            x1, y1, w, h = BI[0], ymin, BI[1] - BI[0], ymax
-            c = pg.QtGui.QGraphicsRectItem(x1, y1, w, h)
-            c.setPen(pg.mkPen(color = (255, 255, 200)))
-            c.setBrush(QtGui.QColor(255, 0, 0, 200))
-            plt.addItem(c)
-            self.text1 = pg.TextItem(str(round(BI[0], 3)), color = 'k')
-            self.text1.setPos(BI[0], ymax)
-            plt.addItem(self.text1)
-            self.text2 = pg.TextItem(str(round(BI[1], 3)), color = 'k')
-            self.text2.setPos(BI[1], ymax)
-            plt.addItem(self.text2)
+        for i in range(len(self.BIRects2)):
+            plt.removeItem(self.BIRects2[i])
+        for i in range(len(self.BIRects2)):
+            plt.addItem(self.BIRects2[i])
+
+        # for i in range(self.nBI):
+        #     BI = self.badIntervals[i]
+        #     x1, y1, w, h = BI[0], ymin, BI[1] - BI[0], ymax
+        #     c = pg.QtGui.QGraphicsRectItem(x1, y1, w, h)
+        #     c.setPen(pg.mkPen(color = (255, 255, 200)))
+        #     c.setBrush(QtGui.QColor(255, 0, 0, 200))
+        #     plt.addItem(c)
+        #     self.text1 = pg.TextItem(str(round(BI[0], 3)), color = 'k')
+        #     self.text1.setPos(BI[0], ymax)
+        #     plt.addItem(self.text1)
+        #     self.text2 = pg.TextItem(str(round(BI[1], 3)), color = 'k')
+        #     self.text2.setPos(BI[1], ymax)
+        #     plt.addItem(self.text2)
+
 
         # Plot audio
         if self.disp_audio:
@@ -288,7 +300,6 @@ class ecogTSGUI:
         self.refreshScreen()
 
 
-
     def downsample(self, n):
         L = self.audio['num_samples']
         block = round(L/n)
@@ -312,7 +323,6 @@ class ecogTSGUI:
             scipy.io.savemat(filename, mdict = {'badTimeSegments': badTimeSegments})
 
         return badTimeSegments
-
 
 
     def channel_Scroll_Up(self): # Button: ^
@@ -341,7 +351,6 @@ class ecogTSGUI:
             self.selectedChannels = np.arange(self.firstCh, self.lastCh + 1)
 
         self.refreshScreen()
-
 
 
     def verticalScaleIncrease(self):
@@ -423,26 +432,36 @@ class ecogTSGUI:
         y = 0
         w = np.diff(np.array(BadInterval))[0]
         h = 1
+        # add rectangle to upper plot
         c = pg.QtGui.QGraphicsRectItem(x, y, w, h)
         c.setPen(pg.mkPen(color = 'r'))
         c.setBrush(QtGui.QColor(255, 0, 0, 255))
-        self.BIRects = np.append(self.BIRects, [c])
+        self.BIRects1 = np.append(self.BIRects1, [c])
+        # add rectangle to middle signal plot
+        c = pg.QtGui.QGraphicsRectItem(x, y, w, h)
+        c.setPen(pg.mkPen(color = 'r'))
+        c.setBrush(QtGui.QColor(255, 0, 0, 200))
+        self.BIRects2 = np.append(self.BIRects2, [c])
         if np.size(self.badIntervals) == 0:
             self.badIntervals = np.array([BadInterval])
         else:
             self.badIntervals = np.vstack((self.badIntervals, np.array(BadInterval)))
+        self.nBI = len(self.badIntervals)
 
 
     def deleteInterval(self, x):
         BIs = self.badIntervals
-        di = np.where((x >= BIs[:, 0]) & (x <= BIs[:, 1]))
+        di = np.where((x >= BIs[:, 0]) & (x <= BIs[:, 1]))   #interval of the click
         if np.size(di) > 0:
-            self.axesParams['pars']['Figure'][1].removeItem(self.BIRects[di[0][0]])
-            self.BIRects = np.delete(self.BIRects, di[0][0], axis = 0)
+            self.axesParams['pars']['Figure'][1].removeItem(self.BIRects1[di[0][0]])
+            self.BIRects1 = np.delete(self.BIRects1, di[0][0], axis = 0)
+            self.axesParams['pars']['Figure'][0].removeItem(self.BIRects2[di[0][0]])
+            self.BIRects2 = np.delete(self.BIRects2, di[0][0], axis = 0)
             self.badIntervals = np.delete(self.badIntervals, di, axis = 0)
-            badTimeSegments = self.badIntervals
-            file_name = os.path.join(self.pathName, 'Artifacts', 'badTimeSegments')
-            scipy.io.savemat(file_name, {'badTimeSegments': badTimeSegments})
+            #file_name = os.path.join(self.pathName, 'Artifacts', 'badTimeSegments')
+            #scipy.io.savemat(file_name, {'badTimeSegments': self.badIntervals})
+            self.nBI = len(self.badIntervals)
+
             self.refreshScreen()
 
 
@@ -511,3 +530,16 @@ class ecogTSGUI:
             self.text.setPos(end_/2 - 2, ymax + 10)
             self.text.setFont(QtGui.QFont('SansSerif', 10))
             plt.addItem(self.text)
+
+
+
+    def DrawMarkTime(self, position):
+        plt = self.axesParams['pars']['Figure'][0]     #middle signal plot
+        self.current_mark = pg.QtGui.QGraphicsRectItem(position, 0, 0, 1)
+        self.current_mark.setPen(pg.mkPen(color = 'k'))
+        self.current_mark.setBrush(QtGui.QColor(150, 150, 150, 100))
+        plt.addItem(self.current_mark)
+
+    def RemoveMarkTime(self):
+        plt = self.axesParams['pars']['Figure'][0]     #middle signal plot
+        plt.removeItem(self.current_mark)
