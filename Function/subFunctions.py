@@ -274,6 +274,14 @@ class ecogTSGUI:
         self.refreshScreen()
 
 
+    # Updates the plotting time interval range
+    def time_window_resize(self, wscale):
+        self.intervalLengthGuiUnits = float(self.axesParams['editLine']['qLine3'].text())
+        self.intervalLengthGuiUnits = self.intervalLengthGuiUnits * wscale
+        self.axesParams['editLine']['qLine3'].setText(str(self.intervalLengthGuiUnits))
+        self.updateCurXAxisPosition()
+
+
     # Updates the plotting time interval for scrolling
     # Buttons: >>, >, <<, <
     def time_scroll(self, scroll=0):
@@ -515,7 +523,6 @@ class ecogTSGUI:
             index = np.argmin(diff_)
             chanel = self.selectedChannels
             channel = chanel[index]
-
 
             plt = self.axesParams['pars']['Figure'][0]
             yaxis = plt.getAxis('left').range

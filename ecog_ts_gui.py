@@ -30,6 +30,7 @@ class Application(QWidget):
         self.error = None
         super(Application, self).__init__()
         self.keyPressed.connect(self.on_key)
+        self.active_mode = 'default'
         self.init_gui()
         self.setWindowTitle('')
         self.show()
@@ -215,9 +216,9 @@ class Application(QWidget):
         self.pushbtn6 = QPushButton('>')
         self.pushbtn6.clicked.connect(self.scroll_forward)
         self.pushbtn7 = QPushButton('*2')
-        self.pushbtn7.clicked.connect(self.horizontalScaleIncrease)
+        self.pushbtn7.clicked.connect(self.time_window_enlarge)
         self.pushbtn8 = QPushButton('/2')
-        self.pushbtn8.clicked.connect(self.horizontalScaleDecrease)
+        self.pushbtn8.clicked.connect(self.time_window_reduce)
         self.pushbtn9 = QPushButton('*2')
         self.pushbtn9.clicked.connect(self.verticalScaleIncrease)
         self.pushbtn10 = QPushButton('/2')
@@ -430,6 +431,12 @@ class Application(QWidget):
 
     def time_window_size(self):
         model.updateCurXAxisPosition()
+
+    def time_window_enlarge(self):
+        model.time_window_resize(2.)
+
+    def time_window_reduce(self):
+        model.time_window_resize(0.5)
 
     def interval_start(self):
         model.updateCurXAxisPosition()
