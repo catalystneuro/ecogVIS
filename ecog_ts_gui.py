@@ -13,6 +13,7 @@ import os
 import datetime
 import numpy as np
 
+
 model = None
 selectBI_ = False
 deleteBI_ = False
@@ -75,10 +76,9 @@ class Application(QWidget):
         elif event.key() == QtCore.Qt.Key_Down:
             model.channel_Scroll_Down()
         elif event.key() == QtCore.Qt.Key_Left:
-            model.page_back()
+            model.time_scroll(scroll=-1/3)
         elif event.key() == QtCore.Qt.Key_Right:
-            model.page_forward()
-
+            model.time_scroll(scroll=1/3)
 
         event.accept()
 
@@ -175,10 +175,11 @@ class Application(QWidget):
         self.enableButton = QPushButton('Enable')
         self.enableButton.setFixedWidth(100)
         self.enableButton.clicked.connect(self.enable)
-        qlabel1 = QLabel('Ch \nselected #')
-        qlabel2 = QLabel('Interval \nstart(s)')
-        qlabel3 = QLabel('Window \nSize')
-        qlabel4 = QLabel('Vertical\nScale')
+        qlabel1 = QLabel('Top')
+        qlabel2 = QLabel('Bottom')
+        qlabel3 = QLabel('Interval \nstart(s)')
+        qlabel4 = QLabel('Time \nspan')
+        qlabel5 = QLabel('Vertical\nScale')
         self.qline0 = QLineEdit('16')
         self.qline0.setEnabled(False)
         self.qline1 = QLineEdit('1')
@@ -196,10 +197,15 @@ class Application(QWidget):
         self.qline3.returnPressed.connect(self.time_window_size)
         self.qline4.returnPressed.connect(self.verticalScale)
 
-        self.pushbtn1 = QPushButton('^')
-        self.pushbtn1.clicked.connect(self.scroll_up)
-        self.pushbtn2 = QPushButton('v')
-        self.pushbtn2.clicked.connect(self.scroll_down)
+        self.pushbtn1_1 = QPushButton('^')
+        self.pushbtn1_1.clicked.connect(self.scroll_up)
+        self.pushbtn1_2 = QPushButton('Up')
+        self.pushbtn1_2.clicked.connect(self.scroll_up)
+        self.pushbtn2_1 = QPushButton('v')
+        self.pushbtn2_1.clicked.connect(self.scroll_down)
+        self.pushbtn2_2 = QPushButton('Down')
+        self.pushbtn2_2.clicked.connect(self.scroll_down)
+
         self.pushbtn3 = QPushButton('<<')
         self.pushbtn3.clicked.connect(self.page_backward)
         self.pushbtn4 = QPushButton('<')
@@ -209,32 +215,39 @@ class Application(QWidget):
         self.pushbtn6 = QPushButton('>')
         self.pushbtn6.clicked.connect(self.scroll_forward)
         self.pushbtn7 = QPushButton('*2')
-        self.pushbtn7.clicked.connect(self.verticalScaleIncrease)
+        self.pushbtn7.clicked.connect(self.horizontalScaleIncrease)
         self.pushbtn8 = QPushButton('/2')
-        self.pushbtn8.clicked.connect(self.verticalScaleDecrease)
+        self.pushbtn8.clicked.connect(self.horizontalScaleDecrease)
+        self.pushbtn9 = QPushButton('*2')
+        self.pushbtn9.clicked.connect(self.verticalScaleIncrease)
+        self.pushbtn10 = QPushButton('/2')
+        self.pushbtn10.clicked.connect(self.verticalScaleDecrease)
 
         form3.addWidget(self.enableButton, 0, 1)
         form3.addWidget(qlabel1, 1, 0)
         form3.addWidget(self.qline0, 1, 1)
-        form3.addWidget(self.pushbtn1, 1, 2)
-        form3.addWidget(QLabel(''), 2, 0)
+        form3.addWidget(self.pushbtn1_1, 1, 2)
+        form3.addWidget(self.pushbtn1_2, 1, 3)
+        form3.addWidget(qlabel2, 2, 0)
         form3.addWidget(self.qline1, 2, 1)
-        form3.addWidget(self.pushbtn2, 2, 2)
-        form3.addWidget(QLabel(''), 3, 0)
-        form3.addWidget(self.pushbtn3, 3, 1)
-        form3.addWidget(self.pushbtn5, 3, 2)
-        form3.addWidget(QLabel(''), 4, 0)
-        form3.addWidget(self.pushbtn4, 4, 1)
-        form3.addWidget(self.pushbtn6, 4, 2)
-        form3.addWidget(qlabel2, 5, 0)
-        form3.addWidget(self.qline2, 5, 1)
-        form3.addWidget(qlabel3, 6, 0)
+        form3.addWidget(self.pushbtn2_1, 2, 2)
+        form3.addWidget(self.pushbtn2_2, 2, 3)
+
+        form3.addWidget(qlabel3, 4, 0, 1, 2)
+        form3.addWidget(self.qline2, 4, 2, 1, 2)
+        form3.addWidget(self.pushbtn3, 5, 0)
+        form3.addWidget(self.pushbtn4, 5, 1)
+        form3.addWidget(self.pushbtn6, 5, 2)
+        form3.addWidget(self.pushbtn5, 5, 3)
+        form3.addWidget(qlabel4, 6, 0)
         form3.addWidget(self.qline3, 6, 1)
-        form3.addWidget(qlabel4, 7, 0)
+        form3.addWidget(self.pushbtn7, 6, 2)
+        form3.addWidget(self.pushbtn8, 6, 3)
+        form3.addWidget(qlabel5, 7, 0)
         form3.addWidget(self.qline4, 7, 1)
+        form3.addWidget(self.pushbtn9, 7, 2)
+        form3.addWidget(self.pushbtn10, 7, 3)
         form3.addWidget(QLabel(), 8, 0)
-        form3.addWidget(self.pushbtn7, 8, 1)
-        form3.addWidget(self.pushbtn8, 8, 2)
         panel3.setLayout(form3)
         vbox1.addWidget(panel1)
         vbox1.addWidget(panel2)
@@ -249,7 +262,7 @@ class Application(QWidget):
         global selectBI_
         global deleteBI_
 
-        #self.active_mode = 'default', 'selectBI', 'deleteBI', 'saveBI'
+        #self.active_mode = 'default', 'selectBI', 'deleteBI'
         if self.active_mode != 'selectBI':
             self.push4.setChecked(False)
             selectBI_ = False
@@ -402,6 +415,12 @@ class Application(QWidget):
 
     def verticalScale(self):
         model.refreshScreen()
+
+    def horizontalScaleIncrease(self):
+        model.horizontalScaleIncrease()
+
+    def horizontalScaleDecrease(self):
+        model.horizontalScaleDecrease()
 
     def verticalScaleIncrease(self):
         model.verticalScaleIncrease()

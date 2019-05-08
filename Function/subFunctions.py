@@ -8,11 +8,12 @@ Created on Fri Jul 13 21:32:20 2018
 import os
 import scipy.io
 import numpy as np
+import pandas as pd
 import h5py
 from Function.read_HTK import readHTK
 from PyQt5.QtWidgets import QInputDialog, QLineEdit, QFileDialog
 import datetime
-import Function.BadTimesConverterGUI as f
+#import Function.BadTimesConverterGUI as f
 import pyqtgraph as pg
 from PyQt5 import QtGui
 
@@ -458,34 +459,40 @@ class ecogTSGUI:
             self.axesParams['pars']['Figure'][0].removeItem(self.BIRects2[di[0][0]])
             self.BIRects2 = np.delete(self.BIRects2, di[0][0], axis = 0)
             self.badIntervals = np.delete(self.badIntervals, di, axis = 0)
-            #file_name = os.path.join(self.pathName, 'Artifacts', 'badTimeSegments')
-            #scipy.io.savemat(file_name, {'badTimeSegments': self.badIntervals})
             self.nBI = len(self.badIntervals)
 
             self.refreshScreen()
 
 
     def pushSave(self):
-        BAD_INTERVALS = self.badIntervals
-        fullfile = os.path.join(self.pathName, 'Artifacts', 'bad_time_segments.lab')
-        n_size = np.shape(BAD_INTERVALS)[0]
-        one = np.ones((n_size, 1))
-        variable = np.hstack((BAD_INTERVALS, one))
-        f.BadTimesConverterGUI(variable, fullfile)
-        badTimeSegments = BAD_INTERVALS
-        file_name = os.path.join(self.pathName, 'Artifacts', 'badTimeSegments')
-        scipy.io.savemat(file_name, {'badTimeSegments': badTimeSegments})
-        my_file = os.path.join(self.pathName, 'Artifacts', 'info.txt')
-        if not os.path.exists(my_file):
-            username, okPressed = QInputDialog.getText(self, 'Enter Text', 'Who is this:', QLineEdit.Normal, '')
-            if okPressed and username != '':
-                fileid = open(os.path.join(self.pathName, 'Artifacts', 'info.txt'), 'w')
-                fileid.write(username + ' ' + datetime.datetime.today().strftime('%Y-%m-%d'))
-                fileid.close()
-        else:
-            fileid = open(os.path.join(self.pathName, 'Artifacts', 'info.txt'), 'a')
-            fileid.write(' ' + datetime.datetime.today().strftime('%Y-%m-%d'))
-            fileid.close()
+        fullfile = os.path.join(self.pathName, 'bad_intervals_'+
+                                datetime.datetime.today().strftime('%Y-%m-%d')+
+                                '.csv')
+        pd.DataFrame(self.badIntervals).to_csv(fullfile, header=False, index=False)
+        ## TO DO
+        ## SAVE BAD INTERVALS IN HDF5 file
+        ## use method  add_invalid_time_interval() in loop for all chosen intervals
+
+
+        # BIs = self.badIntervals
+        # self.nBI = len(self.badIntervals)
+        # ones = np.ones((self.nBI, 1))
+        # variable = np.hstack((BIs, ones))
+        # f.BadTimesConverterGUI(variable, fullfile)
+        # badTimeSegments = BAD_INTERVALS
+        # file_name = os.path.join(self.pathName, 'Artifacts', 'badTimeSegments')
+        # scipy.io.savemat(file_name, {'badTimeSegments': badTimeSegments})
+        # my_file = os.path.join(self.pathName, 'Artifacts', 'info.txt')
+        # if not os.path.exists(my_file):
+        #     username, okPressed = QInputDialog.getText(self, 'Enter Text', 'Who is this:', QLineEdit.Normal, '')
+        #     if okPressed and username != '':
+        #         fileid = open(os.path.join(self.pathName, 'Artifacts', 'info.txt'), 'w')
+        #         fileid.write(username + ' ' + datetime.datetime.today().strftime('%Y-%m-%d'))
+        #         fileid.close()
+        # else:
+        #     fileid = open(os.path.join(self.pathName, 'Artifacts', 'info.txt'), 'a')
+        #     fileid.write(' ' + datetime.datetime.today().strftime('%Y-%m-%d'))
+        #     fileid.close()
 
 
     def getChannel(self):
