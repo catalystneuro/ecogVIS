@@ -138,6 +138,7 @@ class Application(QWidget):
         self.push2 = QPushButton('Get Channel')
         self.push2.clicked.connect(self.GetChannel)
         self.push2.setFixedWidth(150)
+        self.push2.setCheckable(True)
         self.push3 = QPushButton('Save Bad Intervals')
         self.push3.clicked.connect(self.SaveBadIntervals)
         self.push3.setFixedWidth(150)
@@ -152,7 +153,6 @@ class Application(QWidget):
 
         form1.addWidget(self.push1)
         form1.addWidget(self.push2)
-
         form1.addWidget(self.push4)
         form1.addWidget(self.push5)
         form1.addWidget(self.push3)
@@ -332,12 +332,7 @@ class Application(QWidget):
 
     def get_channel(self, event):
         mousePoint = self.win1.plotItem.vb.mapSceneToView(event.scenePos())
-        x = mousePoint.x()
-        y = mousePoint.y()
-        model.x_cur = x
-        model.y_cur = y
-
-        model.getChannel()
+        model.getChannel(mousePoint)
 
 
 

@@ -30,8 +30,6 @@ class ecogTSGUI:
         nwb = pynwb.NWBHDF5IO(pathName,'r').read()      #reads NWB file
         self.ecog = nwb.acquisition['ECoG']             #ecog
 
-        self.x_cur = []
-        self.y_cur = []
         self.h = []
         self.text = []
 
@@ -120,13 +118,13 @@ class ecogTSGUI:
         scaleFac = 2*np.std(self.ecog.data[startSamp:endSamp, self.selectedChannels-1], axis=0)/self.verticalScaleFactor
 
         # Offset for each channel
-        scaleVec = np.arange(1, self.nChToShow + 1) * np.max(scaleFac)
+        self.scaleVec = np.arange(1, self.nChToShow + 1) * np.max(scaleFac)
 
-        scaleV = np.zeros([len(scaleVec), 1])
-        scaleV[:, 0] = scaleVec
+        scaleV = np.zeros([len(self.scaleVec), 1])
+        scaleV[:, 0] = self.scaleVec
 
         # constrains the plotData to the chosen interval (and transpose matix)
-        # plotData dims=[plotInterval,self.nChToShow]
+        # plotData dims=[self.nChToShow, plotInterval]
         try:
             data = self.ecog.data[startSamp - 1 : endSamp, self.selectedChannels-1].T
             plotData = data + np.tile(scaleV, (1, endSamp - startSamp + 1)) # data + offset
@@ -157,14 +155,14 @@ class ecogTSGUI:
 
 
         # Middle signals plot
-        # A line indicating zero for every channel
-        x = np.tile([timebaseGuiUnits[0], timebaseGuiUnits[-1]], (len(scaleVec), 1))
+        # A line indicating reference for every channel
+        x = np.tile([timebaseGuiUnits[0], timebaseGuiUnits[-1]], (len(self.scaleVec), 1))
         y = np.hstack((scaleV, scaleV))
         plt = self.axesParams['pars']['Figure'][0]   #middle signal plot
         # Clear plot
         plt.clear()
         for l in range(np.shape(x)[0]):
-            plt.plot(x[l], y[l], pen = 'r')
+            plt.plot(x[l], y[l], pen = 'k')
         plt.setLabel('bottom', 'Time', units = 'sec')
         plt.setLabel('left', 'Channel #')
 
@@ -503,9 +501,10 @@ class ecogTSGUI:
         #     fileid.close()
 
 
-    def getChannel(self):
-        x = self.x_cur
-        y = self.y_cur
+    def getChannel(self, mousePoint):
+        x = mousePoint.x()
+        y = mousePoint.y()
+        print('x: ',x,'     y: ',y)
 
         if (x == []):
             pass
