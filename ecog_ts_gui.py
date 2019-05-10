@@ -5,7 +5,7 @@ from PyQt5 import QtCore, QtGui, Qt
 from PyQt5.QtCore import QCoreApplication
 from PyQt5.QtWidgets import (QWidget, QLabel, QLineEdit, QMessageBox, QHBoxLayout,
     QTextEdit, QApplication, QPushButton, QVBoxLayout, QGroupBox, QFormLayout, QDialog,
-    QRadioButton, QGridLayout)
+    QRadioButton, QGridLayout, QComboBox)
 
 import pyqtgraph as pg
 from Function.subFunctions import ecogTSGUI
@@ -17,6 +17,8 @@ import numpy as np
 model = None
 selectBI_ = False
 deleteBI_ = False
+annotationAdd_ = False
+annotationDel_ = False
 class Application(QWidget):
     keyPressed = QtCore.pyqtSignal(QtCore.QEvent)
     def __init__(self, filename, parent = None):
@@ -36,33 +38,23 @@ class Application(QWidget):
         self.show()
         #self.Maximized()
 
-        '''
-        run the main file
-        '''
+        # Run the main file
         parameters = {}
         parameters['pars'] = {'Figure': [self.win1, self.win2, self.win3]}
         parameters['editLine'] = {'qLine0': self.qline0, 'qLine1': self.qline1, 'qLine2': self.qline2, 'qLine3': self.qline3,
                   'qLine4': self.qline4}
-#        '''
-#        main file
-#        '''
-##        try:
+
         model = ecogTSGUI(self, pathName, parameters)
-#
-#        except Exception as ex:
-#            self.log_error(str(ex))
+
 
 
     def log_error(self, error):
         pwd = os.getcwd()
         folder = os.path.join(pwd, 'error_log')
-
         if not os.path.exists(folder):
             os.mkdir(folder)
-
         with open(os.path.join(folder, 'error.log'), 'a') as file:
             file.write(datetime.datetime.today().strftime('%Y-%m-%d  %H:%M:%S') + ' ' + error + '\n')
-
         file.close()
 
 
@@ -131,32 +123,58 @@ class Application(QWidget):
         panel1 = QGroupBox('Panel')
         panel1.setFixedWidth(200)
         panel1.setFixedHeight(200)
-        form1 = QFormLayout()
-        self.push1 = QPushButton('Data Cursor On')
-        self.push1.setFixedWidth(150)
-        self.push1.clicked.connect(self.Data_Cursor)
-        self.push2 = QPushButton('Get Channel')
-        self.push2.clicked.connect(self.GetChannel)
-        self.push2.setFixedWidth(150)
-        self.push2.setCheckable(True)
-        self.push3 = QPushButton('Save Bad Intervals')
-        self.push3.clicked.connect(self.SaveBadIntervals)
-        self.push3.setFixedWidth(150)
-        self.push4 = QPushButton('Select Bad Intervals')
-        self.push4.clicked.connect(self.SelectBadInterval)
-        self.push4.setFixedWidth(150)
-        self.push4.setCheckable(True)
-        self.push5 = QPushButton('Delete Bad Intervals')
-        self.push5.clicked.connect(self.DeleteBadInterval)
-        self.push5.setFixedWidth(150)
-        self.push5.setCheckable(True)
+        grid1 = QGridLayout()
 
-        form1.addWidget(self.push1)
-        form1.addWidget(self.push2)
-        form1.addWidget(self.push4)
-        form1.addWidget(self.push5)
-        form1.addWidget(self.push3)
-        panel1.setLayout(form1)
+        # Annotation buttons
+        qlabelAnnotations = QLabel('Annotation:')
+        self.combo1 = QComboBox()
+        self.combo1.addItem("red")
+        self.combo1.addItem("blue")
+        self.combo1.addItem("green")
+        self.push1_1 = QPushButton('Add')
+        self.push1_1.clicked.connect(self.AnnotationAdd)
+        self.push1_1.setCheckable(True)
+        self.push1_2 = QPushButton('Del')
+        self.push1_2.clicked.connect(self.AnnotationDel)
+        self.push1_2.setCheckable(True)
+        self.push1_3 = QPushButton('Save')
+        self.push1_3.clicked.connect(self.AnnotationSave)
+
+        # Custom intervals buttons
+        qlabelIntervals = QLabel('Intervals:')
+        self.combo2 = QComboBox()
+        self.combo2.addItem("Invalid")
+        self.combo2.addItem("add custom")
+        self.push2_1 = QPushButton('Add')
+        self.push2_1.clicked.connect(self.SelectBadInterval)
+        self.push2_1.setCheckable(True)
+        self.push2_2 = QPushButton('Del')
+        self.push2_2.clicked.connect(self.DeleteBadInterval)
+        self.push2_2.setCheckable(True)
+        self.push2_3 = QPushButton('Save')
+        self.push2_3.clicked.connect(self.SaveBadIntervals)
+
+        # Get channel buttons
+        qlabelChannels = QLabel('Channels:')
+        self.combo3 = QComboBox()
+        self.combo3.addItem("Do")
+        self.combo3.addItem("a")
+        self.combo3.addItem("Checkbox")
+
+        # Buttons layout
+        grid1.addWidget(qlabelAnnotations, 0, 0, 1, 3)
+        grid1.addWidget(self.combo1, 0, 3, 1, 3)
+        grid1.addWidget(self.push1_1, 1, 0, 1, 2)
+        grid1.addWidget(self.push1_2, 1, 2, 1, 2)
+        grid1.addWidget(self.push1_3, 1, 4, 1, 2)
+        grid1.addWidget(qlabelIntervals, 2, 0, 1, 3)
+        grid1.addWidget(self.combo2, 2, 3, 1, 3)
+        grid1.addWidget(self.push2_1, 3, 0, 1, 2)
+        grid1.addWidget(self.push2_2, 3, 2, 1, 2)
+        grid1.addWidget(self.push2_3, 3, 4, 1, 2)
+        grid1.addWidget(qlabelChannels, 4, 0, 1, 3)
+        grid1.addWidget(self.combo3, 4, 3, 1, 3)
+        panel1.setLayout(grid1)
 
         panel2 = QGroupBox('Signal Type')
         panel2.setFixedWidth(200)
@@ -262,21 +280,55 @@ class Application(QWidget):
     def check_status(self):
         global selectBI_
         global deleteBI_
+        global annotationAdd_
+        global annotationDel_
 
         #self.active_mode = 'default', 'selectBI', 'deleteBI'
         if self.active_mode != 'selectBI':
-            self.push4.setChecked(False)
+            self.push2_1.setChecked(False)
             selectBI_ = False
 
         if self.active_mode != 'deleteBI':
-            self.push5.setChecked(False)
+            self.push2_2.setChecked(False)
             deleteBI_ = False
+
+        if self.active_mode != 'annotationAdd':
+            self.push1_1.setChecked(False)
+            annotationAdd_ = False
+
+        if self.active_mode != 'annotationDel':
+            self.push1_2.setChecked(False)
+            annotationDel_ = False
 
         if self.channel_:
             self.channel_ = False
 
         if self.cursor_:
             self.cursor_ = False
+
+
+    def AnnotationAdd(self):
+        global annotationAdd_
+        if self.push1_1.isChecked():  #if button is pressed down
+            self.active_mode = 'annotationAdd'
+            self.check_status()
+            annotationAdd_ = True
+        else:
+            self.active_mode = 'default'
+            self.check_status()
+
+    def AnnotationDel(self):
+        global annotationDel_
+        if self.push1_2.isChecked():  #if button is pressed down
+            self.active_mode = 'annotationDel'
+            self.check_status()
+            annotationDel_ = True
+        else:
+            self.active_mode = 'default'
+            self.check_status()
+
+    def AnnotationSave(self):
+        print(2)
 
 
     def SaveBadIntervals(self):
@@ -290,7 +342,6 @@ class Application(QWidget):
 
     def SelectBadInterval(self):
         global selectBI_
-
         #if self.temp != []:
         #    self.win1.removeItem(self.temp)
 
@@ -305,24 +356,14 @@ class Application(QWidget):
 
     def DeleteBadInterval(self):
         global deleteBI_
-
         if self.push5.isChecked():  #if button is pressed down
             self.active_mode = 'deleteBI'
             self.check_status()
             deleteBI_ = True
-            #self.win1.scene().sigMouseClicked.connect(self.DeleteBadInterval_coordinates)
         else:
             self.active_mode = 'default'
             self.check_status()
 
-
-    # def DeleteBadInterval_coordinates(self, event):
-    #     mousePoint = self.win1.plotItem.vb.mapSceneToView(event.scenePos())
-    #     x = mousePoint.x()
-    #     try:
-    #         model.deleteInterval(round(x, 3))
-    #     except Exception as ex:
-    #         self.log_error(str(ex))
 
 
     def GetChannel(self):
@@ -334,44 +375,6 @@ class Application(QWidget):
         mousePoint = self.win1.plotItem.vb.mapSceneToView(event.scenePos())
         model.getChannel(mousePoint)
 
-
-
-    def Data_Cursor(self):
-        #self.check_status()
-        if self.push1.text() == 'Data Cursor On':
-            self.push1.setText('Data Cursor Off')
-            self.p = self.win1.scene().sigMouseClicked.connect(self.get_cursor_position)
-            self.cursor_ = True
-
-        elif self.push1.text() == 'Data Cursor Off':
-            self.win1.removeItem(self.p)
-            self.push1.setText('Data Cursor On')
-            self.cursor_ = False
-            if self.temp != []:
-                self.win1.removeItem(self.temp)
-                self.temp = []
-
-    def get_cursor_position(self, event):
-#        pos = self.win1.plotItem.vb.mapSceneToView(event.scenePos())
-        mousePoint = self.win1.plotItem.vb.mapSceneToView(event.scenePos())
-        x = mousePoint.x()
-        y = mousePoint.y()
-        model.x_cur = x
-        model.y_cur = y
-        text = 'x:' + str(round(x, 2)) + '\n' + 'y:' + str(round(y, 2))
-
-        t = pg.TextItem(text, color = pg.mkColor(70, 70, 70), border = pg.mkPen(200, 200, 200), fill = pg.mkBrush(250, 250, 150, 180))
-        t.setPos(x, y)
-        self.win1.addItem(t)
-        if self.temp == []:
-            self.temp = t
-        else:
-            try:
-                self.win1.removeItem(self.temp)
-                self.temp = t
-            except Exception as ex:
-                self.log_error(str(ex))
-#        self.figure1.canvas.draw()
 
 
     ## Lower-Left buttons
@@ -448,6 +451,9 @@ class CustomViewBox(pg.ViewBox):
 
     def mouseClickEvent(self, ev):
         global deleteBI_
+        global annotationAdd_
+        global annotationDel_
+
         if deleteBI_:
             mousePoint = self.mapSceneToView(ev.scenePos())
             x = mousePoint.x()
@@ -455,7 +461,20 @@ class CustomViewBox(pg.ViewBox):
                 model.deleteInterval(round(x, 3))
             except Exception as ex:
                 print(str(ex))
-                #self.log_error(str(ex))
+
+        if annotationAdd_:
+            mousePoint = self.mapSceneToView(ev.scenePos())
+            x = mousePoint.x()
+            y = mousePoint.y()
+            try:
+                model.AnnotationAdd(x, y)
+            except Exception as ex:
+                print(str(ex))
+
+        if annotationDel_:
+            mousePoint = self.mapSceneToView(ev.scenePos())
+            x = mousePoint.x()
+            y = mousePoint.y()
 
 
 

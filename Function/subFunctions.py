@@ -32,6 +32,7 @@ class ecogTSGUI:
 
         self.h = []
         self.text = []
+        self.AnnotationsList = []
 
         self.nBins = self.ecog.data.shape[0]     #total number of bins
         self.nChTotal = self.ecog.data.shape[1]     #total number of channels
@@ -192,16 +193,22 @@ class ecogTSGUI:
         plt.setYRange(y[0, 0], y[-1, 0], padding = 0.06)
 
         # Make red box around bad time segments
-        yaxis = plt.getAxis('left').range
-        ymin, ymax = yaxis[0], yaxis[1]
-        xaxis = plt.getAxis('bottom').range
-        xmin, xmax = xaxis[0], xaxis[1]
-
         for i in range(len(self.BIRects2)):
             plt.removeItem(self.BIRects2[i])
         for i in range(len(self.BIRects2)):
             plt.addItem(self.BIRects2[i])
 
+        # Show Annotations
+        for i in range(len(self.AnnotationsList)):
+            plt.removeItem(self.AnnotationsList[i])
+        for i in range(len(self.AnnotationsList)):
+            plt.addItem(self.AnnotationsList[i])
+
+
+        # yaxis = plt.getAxis('left').range
+        # ymin, ymax = yaxis[0], yaxis[1]
+        # xaxis = plt.getAxis('bottom').range
+        # xmin, xmax = xaxis[0], xaxis[1]
         # for i in range(self.nBI):
         #     BI = self.badIntervals[i]
         #     x1, y1, w, h = BI[0], ymin, BI[1] - BI[0], ymax
@@ -433,6 +440,18 @@ class ecogTSGUI:
         self.refreshScreen()
 
 
+    def AnnotationAdd(self, x, y, color='wheat'):
+        bgcolor = pg.mkBrush(250, 250, 150, 180)
+        c = pg.TextItem(anchor=(0,0), border=pg.mkPen(200, 200, 200), fill=bgcolor)
+        c.setText(text='annotation', color=(0,0,0))
+        print(x,y)
+        c.setPos(x,y)
+        #a = self.axesParams['pars']['Figure'][0]
+        #a.addItem(c)
+        self.AnnotationsList = np.append(self.AnnotationsList, c)
+        self.refreshScreen()
+
+
     def addBadTimeSeg(self, BadInterval):
         #axes(handles.timeline_axes);
         x = BadInterval[0]
@@ -479,26 +498,6 @@ class ecogTSGUI:
         ## SAVE BAD INTERVALS IN HDF5 file
         ## use method  add_invalid_time_interval() in loop for all chosen intervals
 
-
-        # BIs = self.badIntervals
-        # self.nBI = len(self.badIntervals)
-        # ones = np.ones((self.nBI, 1))
-        # variable = np.hstack((BIs, ones))
-        # f.BadTimesConverterGUI(variable, fullfile)
-        # badTimeSegments = BAD_INTERVALS
-        # file_name = os.path.join(self.pathName, 'Artifacts', 'badTimeSegments')
-        # scipy.io.savemat(file_name, {'badTimeSegments': badTimeSegments})
-        # my_file = os.path.join(self.pathName, 'Artifacts', 'info.txt')
-        # if not os.path.exists(my_file):
-        #     username, okPressed = QInputDialog.getText(self, 'Enter Text', 'Who is this:', QLineEdit.Normal, '')
-        #     if okPressed and username != '':
-        #         fileid = open(os.path.join(self.pathName, 'Artifacts', 'info.txt'), 'w')
-        #         fileid.write(username + ' ' + datetime.datetime.today().strftime('%Y-%m-%d'))
-        #         fileid.close()
-        # else:
-        #     fileid = open(os.path.join(self.pathName, 'Artifacts', 'info.txt'), 'a')
-        #     fileid.write(' ' + datetime.datetime.today().strftime('%Y-%m-%d'))
-        #     fileid.close()
 
 
     def getChannel(self, mousePoint):
@@ -552,6 +551,7 @@ class ecogTSGUI:
         self.current_mark.setPen(pg.mkPen(color = 'k'))
         self.current_mark.setBrush(QtGui.QColor(150, 150, 150, 100))
         plt.addItem(self.current_mark)
+
 
     def RemoveMarkTime(self):
         plt = self.axesParams['pars']['Figure'][0]     #middle signal plot
