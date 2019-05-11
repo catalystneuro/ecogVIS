@@ -479,26 +479,38 @@ class ecogTSGUI:
 
 
     def AnnotationDel(self, x, y):
-        # Y coordinate transformed to variance_units
-        # y_va = y/self.scaleVec[0] + self.firstCh
-        #for i in range(len(self.AnnotationsList)):
         x_ann = self.AnnotationsPosAV[:,0]
         y_ann = (self.AnnotationsPosAV[:,1] + self.AnnotationsPosAV[:,2] - self.firstCh)*self.scaleVec[0]
 
         euclid_dist = np.sqrt( (x_ann-x)**2 + (y_ann-y)**2 )
         indmin = np.argmin(euclid_dist)
 
-        print(self.AnnotationsList[indmin].textItem)
-        print(self.AnnotationsList[indmin].x())
-        #print( self.AnnotationsList[indmin].textItem.font() )
+        text = self.AnnotationsList[indmin].textItem.toPlainText()
+        buttonReply = QMessageBox.question(None,
+                                           'Delete Annotation', "Delete the annotation: \n\n"+text+' ?',
+                                           QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
+        if buttonReply == QMessageBox.Yes:
+            self.AnnotationsList = np.delete(self.AnnotationsList, indmin, axis=0)
+            self.AnnotationsPosAV = np.delete(self.AnnotationsPosAV, indmin, axis=0)
+            self.refreshScreen()
 
-        msg = QMessageBox()
-        msg.setText("Delete annotation:")
-        msg.setInformativeText(self.AnnotationsList[indmin].textItem())
-        msg.setStandardButtons(QMessageBox.Ok | QMessageBox.Cancel)
 
-        #print('x: ', x, '   y:', y)
-        #print('x_ann: ', x_ann, '   y_ann:', y_ann)
+    def AnnotationSave(self):
+        buttonReply = QMessageBox.question(None, ' ', 'Save annotations on external file?',
+                                           QMessageBox.Yes | QMessageBox.No)
+        if buttonReply == QMessageBox.Yes:
+            c0 = self.AnnotationsPosAV[:,0]
+            c1 = self.AnnotationsPosAV[:,1]
+            c2 = self.AnnotationsPosAV[:,2]
+            c3 = [self.AnnotationsList[i].textItem.toPlainText() for i in range(len(self.AnnotationsList))]
+            #c3 = pd.Series(all_texts)
+            d = {'x':c0, 'y_va':c1, 'y_off':c2, 'text':c3}
+            df = pd.DataFrame(data=d)
+            fullfile = os.path.join(self.pathName, self.fileName[:-4] + '_annotations_' +
+                                    datetime.datetime.today().strftime('%Y-%m-%d')+
+                                    '.csv')
+            df.to_csv(fullfile, header=True, index=True)
+
 
 
     def addBadTimeSeg(self, BadInterval):

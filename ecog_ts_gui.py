@@ -341,7 +341,12 @@ class Application(QWidget):
             self.check_status()
 
     def AnnotationSave(self):
-        print(2)
+        self.active_mode = 'default'
+        self.check_status()
+        try:
+            model.AnnotationSave()
+        except Exception as ex:
+            self.log_error(str(ex))
 
 
 
