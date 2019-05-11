@@ -11,7 +11,7 @@ import numpy as np
 import pandas as pd
 import h5py
 from Function.read_HTK import readHTK
-from PyQt5.QtWidgets import QInputDialog, QLineEdit, QFileDialog
+from PyQt5.QtWidgets import QInputDialog, QLineEdit, QFileDialog, QMessageBox
 import datetime
 #import Function.BadTimesConverterGUI as f
 import pyqtgraph as pg
@@ -33,6 +33,7 @@ class ecogTSGUI:
         self.h = []
         self.text = []
         self.AnnotationsList = []
+        self.AnnotationsPosAV = np.array([])    #(x, y_va, y_off)
 
         self.nBins = self.ecog.data.shape[0]     #total number of bins
         self.nChTotal = self.ecog.data.shape[1]     #total number of channels
@@ -86,14 +87,14 @@ class ecogTSGUI:
             c = pg.QtGui.QGraphicsRectItem(BIs[i][0], 0, max([BIs[i][1] - BIs[i][0], 0.01]), 1)
             self.BIRects1 = np.append(self.BIRects1, c)
             c.setPen(pg.mkPen(color = 'r'))
-            c.setBrush(QtGui.QColor(255, 0, 0, 255))
+            c.setBrush(QtGui.QColor(255, 0, 0, 250))
             a = self.axesParams['pars']['Figure'][1]
             a.addItem(c)
             # on signals plot
             c = pg.QtGui.QGraphicsRectItem(BIs[i][0], 0, max([BIs[i][1] - BIs[i][0], 0.01]), 1)
             self.BIRects2 = np.append(self.BIRects2, c)
             c.setPen(pg.mkPen(color = 'r'))
-            c.setBrush(QtGui.QColor(255, 0, 0, 255))
+            c.setBrush(QtGui.QColor(255, 0, 0, 120))
             a = self.axesParams['pars']['Figure'][0]
             a.addItem(c)
 
@@ -118,8 +119,9 @@ class ecogTSGUI:
         self.verticalScaleFactor = float(self.axesParams['editLine']['qLine4'].text())
         scaleFac = 2*np.std(self.ecog.data[startSamp:endSamp, self.selectedChannels-1], axis=0)/self.verticalScaleFactor
 
-        # Offset for each channel
-        self.scaleVec = np.arange(1, self.nChToShow + 1) * np.max(scaleFac)
+        # Scale variance_units, offset for each channel
+        scale_va = np.max(scaleFac)
+        self.scaleVec = np.arange(1, self.nChToShow + 1) * scale_va
 
         scaleV = np.zeros([len(self.scaleVec), 1])
         scaleV[:, 0] = self.scaleVec
@@ -202,7 +204,13 @@ class ecogTSGUI:
         for i in range(len(self.AnnotationsList)):
             plt.removeItem(self.AnnotationsList[i])
         for i in range(len(self.AnnotationsList)):
-            plt.addItem(self.AnnotationsList[i])
+            aux = self.AnnotationsList[i]
+            x = self.AnnotationsPosAV[i,0]
+            # Y to plot = (Y_va + Channel offset)*scale_variance
+            y_va = self.AnnotationsPosAV[i,1]
+            y = (y_va + self.AnnotationsPosAV[i,2] - self.firstCh) * scale_va
+            aux.setPos(x,y)
+            plt.addItem(aux)
 
 
         # yaxis = plt.getAxis('left').range
@@ -339,12 +347,16 @@ class ecogTSGUI:
         return badTimeSegments
 
 
-    def channel_Scroll_Up(self): # Button: ^
+    def channel_Scroll_Up(self, opt='unit'): # Buttons: ^, ^^
         # Test upper limit
         if self.lastCh < self.nChTotal:
+            if opt=='unit':
+                step = 1
+            elif opt=='page':
+                step = np.minimum(self.nChToShow, self.nChTotal-self.lastCh)
             # Add +1 to first and last channels
-            self.firstCh += 1
-            self.lastCh += 1
+            self.firstCh += step
+            self.lastCh += step
             self.axesParams['editLine']['qLine0'].setText(str(self.lastCh))
             self.axesParams['editLine']['qLine1'].setText(str(self.firstCh))
             self.nChToShow = self.lastCh - self.firstCh + 1
@@ -353,12 +365,16 @@ class ecogTSGUI:
         self.refreshScreen()
 
 
-    def channel_Scroll_Down(self): # Button: v
+    def channel_Scroll_Down(self, opt='unit'): # Buttons: v, vv
         # Test lower limit
         if self.firstCh > 1:
-            # Subtract 1 from first and last channels
-            self.firstCh -= 1
-            self.lastCh -= 1
+            if opt=='unit':
+                step = 1
+            elif opt=='page':
+                step = np.minimum(self.nChToShow, self.firstCh-1)
+            # Subtract from first and last channels
+            self.firstCh -= step
+            self.lastCh -= step
             self.axesParams['editLine']['qLine0'].setText(str(self.lastCh))
             self.axesParams['editLine']['qLine1'].setText(str(self.firstCh))
             self.nChToShow = self.lastCh - self.firstCh + 1
@@ -436,20 +452,53 @@ class ecogTSGUI:
         self.selectedChannels = np.arange(self.firstCh, self.lastCh + 1)
         self.axesParams['editLine']['qLine0'].setText(str(self.lastCh))
         self.axesParams['editLine']['qLine1'].setText(str(self.firstCh))
-
         self.refreshScreen()
 
 
-    def AnnotationAdd(self, x, y, color='wheat'):
-        bgcolor = pg.mkBrush(250, 250, 150, 180)
-        c = pg.TextItem(anchor=(0,0), border=pg.mkPen(200, 200, 200), fill=bgcolor)
-        c.setText(text='annotation', color=(0,0,0))
-        print(x,y)
-        c.setPos(x,y)
-        #a = self.axesParams['pars']['Figure'][0]
-        #a.addItem(c)
+    def AnnotationAdd(self, x, y, color='yellow', text='Event'):
+        if color=='yellow':
+            bgcolor = pg.mkBrush(250, 250, 150, 200)
+        elif color=='red':
+            bgcolor = pg.mkBrush(250, 0, 0, 200)
+        elif color=='green':
+            bgcolor = pg.mkBrush(0, 255, 0, 200)
+        elif color=='blue':
+            bgcolor = pg.mkBrush(0, 0, 255, 200)
+        c = pg.TextItem(anchor=(.5,.5), border=pg.mkPen(100, 100, 100), fill=bgcolor)
+        c.setText(text=text, color=(0,0,0))
+        # Y coordinate transformed to variance_units (for plot control)
+        y_va = y/self.scaleVec[0]
+        c.setPos(x,y_va)
         self.AnnotationsList = np.append(self.AnnotationsList, c)
+        if len(self.AnnotationsPosAV) > 0:
+            self.AnnotationsPosAV = np.concatenate((self.AnnotationsPosAV,
+                                                    np.array([x, y_va, self.firstCh]).reshape(1,3)))
+        else:
+            self.AnnotationsPosAV = np.array([x, y_va, self.firstCh]).reshape(1,3)
         self.refreshScreen()
+
+
+    def AnnotationDel(self, x, y):
+        # Y coordinate transformed to variance_units
+        # y_va = y/self.scaleVec[0] + self.firstCh
+        #for i in range(len(self.AnnotationsList)):
+        x_ann = self.AnnotationsPosAV[:,0]
+        y_ann = (self.AnnotationsPosAV[:,1] + self.AnnotationsPosAV[:,2] - self.firstCh)*self.scaleVec[0]
+
+        euclid_dist = np.sqrt( (x_ann-x)**2 + (y_ann-y)**2 )
+        indmin = np.argmin(euclid_dist)
+
+        print(self.AnnotationsList[indmin].textItem)
+        print(self.AnnotationsList[indmin].x())
+        #print( self.AnnotationsList[indmin].textItem.font() )
+
+        msg = QMessageBox()
+        msg.setText("Delete annotation:")
+        msg.setInformativeText(self.AnnotationsList[indmin].textItem())
+        msg.setStandardButtons(QMessageBox.Ok | QMessageBox.Cancel)
+
+        #print('x: ', x, '   y:', y)
+        #print('x_ann: ', x_ann, '   y_ann:', y_ann)
 
 
     def addBadTimeSeg(self, BadInterval):
@@ -466,7 +515,7 @@ class ecogTSGUI:
         # add rectangle to middle signal plot
         c = pg.QtGui.QGraphicsRectItem(x, y, w, h)
         c.setPen(pg.mkPen(color = 'r'))
-        c.setBrush(QtGui.QColor(255, 0, 0, 200))
+        c.setBrush(QtGui.QColor(255, 0, 0, 120))
         self.BIRects2 = np.append(self.BIRects2, [c])
         if np.size(self.badIntervals) == 0:
             self.badIntervals = np.array([BadInterval])

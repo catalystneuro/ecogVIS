@@ -5,7 +5,7 @@ from PyQt5 import QtCore, QtGui, Qt
 from PyQt5.QtCore import QCoreApplication
 from PyQt5.QtWidgets import (QWidget, QLabel, QLineEdit, QMessageBox, QHBoxLayout,
     QTextEdit, QApplication, QPushButton, QVBoxLayout, QGroupBox, QFormLayout, QDialog,
-    QRadioButton, QGridLayout, QComboBox)
+    QRadioButton, QGridLayout, QComboBox, QInputDialog)
 
 import pyqtgraph as pg
 from Function.subFunctions import ecogTSGUI
@@ -15,10 +15,11 @@ import numpy as np
 
 
 model = None
-selectBI_ = False
-deleteBI_ = False
+intervalAdd_ = False
+intervalDel_ = False
 annotationAdd_ = False
 annotationDel_ = False
+annotationColor_ = 'red'
 class Application(QWidget):
     keyPressed = QtCore.pyqtSignal(QtCore.QEvent)
     def __init__(self, filename, parent = None):
@@ -65,9 +66,13 @@ class Application(QWidget):
 
     def on_key(self, event):
         if event.key() == QtCore.Qt.Key_Up:
-            model.channel_Scroll_Up()
+            model.channel_Scroll_Up('unit')
+        elif event.key() == QtCore.Qt.Key_PageUp:
+            model.channel_Scroll_Up('page')
         elif event.key() == QtCore.Qt.Key_Down:
-            model.channel_Scroll_Down()
+            model.channel_Scroll_Down('unit')
+        elif event.key() == QtCore.Qt.Key_PageDown:
+            model.channel_Scroll_Down('page')
         elif event.key() == QtCore.Qt.Key_Left:
             model.time_scroll(scroll=-1/3)
         elif event.key() == QtCore.Qt.Key_Right:
@@ -128,9 +133,11 @@ class Application(QWidget):
         # Annotation buttons
         qlabelAnnotations = QLabel('Annotation:')
         self.combo1 = QComboBox()
-        self.combo1.addItem("red")
-        self.combo1.addItem("blue")
-        self.combo1.addItem("green")
+        self.combo1.addItem('red')
+        self.combo1.addItem('green')
+        self.combo1.addItem('blue')
+        self.combo1.addItem('yellow')
+        self.combo1.activated.connect(self.AnnotationColor)
         self.push1_1 = QPushButton('Add')
         self.push1_1.clicked.connect(self.AnnotationAdd)
         self.push1_1.setCheckable(True)
@@ -145,14 +152,15 @@ class Application(QWidget):
         self.combo2 = QComboBox()
         self.combo2.addItem("Invalid")
         self.combo2.addItem("add custom")
+        self.combo2.activated.connect(self.IntervalType)
         self.push2_1 = QPushButton('Add')
-        self.push2_1.clicked.connect(self.SelectBadInterval)
+        self.push2_1.clicked.connect(self.IntervalAdd)
         self.push2_1.setCheckable(True)
         self.push2_2 = QPushButton('Del')
-        self.push2_2.clicked.connect(self.DeleteBadInterval)
+        self.push2_2.clicked.connect(self.IntervalDel)
         self.push2_2.setCheckable(True)
         self.push2_3 = QPushButton('Save')
-        self.push2_3.clicked.connect(self.SaveBadIntervals)
+        self.push2_3.clicked.connect(self.IntervalSave)
 
         # Get channel buttons
         qlabelChannels = QLabel('Channels:')
@@ -218,12 +226,12 @@ class Application(QWidget):
 
         self.pushbtn1_1 = QPushButton('^')
         self.pushbtn1_1.clicked.connect(self.scroll_up)
-        self.pushbtn1_2 = QPushButton('Up')
-        self.pushbtn1_2.clicked.connect(self.scroll_up)
+        self.pushbtn1_2 = QPushButton('^^')
+        self.pushbtn1_2.clicked.connect(self.scroll_up_page)
         self.pushbtn2_1 = QPushButton('v')
         self.pushbtn2_1.clicked.connect(self.scroll_down)
-        self.pushbtn2_2 = QPushButton('Down')
-        self.pushbtn2_2.clicked.connect(self.scroll_down)
+        self.pushbtn2_2 = QPushButton('vv')
+        self.pushbtn2_2.clicked.connect(self.scroll_down_page)
 
         self.pushbtn3 = QPushButton('<<')
         self.pushbtn3.clicked.connect(self.page_backward)
@@ -278,19 +286,19 @@ class Application(QWidget):
 
 
     def check_status(self):
-        global selectBI_
-        global deleteBI_
+        global intervalAdd_
+        global intervalDel_
         global annotationAdd_
         global annotationDel_
 
-        #self.active_mode = 'default', 'selectBI', 'deleteBI'
-        if self.active_mode != 'selectBI':
+        #self.active_mode = 'default', 'intervalAdd', 'intervalDel'
+        if self.active_mode != 'intervalAdd':
             self.push2_1.setChecked(False)
-            selectBI_ = False
+            intervalAdd_ = False
 
-        if self.active_mode != 'deleteBI':
+        if self.active_mode != 'intervalDel':
             self.push2_2.setChecked(False)
-            deleteBI_ = False
+            intervalDel_ = False
 
         if self.active_mode != 'annotationAdd':
             self.push1_1.setChecked(False)
@@ -305,6 +313,11 @@ class Application(QWidget):
 
         if self.cursor_:
             self.cursor_ = False
+
+
+    def AnnotationColor(self):
+        global annotationColor_
+        annotationColor_ = str(self.combo1.currentText())
 
 
     def AnnotationAdd(self):
@@ -331,38 +344,53 @@ class Application(QWidget):
         print(2)
 
 
-    def SaveBadIntervals(self):
+
+    def IntervalType(self):
+        global intervalType_
+
+        item = str(self.combo2.currentText())
+        if item == 'add custom':
+            text, ok = QInputDialog.getText(None, 'Add custom intervals',
+                                            'Interval class name:')
+            curr_ind = self.combo2.currentIndex()
+            self.combo2.setItemText(curr_ind, text)
+            self.combo2.addItem('add custom')
+            self.combo2.setCurrentIndex(curr_ind)
+            intervalType_ = text
+        else:
+            intervalType_ = item
+
+
+    def IntervalAdd(self):
+        global intervalAdd_
+
+        if self.push2_1.isChecked():  #if button is pressed down
+            self.active_mode = 'intervalAdd'
+            self.check_status()
+            intervalAdd_ = True
+        else:
+            self.active_mode = 'default'
+            self.check_status()
+
+
+    def IntervalDel(self):
+        global intervalDel_
+        if self.push2_2.isChecked():  #if button is pressed down
+            self.active_mode = 'intervalDel'
+            self.check_status()
+            intervalDel_ = True
+        else:
+            self.active_mode = 'default'
+            self.check_status()
+
+
+    def IntervalSave(self):
         self.active_mode = 'default'
         self.check_status()
         try:
             model.pushSave()
         except Exception as ex:
             self.log_error(str(ex))
-
-
-    def SelectBadInterval(self):
-        global selectBI_
-        #if self.temp != []:
-        #    self.win1.removeItem(self.temp)
-
-        if self.push4.isChecked():  #if button is pressed down
-            self.active_mode = 'selectBI'
-            self.check_status()
-            selectBI_ = True
-        else:
-            self.active_mode = 'default'
-            self.check_status()
-
-
-    def DeleteBadInterval(self):
-        global deleteBI_
-        if self.push5.isChecked():  #if button is pressed down
-            self.active_mode = 'deleteBI'
-            self.check_status()
-            deleteBI_ = True
-        else:
-            self.active_mode = 'default'
-            self.check_status()
 
 
 
@@ -395,10 +423,16 @@ class Application(QWidget):
             self.qline4.setEnabled(False)
 
     def scroll_up(self):
-        model.channel_Scroll_Up()
+        model.channel_Scroll_Up('unit')
+
+    def scroll_up_page(self):
+        model.channel_Scroll_Up('page')
 
     def scroll_down(self):
-        model.channel_Scroll_Down()
+        model.channel_Scroll_Down('unit')
+
+    def scroll_down_page(self):
+        model.channel_Scroll_Down('page')
 
     def page_backward(self):
         model.time_scroll(scroll=-1)
@@ -450,11 +484,12 @@ class CustomViewBox(pg.ViewBox):
 
 
     def mouseClickEvent(self, ev):
-        global deleteBI_
+        global intervalDel_
         global annotationAdd_
         global annotationDel_
+        global annotationColor_
 
-        if deleteBI_:
+        if intervalDel_:
             mousePoint = self.mapSceneToView(ev.scenePos())
             x = mousePoint.x()
             try:
@@ -467,7 +502,8 @@ class CustomViewBox(pg.ViewBox):
             x = mousePoint.x()
             y = mousePoint.y()
             try:
-                model.AnnotationAdd(x, y)
+                text, ok = QInputDialog.getText(None, 'Annotations', 'Enter your annotation:')
+                model.AnnotationAdd(x=x, y=y, color=annotationColor_, text=text)
             except Exception as ex:
                 print(str(ex))
 
@@ -475,12 +511,18 @@ class CustomViewBox(pg.ViewBox):
             mousePoint = self.mapSceneToView(ev.scenePos())
             x = mousePoint.x()
             y = mousePoint.y()
+            try:
+                model.AnnotationDel(x=x, y=y)
+            except Exception as ex:
+                print(str(ex))
 
 
 
     def mouseDragEvent(self, ev):
-        global selectBI_
-        if selectBI_:
+        global intervalType_
+        global intervalAdd_
+
+        if intervalAdd_:
             if ev.button() == QtCore.Qt.RightButton:
                 ev.ignore()
             else:
