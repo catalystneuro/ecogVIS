@@ -5,7 +5,7 @@ from PyQt5 import QtCore, QtGui, Qt
 from PyQt5.QtCore import QCoreApplication
 from PyQt5.QtWidgets import (QWidget, QLabel, QLineEdit, QMessageBox, QHBoxLayout,
     QTextEdit, QApplication, QPushButton, QVBoxLayout, QGroupBox, QFormLayout, QDialog,
-    QRadioButton, QGridLayout, QComboBox, QInputDialog)
+    QRadioButton, QGridLayout, QComboBox, QInputDialog, QFileDialog)
 
 import pyqtgraph as pg
 from Function.subFunctions import ecogTSGUI
@@ -137,6 +137,7 @@ class Application(QWidget):
         self.combo1.addItem('green')
         self.combo1.addItem('blue')
         self.combo1.addItem('yellow')
+        self.combo1.addItem('from file')
         self.combo1.activated.connect(self.AnnotationColor)
         self.push1_1 = QPushButton('Add')
         self.push1_1.clicked.connect(self.AnnotationAdd)
@@ -285,7 +286,7 @@ class Application(QWidget):
         self.setLayout(hbox)
 
 
-    def check_status(self):
+    def reset_buttons(self):
         global intervalAdd_
         global intervalDel_
         global annotationAdd_
@@ -318,31 +319,38 @@ class Application(QWidget):
     def AnnotationColor(self):
         global annotationColor_
         annotationColor_ = str(self.combo1.currentText())
+        if annotationColor_=='from file':
+            # open annotations file dialog, calls function to paint them
+            fname = QFileDialog.getOpenFileName(self, 'Open file', '', "(*.csv)")
+            model.AnnotationLoad(fname=fname[0])
+            self.combo1.setCurrentIndex(0)    #visual reset of combobox
+            annotationColor_ = str(self.combo1.currentText())
 
 
     def AnnotationAdd(self):
         global annotationAdd_
         if self.push1_1.isChecked():  #if button is pressed down
             self.active_mode = 'annotationAdd'
-            self.check_status()
+            self.reset_buttons()
             annotationAdd_ = True
         else:
             self.active_mode = 'default'
-            self.check_status()
+            self.reset_buttons()
+
 
     def AnnotationDel(self):
         global annotationDel_
         if self.push1_2.isChecked():  #if button is pressed down
             self.active_mode = 'annotationDel'
-            self.check_status()
+            self.reset_buttons()
             annotationDel_ = True
         else:
             self.active_mode = 'default'
-            self.check_status()
+            self.reset_buttons()
 
     def AnnotationSave(self):
         self.active_mode = 'default'
-        self.check_status()
+        self.reset_buttons()
         try:
             model.AnnotationSave()
         except Exception as ex:
@@ -371,27 +379,27 @@ class Application(QWidget):
 
         if self.push2_1.isChecked():  #if button is pressed down
             self.active_mode = 'intervalAdd'
-            self.check_status()
+            self.reset_buttons()
             intervalAdd_ = True
         else:
             self.active_mode = 'default'
-            self.check_status()
+            self.reset_buttons()
 
 
     def IntervalDel(self):
         global intervalDel_
         if self.push2_2.isChecked():  #if button is pressed down
             self.active_mode = 'intervalDel'
-            self.check_status()
+            self.reset_buttons()
             intervalDel_ = True
         else:
             self.active_mode = 'default'
-            self.check_status()
+            self.reset_buttons()
 
 
     def IntervalSave(self):
         self.active_mode = 'default'
-        self.check_status()
+        self.reset_buttons()
         try:
             model.pushSave()
         except Exception as ex:
@@ -400,7 +408,7 @@ class Application(QWidget):
 
 
     def GetChannel(self):
-        self.check_status()
+        self.reset_buttons()
         self.channel = self.win1.scene().sigMouseClicked.connect(self.get_channel)
         self.channel_ = True
 

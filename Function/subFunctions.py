@@ -10,7 +10,7 @@ import scipy.io
 import numpy as np
 import pandas as pd
 import h5py
-from Function.read_HTK import readHTK
+from ast import literal_eval as make_tuple
 from PyQt5.QtWidgets import QInputDialog, QLineEdit, QFileDialog, QMessageBox
 import datetime
 #import Function.BadTimesConverterGUI as f
@@ -455,6 +455,32 @@ class ecogTSGUI:
         self.refreshScreen()
 
 
+    def AnnotationLoad(self, fname=''):
+        df = pd.read_csv(fname)
+        all_x = df['x'].values
+        all_y_va = df['y_va'].values
+        all_y_off = df['y_off'].values
+        texts = df['text'].values.tolist()
+        colors_rgb = df['color'].tolist()
+        for i, txt in enumerate(texts):    # Add loaded annotations to graph
+            rgb = make_tuple(colors_rgb[i])
+            bgcolor = pg.mkBrush(rgb[0], rgb[1], rgb[2], rgb[3])
+            c = pg.TextItem(anchor=(.5,.5), border=pg.mkPen(100, 100, 100), fill=bgcolor)
+            c.setText(text=txt, color=(0,0,0))
+            # Y coordinate transformed to variance_units (for plot control)
+            y_va = all_y_va[i]
+            x = all_x[i]
+            c.setPos(x,y_va)
+            self.AnnotationsList = np.append(self.AnnotationsList, c)
+            if len(self.AnnotationsPosAV) > 0:
+                self.AnnotationsPosAV = np.concatenate((self.AnnotationsPosAV,
+                                                        np.array([x, y_va, all_y_off[i]]).reshape(1,3)))
+            else:
+                self.AnnotationsPosAV = np.array([x, y_va, all_y_off[i]]).reshape(1,3)
+
+        self.refreshScreen()
+
+
     def AnnotationAdd(self, x, y, color='yellow', text='Event'):
         if color=='yellow':
             bgcolor = pg.mkBrush(250, 250, 150, 200)
@@ -481,10 +507,10 @@ class ecogTSGUI:
     def AnnotationDel(self, x, y):
         x_ann = self.AnnotationsPosAV[:,0]
         y_ann = (self.AnnotationsPosAV[:,1] + self.AnnotationsPosAV[:,2] - self.firstCh)*self.scaleVec[0]
-
+        # Calculates euclidian distance from click
         euclid_dist = np.sqrt( (x_ann-x)**2 + (y_ann-y)**2 )
         indmin = np.argmin(euclid_dist)
-
+        # Checks if user intends to delete annotation
         text = self.AnnotationsList[indmin].textItem.toPlainText()
         buttonReply = QMessageBox.question(None,
                                            'Delete Annotation', "Delete the annotation: \n\n"+text+' ?',
@@ -499,12 +525,14 @@ class ecogTSGUI:
         buttonReply = QMessageBox.question(None, ' ', 'Save annotations on external file?',
                                            QMessageBox.Yes | QMessageBox.No)
         if buttonReply == QMessageBox.Yes:
-            c0 = self.AnnotationsPosAV[:,0]
-            c1 = self.AnnotationsPosAV[:,1]
-            c2 = self.AnnotationsPosAV[:,2]
-            c3 = [self.AnnotationsList[i].textItem.toPlainText() for i in range(len(self.AnnotationsList))]
-            #c3 = pd.Series(all_texts)
-            d = {'x':c0, 'y_va':c1, 'y_off':c2, 'text':c3}
+            c0 = self.AnnotationsPosAV[:,0]     # x
+            c1 = self.AnnotationsPosAV[:,1]     # y_va
+            c2 = self.AnnotationsPosAV[:,2]     # y_off
+            # colors
+            c3 = [self.AnnotationsList[i].fill.color().getRgb() for i in range(len(self.AnnotationsList))]
+            # texts
+            c4 = [self.AnnotationsList[i].textItem.toPlainText() for i in range(len(self.AnnotationsList))]
+            d = {'x':c0, 'y_va':c1, 'y_off':c2, 'color':c3, 'text':c4}
             df = pd.DataFrame(data=d)
             fullfile = os.path.join(self.pathName, self.fileName[:-4] + '_annotations_' +
                                     datetime.datetime.today().strftime('%Y-%m-%d')+
