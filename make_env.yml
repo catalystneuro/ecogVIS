@@ -1,4 +1,4 @@
-name: ecog_gui
+name: ecog_vis
 channels:
 - anaconda
 - defaults
