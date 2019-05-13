@@ -499,7 +499,7 @@ class ecogTSGUI:
 
     def AnnotationSave(self):
         buttonReply = QMessageBox.question(None, ' ', 'Save annotations on external file?',
-                                           QMessageBox.Yes | QMessageBox.No)
+                                           QMessageBox.No | QMessageBox.Yes)
         if buttonReply == QMessageBox.Yes:
             c0 = self.AnnotationsPosAV[:,0]     # x
             c1 = self.AnnotationsPosAV[:,1]     # y_va
@@ -562,10 +562,26 @@ class ecogTSGUI:
 
 
     def IntervalSave(self):
-        fullfile = os.path.join(self.pathName, 'bad_intervals_'+
-                                datetime.datetime.today().strftime('%Y-%m-%d')+
-                                '.csv')
-        pd.DataFrame(self.allIntervals).to_csv(fullfile, header=False, index=False)
+        buttonReply = QMessageBox.question(None, ' ', 'Save intervals on external file?',
+                                           QMessageBox.No | QMessageBox.Yes)
+        if buttonReply == QMessageBox.Yes:
+            print(Yes)
+            #c0 = self.allIntervals[:,0]     # start
+            #c1 = self.allIntervals[:,1]     # stop
+            #c2 = []     # type
+            #c3 =     # color
+            #d = {'start':c0, 'stop':c1, 'type':c2, 'color':c3}
+            #df = pd.DataFrame(data=d)
+            #fullfile = os.path.join(self.pathName, self.fileName[:-4] + '_intervals_' +
+        #                            datetime.datetime.today().strftime('%Y-%m-%d')+
+        #                            '.csv')
+        #    df.to_csv(fullfile, header=True, index=True)
+
+
+        #fullfile = os.path.join(self.pathName, 'bad_intervals_'+
+        #                        datetime.datetime.today().strftime('%Y-%m-%d')+
+        #                        '.csv')
+        #pd.DataFrame(self.allIntervals).to_csv(fullfile, header=False, index=False)
         ## TO DO
         ## SAVE BAD INTERVALS IN HDF5 file
         ## use method  add_invalid_time_interval() in loop for all chosen intervals
