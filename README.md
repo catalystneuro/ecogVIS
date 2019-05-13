@@ -11,8 +11,8 @@ $ source activate ecog_vis
 After activating the ecog_vis environment, there are two ways of starting the application. You can do it from the command line prompt:
 ```
 $ cd ~/path_to/ecogTSGUI
-$ python ecog_vis.py                        <--- if left undefined, you'll be prompted to choose a data file 
-$ python ecog_vis.py '/path_to/file.nwb'    <--- you can also include the file path directly, as a string
+$ python ecog_vis.py                       <--- if left undefined, you'll be prompted to choose a file 
+$ python ecog_vis.py '/path_to/file.nwb'   <--- you can include the file path directly, as a string
 ```
 
 You can also import ecog_vis and run it from a python instance:
@@ -23,3 +23,5 @@ import os
 fpath = os.path.join('path_to','file.nwb')
 main(fpath)
 ```
+
+## Examples
