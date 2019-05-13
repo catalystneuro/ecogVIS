@@ -1,14 +1,13 @@
 # -*- coding: utf-8 -*-
 import sys
 from PyQt5 import QtCore, QtGui, Qt
-
 from PyQt5.QtCore import QCoreApplication
 from PyQt5.QtWidgets import (QWidget, QLabel, QLineEdit, QMessageBox, QHBoxLayout,
     QTextEdit, QApplication, QPushButton, QVBoxLayout, QGroupBox, QFormLayout, QDialog,
     QRadioButton, QGridLayout, QComboBox, QInputDialog, QFileDialog)
-
 import pyqtgraph as pg
 from Function.subFunctions import ecogTSGUI
+from Function.subDialogs import CustomDialog
 import os
 import datetime
 import numpy as np
@@ -17,6 +16,7 @@ import numpy as np
 model = None
 intervalAdd_ = False
 intervalDel_ = False
+intervalColor_ = 'red'
 annotationAdd_ = False
 annotationDel_ = False
 annotationColor_ = 'red'
@@ -360,16 +360,21 @@ class Application(QWidget):
 
     def IntervalType(self):
         global intervalType_
+        global intervalColor_
 
         item = str(self.combo2.currentText())
         if item == 'add custom':
-            text, ok = QInputDialog.getText(None, 'Add custom intervals',
-                                            'Interval class name:')
-            curr_ind = self.combo2.currentIndex()
-            self.combo2.setItemText(curr_ind, text)
-            self.combo2.addItem('add custom')
-            self.combo2.setCurrentIndex(curr_ind)
-            intervalType_ = text
+            w = CustomDialog()
+            text, color = w.getResults()
+            if len(text)>0:
+                curr_ind = self.combo2.currentIndex()
+                self.combo2.setItemText(curr_ind, text)
+                self.combo2.addItem('add custom')
+                intervalType_ = text
+                intervalColor_ = color
+                self.combo2.setCurrentIndex(curr_ind)
+            else:
+                self.combo2.setCurrentIndex(0)
         else:
             intervalType_ = item
 
@@ -401,7 +406,7 @@ class Application(QWidget):
         self.active_mode = 'default'
         self.reset_buttons()
         try:
-            model.pushSave()
+            model.IntervalSave()
         except Exception as ex:
             self.log_error(str(ex))
 
@@ -490,10 +495,11 @@ class Application(QWidget):
         model.nChannels_Displayed()
 
 
-
+## Viewbox for signal plots ----------------------------------------------------
 class CustomViewBox(pg.ViewBox):
     def __init__(self):
         pg.ViewBox.__init__(self)
+        #super().__init__()
 
 
     def mouseClickEvent(self, ev):
@@ -506,7 +512,7 @@ class CustomViewBox(pg.ViewBox):
             mousePoint = self.mapSceneToView(ev.scenePos())
             x = mousePoint.x()
             try:
-                model.deleteInterval(round(x, 3))
+                model.IntervalDel(round(x, 3))
             except Exception as ex:
                 print(str(ex))
 
@@ -529,11 +535,10 @@ class CustomViewBox(pg.ViewBox):
             except Exception as ex:
                 print(str(ex))
 
-
-
     def mouseDragEvent(self, ev):
         global intervalType_
         global intervalAdd_
+        global intervalColor_
 
         if intervalAdd_:
             if ev.button() == QtCore.Qt.RightButton:
@@ -550,18 +555,24 @@ class CustomViewBox(pg.ViewBox):
                     self.pos2 = a.x()              #final x mark
                     if self.pos1 is not None:
                         if self.pos2 < self.pos1:     #marking from right to left
-                            BadInterval = [round(self.pos2, 3), round(self.pos1, 3)]
+                            interval = [round(self.pos2, 3), round(self.pos1, 3)]
                         else:               #marking from left to right
-                            BadInterval = [round(self.pos1, 3), round(self.pos2, 3)]
-                        model.addBadTimeSeg(BadInterval)
+                            interval = [round(self.pos1, 3), round(self.pos2, 3)]
+                        model.IntervalAdd(interval, intervalColor_)
                         model.refreshScreen()
 
 
 
+## Main file definitions -------------------------------------------------------
 def main(filename):
     app = QCoreApplication.instance()
     if app is None:
-        app = QApplication(sys.argv)
+        app = QApplication(sys.argv)  #instantiate a QtGui (holder for the app)
     ex = Application(filename)
-
     sys.exit(app.exec_())
+
+
+#if __name__ == '__main__':
+#    app = QApplication(sys.argv)  #instantiate a QtGui (holder for the app)
+#    ex = Application(filename)
+#    sys.exit(app.exec_())
