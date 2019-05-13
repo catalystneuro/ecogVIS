@@ -6,7 +6,7 @@ from PyQt5.QtWidgets import (QWidget, QLabel, QLineEdit, QMessageBox, QHBoxLayou
     QTextEdit, QApplication, QPushButton, QVBoxLayout, QGroupBox, QFormLayout, QDialog,
     QRadioButton, QGridLayout, QComboBox, QInputDialog, QFileDialog)
 import pyqtgraph as pg
-from Function.subFunctions import ecogTSGUI
+from Function.subFunctions import ecogVIS
 from Function.subDialogs import CustomDialog
 import os
 import datetime
@@ -43,13 +43,13 @@ class Application(QWidget):
         self.show()
         #self.Maximized()
 
-        # Run the main file
+        # Run the main function
         parameters = {}
         parameters['pars'] = {'Figure': [self.win1, self.win2, self.win3]}
         parameters['editLine'] = {'qLine0': self.qline0, 'qLine1': self.qline1, 'qLine2': self.qline2, 'qLine3': self.qline3,
                   'qLine4': self.qline4}
 
-        model = ecogTSGUI(self, filename, parameters)
+        model = ecogVIS(self, filename, parameters)
 
 
 
@@ -81,7 +81,6 @@ class Application(QWidget):
             model.time_scroll(scroll=-1/3)
         elif event.key() == QtCore.Qt.Key_Right:
             model.time_scroll(scroll=1/3)
-
         event.accept()
 
 
@@ -320,6 +319,7 @@ class Application(QWidget):
             self.cursor_ = False
 
 
+    ## Annotation functions ----------------------------------------------------
     def AnnotationColor(self):
         global annotationColor_
         annotationColor_ = str(self.combo1.currentText())
@@ -352,6 +352,7 @@ class Application(QWidget):
             self.active_mode = 'default'
             self.reset_buttons()
 
+
     def AnnotationSave(self):
         self.active_mode = 'default'
         self.reset_buttons()
@@ -361,7 +362,7 @@ class Application(QWidget):
             self.log_error(str(ex))
 
 
-
+    ## Interval functions ------------------------------------------------------
     def IntervalType(self):
         global intervalType_
         global intervalsDict_
@@ -385,10 +386,8 @@ class Application(QWidget):
             intervalType_ = item
 
 
-
     def IntervalAdd(self):
         global intervalAdd_
-
         if self.push2_1.isChecked():  #if button is pressed down
             self.active_mode = 'intervalAdd'
             self.reset_buttons()
@@ -419,6 +418,7 @@ class Application(QWidget):
 
 
 
+    ## Channel functions -------------------------------------------------------
     def GetChannel(self):
         self.reset_buttons()
         self.channel = self.win1.scene().sigMouseClicked.connect(self.get_channel)
@@ -430,7 +430,7 @@ class Application(QWidget):
 
 
 
-    ## Lower-Left buttons
+    ## Plot control buttons ----------------------------------------------------
     def enable(self):
         if self.enableButton.text() == 'Enable':
             self.enableButton.setText('Disable')
@@ -542,6 +542,7 @@ class CustomViewBox(pg.ViewBox):
             except Exception as ex:
                 print(str(ex))
 
+
     def mouseDragEvent(self, ev):
         global intervalType_
         global intervalAdd_
@@ -567,7 +568,7 @@ class CustomViewBox(pg.ViewBox):
                             interval = [round(self.pos1, 3), round(self.pos2, 3)]
                         color = intervalsDict_[intervalType_]['color']
                         intervalsDict_[intervalType_]['counts'] += 1
-                        model.IntervalAdd(interval, color)
+                        model.IntervalAdd(interval, intervalType_, color)
                         model.refreshScreen()
 
 

@@ -12,15 +12,13 @@ import pandas as pd
 import h5py
 from ast import literal_eval as make_tuple
 from PyQt5.QtWidgets import QInputDialog, QLineEdit, QFileDialog, QMessageBox
-import datetime
-#import Function.BadTimesConverterGUI as f
-import pyqtgraph as pg
 from PyQt5 import QtGui
-
+import pyqtgraph as pg
+import datetime
 import pynwb
 import nwbext_ecog
 
-class ecogTSGUI:
+class ecogVIS:
     def __init__(self, par, pathName, parameters):
         self.parent = par
         self.pathName = os.path.split(os.path.abspath(pathName))[0] #path
@@ -51,17 +49,18 @@ class ecogTSGUI:
         self.current_rect = []
         self.badChannels = np.where( nwb.electrodes['bad'][:] )
 
-        # Bad intervals
-        if nwb.invalid_times == None:
-            self.allIntervals = np.array([])
-        else:
+        # Load invalid intervals from NWB file
+        self.allIntervals = []
+        if nwb.invalid_times != None:
             self.nBI = nwb.invalid_times.columns[0][:].shape[0] #number of BI
-            self.allIntervals = np.empty([self.nBI,2])
             for ii in np.arange(self.nBI):
-                # start of bad interval
-                self.allIntervals[ii,0] = nwb.invalid_times.columns[0][ii]
-                # end of bad interval
-                self.allIntervals[ii,1] = nwb.invalid_times.columns[1][ii]
+                # create new interval
+                obj = CustomInterval()
+                obj.start = nwb.invalid_times.columns[0][ii]
+                obj.stop = nwb.invalid_times.columns[1][ii]
+                obj.type = 'invalid'
+                obj.color = 'red'
+                self.allIntervals.append(obj)
 
         # menu('load audio?','yes','no') == 1
         if os.path.exists(os.path.join(pathName, 'Analog', 'ANIN4.htk')):
@@ -78,21 +77,22 @@ class ecogTSGUI:
         total_dur = np.shape(self.ecog.data)[0]/self.fs_signal
         self.axesParams['pars']['Figure'][1].plot([0, total_dur], [0.5, 0.5], pen = 'k', width = 0.5)
 
-        #interval rectangles at upper bar plot
-        BIs = self.allIntervals
+
+        # Plot interval rectangles at upper and middle pannels
         self.IntRects1 = np.array([], dtype = 'object')
-        #interval rectangles at middle signal plot
         self.IntRects2 = np.array([], dtype = 'object')
-        for i in range(self.nBI):
+        for i, obj in enumerate(self.allIntervals):
+            start = obj.start
+            stop = obj.stop
             # on timeline
-            c = pg.QtGui.QGraphicsRectItem(BIs[i][0], 0, max([BIs[i][1] - BIs[i][0], 0.01]), 1)
+            c = pg.QtGui.QGraphicsRectItem(start, 0, max(stop-start, 0.01), 1)
             self.IntRects1 = np.append(self.IntRects1, c)
             c.setPen(pg.mkPen(color = 'r'))
             c.setBrush(QtGui.QColor(255, 0, 0, 250))
             a = self.axesParams['pars']['Figure'][1]
             a.addItem(c)
             # on signals plot
-            c = pg.QtGui.QGraphicsRectItem(BIs[i][0], 0, max([BIs[i][1] - BIs[i][0], 0.01]), 1)
+            c = pg.QtGui.QGraphicsRectItem(start, 0, max(stop-start, 0.01), 1)
             self.IntRects2 = np.append(self.IntRects2, c)
             c.setPen(pg.mkPen(color = 'r'))
             c.setBrush(QtGui.QColor(255, 0, 0, 120))
@@ -282,7 +282,6 @@ class ecogTSGUI:
         #new interval start
         self.intervalStartSamples = self.intervalStartSamples \
                                     + int(scroll * self.intervalLengthSamples)
-
         #if the last sample of the new interval is beyond is the available data
         # set start such that intserval is in a valid range
         if self.intervalStartSamples + self.intervalLengthSamples > self.nBins:
@@ -292,14 +291,12 @@ class ecogTSGUI:
 
         #new interval end
         self.intervalEndSamples = self.intervalStartSamples + self.intervalLengthSamples
-
         # Updates start time in seconds (first avoid <0.001 values)
         self.intervalStartGuiUnits = max(self.intervalStartSamples*self.tbin_signal,0.001)
         # Round to miliseconds for display
         self.intervalStartGuiUnits = np.round(self.intervalStartGuiUnits,3)
         self.intervalEndGuiUnits = self.intervalEndSamples*self.tbin_signal
         self.axesParams['editLine']['qLine2'].setText(str(self.intervalStartGuiUnits))
-
         self.refreshScreen()
 
 
@@ -388,17 +385,14 @@ class ecogTSGUI:
 
     def interval_start(self):
         self.updateCurXAxisPosition()
-
         # Interval at least one sample long
         if self.intervalStartSamples < self.tbin_signal:
             self.intervalStartSamples = 1   #set to the first sample
             self.setXAxisPositionSamples()
-
         # Maximum interval size
         if self.intervalStartSamples + self.intervalLengthSamples - 1 > self.nBins:
             self.intervalStartSamples = self.nBins - self.intervalLengthSamples + 1
             self.setXAxisPositionSamples()
-
         self.refreshScreen()
 
 
@@ -517,15 +511,15 @@ class ecogTSGUI:
 
 
 
-    def IntervalAdd(self, interval, color):
+    def IntervalAdd(self, interval, int_type, color):
         if color=='yellow':
-            bc = [250, 250, 150, 200]
+            bc = [250, 250, 150, 180]
         elif color=='red':
-            bc = [250, 0, 0, 120]
+            bc = [250, 0, 0, 100]
         elif color=='green':
-            bc = [0, 255, 0, 170]
+            bc = [0, 255, 0, 130]
         elif color=='blue':
-            bc = [0, 0, 255, 120]
+            bc = [0, 0, 255, 100]
         x = interval[0]
         y = 0
         w = np.diff(np.array(interval))[0]
@@ -540,51 +534,44 @@ class ecogTSGUI:
         c.setPen(pg.mkPen(color=QtGui.QColor(bc[0], bc[1], bc[2], 255)))
         c.setBrush(QtGui.QColor(bc[0], bc[1], bc[2], bc[3]))
         self.IntRects2 = np.append(self.IntRects2, [c])
-        if np.size(self.allIntervals) == 0:
-            self.allIntervals = np.array([interval])
-        else:
-            self.allIntervals = np.vstack((self.allIntervals, np.array(interval)))
+        # new Interval object
+        obj = CustomInterval()
+        obj.start = interval[0]
+        obj.stop = interval[1]
+        obj.type = int_type
+        obj.color = color
+        self.allIntervals.append(obj)
         self.nBI = len(self.allIntervals)
 
 
     def IntervalDel(self, x):
-        BIs = self.allIntervals
-        di = np.where((x >= BIs[:, 0]) & (x <= BIs[:, 1]))   #interval of the click
-        if np.size(di) > 0:
-            self.axesParams['pars']['Figure'][1].removeItem(self.IntRects1[di[0][0]])
-            self.IntRects1 = np.delete(self.IntRects1, di[0][0], axis = 0)
-            self.axesParams['pars']['Figure'][0].removeItem(self.IntRects2[di[0][0]])
-            self.IntRects2 = np.delete(self.IntRects2, di[0][0], axis = 0)
-            self.allIntervals = np.delete(self.allIntervals, di, axis = 0)
-            self.nBI = len(self.allIntervals)
-
-            self.refreshScreen()
+        for i, obj in enumerate(self.allIntervals):
+            if (x >= obj.start) & (x <= obj.stop):   #interval of the click
+                self.axesParams['pars']['Figure'][1].removeItem(self.IntRects1[i])
+                self.IntRects1 = np.delete(self.IntRects1, i, axis = 0)
+                self.axesParams['pars']['Figure'][0].removeItem(self.IntRects2[i])
+                self.IntRects2 = np.delete(self.IntRects2, i, axis = 0)
+                del self.allIntervals[i]
+                self.nBI = len(self.allIntervals)
+                self.refreshScreen()
 
 
     def IntervalSave(self):
         buttonReply = QMessageBox.question(None, ' ', 'Save intervals on external file?',
                                            QMessageBox.No | QMessageBox.Yes)
         if buttonReply == QMessageBox.Yes:
-            print(Yes)
-            #c0 = self.allIntervals[:,0]     # start
-            #c1 = self.allIntervals[:,1]     # stop
-            #c2 = []     # type
-            #c3 =     # color
-            #d = {'start':c0, 'stop':c1, 'type':c2, 'color':c3}
-            #df = pd.DataFrame(data=d)
-            #fullfile = os.path.join(self.pathName, self.fileName[:-4] + '_intervals_' +
-        #                            datetime.datetime.today().strftime('%Y-%m-%d')+
-        #                            '.csv')
-        #    df.to_csv(fullfile, header=True, index=True)
-
-
-        #fullfile = os.path.join(self.pathName, 'bad_intervals_'+
-        #                        datetime.datetime.today().strftime('%Y-%m-%d')+
-        #                        '.csv')
-        #pd.DataFrame(self.allIntervals).to_csv(fullfile, header=False, index=False)
-        ## TO DO
-        ## SAVE BAD INTERVALS IN HDF5 file
-        ## use method  add_invalid_time_interval() in loop for all chosen intervals
+            c0, c1, c2, c3 = [], [], [], []
+            for i, obj in enumerate(self.allIntervals):
+                c0.append(obj.start)     # start
+                c1.append(obj.stop)      # stop
+                c2.append(obj.type)      # type
+                c3.append(obj.color)     # color
+            d = {'start':c0, 'stop':c1, 'type':c2, 'color':c3}
+            df = pd.DataFrame(data=d)
+            fullfile = os.path.join(self.pathName, self.fileName[:-4] + '_intervals_' +
+                                    datetime.datetime.today().strftime('%Y-%m-%d')+
+                                    '.csv')
+            df.to_csv(fullfile, header=True, index=True)
 
 
 
@@ -644,3 +631,13 @@ class ecogTSGUI:
     def RemoveMarkTime(self):
         plt = self.axesParams['pars']['Figure'][0]     #middle signal plot
         plt.removeItem(self.current_mark)
+
+
+
+class CustomInterval:
+    def __init__(self):
+        self.start = -999
+        self.stop = -999
+        self.type = ''
+        self.color = ''
+        self.channels = []

@@ -7,7 +7,7 @@ Ui_Dialog, _ = uic.loadUiType(os.path.join(path,qtCreatorFile))
 
 class CustomDialog(QtGui.QDialog, Ui_Dialog):
     '''
-    Create custom interval type dialog.
+    Create custom interval type.
     '''
     def __init__(self):
         super(CustomDialog, self).__init__()
@@ -20,4 +20,4 @@ class CustomDialog(QtGui.QDialog, Ui_Dialog):
             color = str(self.comboBox.currentText())
             return text, color
         else:
-            return [], color
+            return '', ''
