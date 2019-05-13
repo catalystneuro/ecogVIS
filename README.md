@@ -15,7 +15,7 @@ $ python ecog_vis.py                       <--- if left undefined, you'll be pro
 $ python ecog_vis.py '/path_to/file.nwb'   <--- you can include the file path directly, as a string
 ```
 
-You can also import ecog_vis and run it from a python instance:
+You can also import ecog_vis and run it from a python instance. If the file does not exist (or if you provide an empty string ''), you'll be prompted to choose a file from a dialog.
 ```python
 from ecog_vis import main
 import os
