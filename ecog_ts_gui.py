@@ -16,7 +16,10 @@ import numpy as np
 model = None
 intervalAdd_ = False
 intervalDel_ = False
-intervalColor_ = 'red'
+intervalType_ = 'invalid'
+intervalsDict_ = {'invalid':{'name':'invalid',
+                             'color':'red',
+                             'counts':0}}
 annotationAdd_ = False
 annotationDel_ = False
 annotationColor_ = 'red'
@@ -26,7 +29,8 @@ class Application(QWidget):
         global model
 
         # e.g.: /home/User/freesurfer_subjects/Subject_XX.nwb
-        pathName = filename
+        if not os.path.isfile(filename):
+            filename, _ = QFileDialog.getOpenFileName(None, 'Open file', '', "(*.nwb)")
         self.temp = []
         self.cursor_ = False
         self.channel_ = False
@@ -45,7 +49,7 @@ class Application(QWidget):
         parameters['editLine'] = {'qLine0': self.qline0, 'qLine1': self.qline1, 'qLine2': self.qline2, 'qLine3': self.qline3,
                   'qLine4': self.qline4}
 
-        model = ecogTSGUI(self, pathName, parameters)
+        model = ecogTSGUI(self, filename, parameters)
 
 
 
@@ -151,8 +155,8 @@ class Application(QWidget):
         # Custom intervals buttons
         qlabelIntervals = QLabel('Intervals:')
         self.combo2 = QComboBox()
-        self.combo2.addItem("Invalid")
-        self.combo2.addItem("add custom")
+        self.combo2.addItem('invalid')
+        self.combo2.addItem('add custom')
         self.combo2.activated.connect(self.IntervalType)
         self.push2_1 = QPushButton('Add')
         self.push2_1.clicked.connect(self.IntervalAdd)
@@ -360,23 +364,26 @@ class Application(QWidget):
 
     def IntervalType(self):
         global intervalType_
-        global intervalColor_
+        global intervalsDict_
 
         item = str(self.combo2.currentText())
         if item == 'add custom':
             w = CustomDialog()
             text, color = w.getResults()
-            if len(text)>0:
+            if len(text)>0:    # If user chose a valid name for the new interval type
                 curr_ind = self.combo2.currentIndex()
                 self.combo2.setItemText(curr_ind, text)
                 self.combo2.addItem('add custom')
                 intervalType_ = text
-                intervalColor_ = color
+                intervalsDict_[intervalType_] = {'name':intervalType_,
+                                                 'color':color,
+                                                 'counts':0}
                 self.combo2.setCurrentIndex(curr_ind)
             else:
                 self.combo2.setCurrentIndex(0)
         else:
             intervalType_ = item
+
 
 
     def IntervalAdd(self):
@@ -499,7 +506,7 @@ class Application(QWidget):
 class CustomViewBox(pg.ViewBox):
     def __init__(self):
         pg.ViewBox.__init__(self)
-        #super().__init__()
+        #super().__init__(self)
 
 
     def mouseClickEvent(self, ev):
@@ -538,7 +545,7 @@ class CustomViewBox(pg.ViewBox):
     def mouseDragEvent(self, ev):
         global intervalType_
         global intervalAdd_
-        global intervalColor_
+        global intervalsDict_
 
         if intervalAdd_:
             if ev.button() == QtCore.Qt.RightButton:
@@ -558,12 +565,15 @@ class CustomViewBox(pg.ViewBox):
                             interval = [round(self.pos2, 3), round(self.pos1, 3)]
                         else:               #marking from left to right
                             interval = [round(self.pos1, 3), round(self.pos2, 3)]
-                        model.IntervalAdd(interval, intervalColor_)
+                        color = intervalsDict_[intervalType_]['color']
+                        intervalsDict_[intervalType_]['counts'] += 1
+                        model.IntervalAdd(interval, color)
                         model.refreshScreen()
 
 
 
 ## Main file definitions -------------------------------------------------------
+# If it was imported as a module
 def main(filename):
     app = QCoreApplication.instance()
     if app is None:
@@ -571,8 +581,8 @@ def main(filename):
     ex = Application(filename)
     sys.exit(app.exec_())
 
-
-#if __name__ == '__main__':
-#    app = QApplication(sys.argv)  #instantiate a QtGui (holder for the app)
-#    ex = Application(filename)
-#    sys.exit(app.exec_())
+# If called from a command line, e.g.: $ python ecog_ts_gui.py
+if __name__ == '__main__':
+    app = QApplication(sys.argv)  #instantiate a QtGui (holder for the app)
+    ex = Application(filename='')
+    sys.exit(app.exec_())
