@@ -585,5 +585,9 @@ def main(filename):
 # If called from a command line, e.g.: $ python ecog_ts_gui.py
 if __name__ == '__main__':
     app = QApplication(sys.argv)  #instantiate a QtGui (holder for the app)
-    ex = Application(filename='')
+    if len(sys.argv)==1:
+        fname = ''
+    else:
+        fname = sys.argv[1]
+    ex = Application(filename=fname)
     sys.exit(app.exec_())
