@@ -426,31 +426,7 @@ class ecogVIS:
         self.refreshScreen()
 
 
-    def AnnotationLoad(self, fname=''):
-        df = pd.read_csv(fname)
-        all_x = df['x'].values
-        all_y_va = df['y_va'].values
-        all_y_off = df['y_off'].values
-        texts = df['text'].values.tolist()
-        colors_rgb = df['color'].tolist()
-        for i, txt in enumerate(texts):    # Add loaded annotations to graph
-            rgb = make_tuple(colors_rgb[i])
-            bgcolor = pg.mkBrush(rgb[0], rgb[1], rgb[2], rgb[3])
-            c = pg.TextItem(anchor=(.5,.5), border=pg.mkPen(100, 100, 100), fill=bgcolor)
-            c.setText(text=txt, color=(0,0,0))
-            # Y coordinate transformed to variance_units (for plot control)
-            y_va = all_y_va[i]
-            x = all_x[i]
-            c.setPos(x,y_va)
-            self.AnnotationsList = np.append(self.AnnotationsList, c)
-            if len(self.AnnotationsPosAV) > 0:
-                self.AnnotationsPosAV = np.concatenate((self.AnnotationsPosAV,
-                                                        np.array([x, y_va, all_y_off[i]]).reshape(1,3)))
-            else:
-                self.AnnotationsPosAV = np.array([x, y_va, all_y_off[i]]).reshape(1,3)
-        self.refreshScreen()
-
-
+    ## Annotation functions ----------------------------------------------------
     def AnnotationAdd(self, x, y, color='yellow', text='Event'):
         if color=='yellow':
             bgcolor = pg.mkBrush(250, 250, 150, 200)
@@ -510,7 +486,33 @@ class ecogVIS:
             df.to_csv(fullfile, header=True, index=True)
 
 
+    def AnnotationLoad(self, fname=''):
+        df = pd.read_csv(fname)
+        all_x = df['x'].values
+        all_y_va = df['y_va'].values
+        all_y_off = df['y_off'].values
+        texts = df['text'].values.tolist()
+        colors_rgb = df['color'].tolist()
+        for i, txt in enumerate(texts):    # Add loaded annotations to graph
+            rgb = make_tuple(colors_rgb[i])
+            bgcolor = pg.mkBrush(rgb[0], rgb[1], rgb[2], rgb[3])
+            c = pg.TextItem(anchor=(.5,.5), border=pg.mkPen(100, 100, 100), fill=bgcolor)
+            c.setText(text=txt, color=(0,0,0))
+            # Y coordinate transformed to variance_units (for plot control)
+            y_va = all_y_va[i]
+            x = all_x[i]
+            c.setPos(x,y_va)
+            self.AnnotationsList = np.append(self.AnnotationsList, c)
+            if len(self.AnnotationsPosAV) > 0:
+                self.AnnotationsPosAV = np.concatenate((self.AnnotationsPosAV,
+                                                        np.array([x, y_va, all_y_off[i]]).reshape(1,3)))
+            else:
+                self.AnnotationsPosAV = np.array([x, y_va, all_y_off[i]]).reshape(1,3)
+        self.refreshScreen()
 
+
+
+    ## Interval functions ------------------------------------------------------
     def IntervalAdd(self, interval, int_type, color):
         if color=='yellow':
             bc = [250, 250, 150, 180]
@@ -572,6 +574,18 @@ class ecogVIS:
                                     datetime.datetime.today().strftime('%Y-%m-%d')+
                                     '.csv')
             df.to_csv(fullfile, header=True, index=True)
+
+
+    def IntervalLoad(self, fname):
+        df = pd.read_csv(fname)
+        for index, row in df.iterrows():    # Add loaded intervals to graph
+            interval = [row.start, row.stop]
+            int_type = row.type
+            color = row.color
+            self.IntervalAdd(interval, int_type, color)
+            #Update dictionary of interval types
+            # TO-DO
+        self.refreshScreen()
 
 
 

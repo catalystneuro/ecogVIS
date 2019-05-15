@@ -4,7 +4,8 @@ from PyQt5 import QtCore, QtGui, Qt
 from PyQt5.QtCore import QCoreApplication
 from PyQt5.QtWidgets import (QWidget, QLabel, QLineEdit, QMessageBox, QHBoxLayout,
     QTextEdit, QApplication, QPushButton, QVBoxLayout, QGroupBox, QFormLayout, QDialog,
-    QRadioButton, QGridLayout, QComboBox, QInputDialog, QFileDialog)
+    QRadioButton, QGridLayout, QComboBox, QInputDialog, QFileDialog, QMainWindow,
+    QAction)
 import pyqtgraph as pg
 from Function.subFunctions import ecogVIS
 from Function.subDialogs import CustomDialog
@@ -23,25 +24,31 @@ intervalsDict_ = {'invalid':{'name':'invalid',
 annotationAdd_ = False
 annotationDel_ = False
 annotationColor_ = 'red'
-class Application(QWidget):
+#class Application(QWidget):
+class Application(QMainWindow):
     keyPressed = QtCore.pyqtSignal(QtCore.QEvent)
     def __init__(self, filename, parent = None):
+        super().__init__()
         global model
+
+        self.centralwidget = QWidget()
+        self.setCentralWidget(self.centralwidget)
+        self.resize(800, 600)
+        self.setWindowTitle('ecogVIS')
 
         # e.g.: /home/User/freesurfer_subjects/Subject_XX.nwb
         if not os.path.isfile(filename):
-            filename, _ = QFileDialog.getOpenFileName(None, 'Open file', '', "(*.nwb)")
+            filename = self.open_file()
         self.temp = []
         self.cursor_ = False
         self.channel_ = False
         self.error = None
-        super(Application, self).__init__()
         self.keyPressed.connect(self.on_key)
         self.active_mode = 'default'
+
         self.init_gui()
-        self.setWindowTitle('')
         self.show()
-        #self.Maximized()
+        #self.showMaximized()
 
         # Run the main function
         parameters = {}
@@ -85,11 +92,37 @@ class Application(QWidget):
 
 
     def init_gui(self):
+        mainMenu = self.menuBar()
+        # File menu
+        fileMenu = mainMenu.addMenu('File')
+        # Adding actions to file menu
+        action_open_file = QAction('Open Another File', self)
+        fileMenu.addAction(action_open_file)
+        action_open_file.triggered.connect(self.open_file)
+        action_save_file = QAction('Save to NWB', self)
+        fileMenu.addAction(action_save_file)
+        action_save_file.triggered.connect(self.save_file)
+
+        editMenu = mainMenu.addMenu('Edit')
+
+        toolsMenu = mainMenu.addMenu('Tools')
+        action_load_annotations = QAction('Load Annotations', self)
+        toolsMenu.addAction(action_load_annotations)
+        action_load_annotations.triggered.connect(self.load_annotations)
+        action_load_intervals = QAction('Load Intervals', self)
+        toolsMenu.addAction(action_load_intervals)
+        action_load_intervals.triggered.connect(self.load_intervals)
+
+        helpMenu = mainMenu.addMenu('Help')
+        action_about = QAction('About', self)
+        helpMenu.addAction(action_about)
+        action_about.triggered.connect(self.about)
+
         '''
         create a horizontal box layout
         '''
-        hbox = QHBoxLayout()
-        vbox = QVBoxLayout()
+        self.hbox = QHBoxLayout(self.centralwidget)
+        #hbox = QHBoxLayout()
 
         groupbox1 = QGroupBox('Channels Plot')
         vb = CustomViewBox()
@@ -121,6 +154,7 @@ class Application(QWidget):
 
         groupbox1.setLayout(form5layout)
 
+        vbox = QVBoxLayout()
         vbox.addWidget(groupbox1)
 
 
@@ -140,7 +174,6 @@ class Application(QWidget):
         self.combo1.addItem('green')
         self.combo1.addItem('blue')
         self.combo1.addItem('yellow')
-        self.combo1.addItem('from file')
         self.combo1.activated.connect(self.AnnotationColor)
         self.push1_1 = QPushButton('Add')
         self.push1_1.clicked.connect(self.AnnotationAdd)
@@ -284,9 +317,37 @@ class Application(QWidget):
         vbox1.addWidget(panel2)
         vbox1.addWidget(panel3)
 
-        hbox.addLayout(vbox1)   #add panels first
-        hbox.addLayout(vbox)    #add plots second
-        self.setLayout(hbox)
+        self.hbox.addLayout(vbox1)   #add panels first
+        self.hbox.addLayout(vbox)    #add plots second
+        #self.setLayout(self.hbox)
+
+
+    def open_file(self):
+        filename, _ = QFileDialog.getOpenFileName(None, 'Open file', '', "(*.nwb)")
+        return filename
+
+    def save_file(self):
+        print('Save file to NWB - to be implemented')
+
+    def load_annotations(self):
+        # open annotations file dialog, calls function to paint them
+        fname = QFileDialog.getOpenFileName(self, 'Open file', '', "(*.csv)")
+        model.AnnotationLoad(fname=fname[0])
+
+    def load_intervals(self):
+        # open intervals file dialog, calls function to paint them
+        fname = QFileDialog.getOpenFileName(self, 'Open file', '', "(*.csv)")
+        model.IntervalLoad(fname=fname[0])
+
+    def about(self):
+        msg = QMessageBox()
+        msg.setWindowTitle("About ecogVIS")
+        msg.setIcon(QMessageBox.Information)
+        msg.setText("Version: 1.0.0 \n"+
+                    "Timeseries visualizer for ECoG signals stored in NWB files.\n ")
+        msg.setInformativeText("<a href='https://github.com/luiztauffer/ecogVIS/'>ecogVIS Github page</a>")
+        msg.setStandardButtons(QMessageBox.Ok)
+        msg.exec_()
 
 
     def reset_buttons(self):
@@ -323,12 +384,6 @@ class Application(QWidget):
     def AnnotationColor(self):
         global annotationColor_
         annotationColor_ = str(self.combo1.currentText())
-        if annotationColor_=='from file':
-            # open annotations file dialog, calls function to paint them
-            fname = QFileDialog.getOpenFileName(self, 'Open file', '', "(*.csv)")
-            model.AnnotationLoad(fname=fname[0])
-            self.combo1.setCurrentIndex(0)    #visual reset of combobox
-            annotationColor_ = str(self.combo1.currentText())
 
 
     def AnnotationAdd(self):
