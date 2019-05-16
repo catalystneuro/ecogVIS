@@ -116,13 +116,6 @@ class ecogVIS:
 
 
     def AR_plotter(self):
-        print(self.selectedChannels)
-        print('nChTotal: ',self.nChTotal)
-        print('nChToShow: ',self.nChToShow)
-        print('lastCh: ',self.lastCh)
-        print('firstCh: ',self.firstCh)
-        print('----------------------')
-
         #self.getCurAxisParameters()
         startSamp = self.intervalStartSamples
         endSamp = self.intervalEndSamples

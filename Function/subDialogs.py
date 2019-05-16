@@ -37,20 +37,18 @@ class SelectChannelsDialog(QtGui.QDialog):
         self.listView.setModel(self.model)
 
         self.okButton = QtGui.QPushButton("OK")
-        self.cancelButton = QtGui.QPushButton("Cancel")
         self.selectButton = QtGui.QPushButton("Select All")
         self.unselectButton = QtGui.QPushButton("Unselect All")
 
         hbox = QtGui.QHBoxLayout()
         hbox.addStretch(1)
         hbox.addWidget(self.okButton)
-        hbox.addWidget(self.cancelButton)
         hbox.addWidget(self.selectButton)
         hbox.addWidget(self.unselectButton)
 
         vbox = QtGui.QVBoxLayout()
         vbox.addWidget(self.listView)
-        vbox.addStretch(1)
+        #vbox.addStretch(1)
         vbox.addLayout(hbox)
 
         self.setLayout(vbox)
@@ -58,14 +56,10 @@ class SelectChannelsDialog(QtGui.QDialog):
         self.setWindowTitle('Select Regions:')
 
         self.okButton.clicked.connect(self.onAccepted)
-        self.cancelButton.clicked.connect(self.reject)
         self.selectButton.clicked.connect(self.select_all)
         self.unselectButton.clicked.connect(self.unselect_all)
 
         self.exec_()
-
-    def reject(self):
-        QtGui.QDialog.reject(self)
 
     def onAccepted(self):
         self.choices = [self.model.item(i).text() for i in
