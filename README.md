@@ -26,6 +26,7 @@ main(fpath)
 
 ## Features
 **ecogVIS** makes it intuitive and simple to viualize ECoG signals. It currently features:
+- Select electrodes from specific brain areas
 - Annotation tool
 - Intervals marking
 
