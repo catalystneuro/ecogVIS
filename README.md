@@ -29,7 +29,7 @@ main(fpath)
 - Annotation tool
 - Intervals marking
 
-![screenshot1](media/screenshot_1.jpg)
+![screenshot1](media/screenshot_1.png)
 
 
 ## Examples
