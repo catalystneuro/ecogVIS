@@ -8,7 +8,7 @@ from PyQt5.QtWidgets import (QWidget, QLabel, QLineEdit, QMessageBox, QHBoxLayou
     QAction)
 import pyqtgraph as pg
 from Function.subFunctions import ecogVIS
-from Function.subDialogs import CustomDialog
+from Function.subDialogs import CustomIntervalDialog, SelectChannelsDialog
 import os
 import datetime
 import numpy as np
@@ -39,9 +39,7 @@ class Application(QMainWindow):
         # e.g.: /home/User/freesurfer_subjects/Subject_XX.nwb
         if not os.path.isfile(filename):
             filename = self.open_file()
-        self.temp = []
-        self.cursor_ = False
-        self.channel_ = False
+
         self.error = None
         self.keyPressed.connect(self.on_key)
         self.active_mode = 'default'
@@ -124,7 +122,7 @@ class Application(QMainWindow):
         self.hbox = QHBoxLayout(self.centralwidget)
         #hbox = QHBoxLayout()
 
-        groupbox1 = QGroupBox('Channels Plot')
+        groupbox1 = QGroupBox('Signals')
         vb = CustomViewBox()
         self.win1 = pg.PlotWidget(viewBox = vb)   #middle signals plot
         self.win2 = pg.PlotWidget(border = 'k')   #upper horizontal bar
@@ -201,10 +199,8 @@ class Application(QMainWindow):
 
         # Get channel buttons
         qlabelChannels = QLabel('Channels:')
-        self.combo3 = QComboBox()
-        self.combo3.addItem("Do")
-        self.combo3.addItem("a")
-        self.combo3.addItem("Checkbox")
+        self.push3_0 = QPushButton('Select')
+        self.push3_0.clicked.connect(self.ChannelSelect)
 
         # Buttons layout
         grid1.addWidget(qlabelAnnotations, 0, 0, 1, 3)
@@ -218,7 +214,7 @@ class Application(QMainWindow):
         grid1.addWidget(self.push2_2, 3, 2, 1, 2)
         grid1.addWidget(self.push2_3, 3, 4, 1, 2)
         grid1.addWidget(qlabelChannels, 4, 0, 1, 3)
-        grid1.addWidget(self.combo3, 4, 3, 1, 3)
+        grid1.addWidget(self.push3_0, 4, 3, 1, 3)
         panel1.setLayout(grid1)
 
         panel2 = QGroupBox('Signal Type')
@@ -373,11 +369,6 @@ class Application(QMainWindow):
             self.push1_2.setChecked(False)
             annotationDel_ = False
 
-        if self.channel_:
-            self.channel_ = False
-
-        if self.cursor_:
-            self.cursor_ = False
 
 
     ## Annotation functions ----------------------------------------------------
@@ -424,7 +415,7 @@ class Application(QMainWindow):
 
         item = str(self.combo2.currentText())
         if item == 'add custom':
-            w = CustomDialog()
+            w = CustomIntervalDialog()
             text, color = w.getResults()
             if len(text)>0:    # If user chose a valid name for the new interval type
                 curr_ind = self.combo2.currentIndex()
@@ -474,14 +465,31 @@ class Application(QMainWindow):
 
 
     ## Channel functions -------------------------------------------------------
-    def GetChannel(self):
+    def ChannelSelect(self):
+        self.active_mode = 'default'
         self.reset_buttons()
-        self.channel = self.win1.scene().sigMouseClicked.connect(self.get_channel)
-        self.channel_ = True
+        # Dialog to choose channels from specific brain regions
+        w = SelectChannelsDialog(model.all_regions, model.channels_mask)
+        all_locs = model.ecog.electrodes.table['location'][:]
+        model.channels_mask = np.zeros(len(all_locs))
+        for loc in w.choices:
+            model.channels_mask += all_locs==loc
+        #Indices of channels from chosen regions
+        model.channels_mask_ind = np.where(model.channels_mask)[0]
+        model.nChTotal = len(model.channels_mask_ind)
+        # Reset channels span control
+        model.lastCh = np.minimum(16, model.nChTotal)
+        model.firstCh = 1
+        model.nChToShow = model.lastCh - model.firstCh + 1
+        self.qline0.setText(str(model.lastCh))
+        self.qline1.setText(str(model.firstCh))
+        # Update signals plot
+        model.selectedChannels = model.channels_mask_ind[model.firstCh-1:model.lastCh]
+        model.refreshScreen()
 
-    def get_channel(self, event):
-        mousePoint = self.win1.plotItem.vb.mapSceneToView(event.scenePos())
-        model.getChannel(mousePoint)
+    #def get_channel(self, event):
+    #    mousePoint = self.win1.plotItem.vb.mapSceneToView(event.scenePos())
+    #    model.getChannel(mousePoint)
 
 
 

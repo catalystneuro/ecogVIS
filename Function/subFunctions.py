@@ -27,6 +27,11 @@ class ecogVIS:
 
         nwb = pynwb.NWBHDF5IO(pathName,'r').read()      #reads NWB file
         self.ecog = nwb.acquisition['ECoG']             #ecog
+        # Get Brain regions present in current file
+        self.all_regions = list(set(nwb.electrodes['location'][:].tolist()))
+        self.all_regions.sort()
+        self.channels_mask = [True]*len(self.all_regions)
+        self.channels_mask_ind = np.where(self.channels_mask)[0]
 
         self.h = []
         self.text = []
@@ -40,7 +45,7 @@ class ecogVIS:
         self.firstCh = int(self.axesParams['editLine']['qLine1'].text())
         self.lastCh = int(self.axesParams['editLine']['qLine0'].text())
         self.nChToShow = self.lastCh - self.firstCh + 1
-        self.selectedChannels = np.arange(self.firstCh, self.lastCh + 1)
+        self.selectedChannels = np.arange(self.firstCh-1, self.lastCh)
 
         self.rawecog = self.ecog.data       #ecog signals
         self.fs_signal = self.ecog.rate     #sampling frequency [Hz]
@@ -111,6 +116,13 @@ class ecogVIS:
 
 
     def AR_plotter(self):
+        print(self.selectedChannels)
+        print('nChTotal: ',self.nChTotal)
+        print('nChToShow: ',self.nChToShow)
+        print('lastCh: ',self.lastCh)
+        print('firstCh: ',self.firstCh)
+        print('----------------------')
+
         #self.getCurAxisParameters()
         startSamp = self.intervalStartSamples
         endSamp = self.intervalEndSamples
@@ -170,7 +182,7 @@ class ecogVIS:
         plt.setLabel('bottom', 'Time', units = 'sec')
         plt.setLabel('left', 'Channel #')
 
-        labels = [str(ch) for ch in self.selectedChannels]
+        labels = [str(ch+1) for ch in self.selectedChannels]
         ticks = list(zip(y[:, 0], labels))
 
         plt.getAxis('left').setTicks([ticks])
@@ -309,22 +321,10 @@ class ecogVIS:
         return re_shape
 
 
-    def loadBadTimes(self):
-        filename = os.path.join(self.pathName, 'Artifacts', 'badTimeSegments.mat')
-        if os.path.exists(filename):
-            loadmatfile = scipy.io.loadmat(filename)
-            badTimeSegments = loadmatfile['badTimeSegments']
-        else:
-            if not os.path.exists(os.path.join(self.pathName, 'Artifacts')):
-                os.mkdir(os.path.join(self.pathName, 'Artifacts'))
 
-            badTimeSegments = []
-            scipy.io.savemat(filename, mdict = {'badTimeSegments': badTimeSegments})
-
-        return badTimeSegments
-
-
-    def channel_Scroll_Up(self, opt='unit'): # Buttons: ^, ^^
+    # Updates the channels to be plotted
+    # Buttons: ^, ^^
+    def channel_Scroll_Up(self, opt='unit'):
         # Test upper limit
         if self.lastCh < self.nChTotal:
             if opt=='unit':
@@ -337,11 +337,12 @@ class ecogVIS:
             self.axesParams['editLine']['qLine0'].setText(str(self.lastCh))
             self.axesParams['editLine']['qLine1'].setText(str(self.firstCh))
             self.nChToShow = self.lastCh - self.firstCh + 1
-            self.selectedChannels = np.arange(self.firstCh, self.lastCh + 1)
+            self.selectedChannels = self.channels_mask_ind[self.firstCh-1:self.lastCh]
         self.refreshScreen()
 
 
-    def channel_Scroll_Down(self, opt='unit'): # Buttons: v, vv
+    # Buttons: v, vv
+    def channel_Scroll_Down(self, opt='unit'):
         # Test lower limit
         if self.firstCh > 1:
             if opt=='unit':
@@ -354,7 +355,7 @@ class ecogVIS:
             self.axesParams['editLine']['qLine0'].setText(str(self.lastCh))
             self.axesParams['editLine']['qLine1'].setText(str(self.firstCh))
             self.nChToShow = self.lastCh - self.firstCh + 1
-            self.selectedChannels = np.arange(self.firstCh, self.lastCh + 1)
+            self.selectedChannels = self.channels_mask_ind[self.firstCh-1:self.lastCh]
         self.refreshScreen()
 
 
@@ -420,7 +421,7 @@ class ecogVIS:
 
         #Update variables and values displayed on forms
         self.nChToShow = self.lastCh - self.firstCh + 1
-        self.selectedChannels = np.arange(self.firstCh, self.lastCh + 1)
+        self.selectedChannels = self.channels_mask_ind[self.firstCh-1:self.lastCh]
         self.axesParams['editLine']['qLine0'].setText(str(self.lastCh))
         self.axesParams['editLine']['qLine1'].setText(str(self.firstCh))
         self.refreshScreen()
