@@ -8,577 +8,617 @@ Created on Fri Jul 13 21:32:20 2018
 import os
 import scipy.io
 import numpy as np
+import pandas as pd
 import h5py
-from Function.read_HTK import readHTK
-import math
-from PyQt5.QtWidgets import QInputDialog, QLineEdit, QFileDialog
-import datetime
-import Function.BadTimesConverterGUI as f
-import pyqtgraph as pg
+from ast import literal_eval as make_tuple
+from PyQt5.QtWidgets import QInputDialog, QLineEdit, QFileDialog, QMessageBox
 from PyQt5 import QtGui
+import pyqtgraph as pg
+import datetime
+import pynwb
+import nwbext_ecog
 
-class ecogTSGUI:
+class ecogVIS:
     def __init__(self, par, pathName, parameters):
-        
         self.parent = par
-        self.pathName = pathName
-        self.axesParams = parameters        
-        out = self.loadBlock()
-        self.ecog = out['ecogDS']
-        self.x_cur = []
-        self.y_cur = []
+        self.pathName = os.path.split(os.path.abspath(pathName))[0] #path
+        self.fileName = os.path.split(os.path.abspath(pathName))[1] #file
+        self.axesParams = parameters
+
+        nwb = pynwb.NWBHDF5IO(pathName,'r').read()      #reads NWB file
+        self.ecog = nwb.acquisition['ECoG']             #ecog
+        # Get Brain regions present in current file
+        self.all_regions = list(set(nwb.electrodes['location'][:].tolist()))
+        self.all_regions.sort()
+        self.channels_mask = [True]*len(self.all_regions)
+        self.channels_mask_ind = np.where(self.channels_mask)[0]
+
         self.h = []
         self.text = []
-        n_ch = np.shape(self.ecog['data'])[1]
-        self.channelScrollDown = np.arange(0, int(self.axesParams['editLine']['qLine0'].text()))
-        self.indexToSelectedChannels = np.arange(0, int(self.axesParams['editLine']['qLine0'].text()))
-        self.selectedChannels = np.arange(0, n_ch)
-        self.channelSelector = np.arange(0, n_ch)
-        self.rawecog = out['ecogDS']
-        self.badIntervals = out['badTimeSegments']
-        self.t1 = 0
+        self.AnnotationsList = []
+        self.AnnotationsPosAV = np.array([])    #(x, y_va, y_off)
+
+        self.nBins = self.ecog.data.shape[0]     #total number of bins
+        self.nChTotal = self.ecog.data.shape[1]     #total number of channels
+        self.allChannels = np.arange(0, self.nChTotal)  #array with all channels
+        # Channels to show
+        self.firstCh = int(self.axesParams['editLine']['qLine1'].text())
+        self.lastCh = int(self.axesParams['editLine']['qLine0'].text())
+        self.nChToShow = self.lastCh - self.firstCh + 1
+        self.selectedChannels = np.arange(self.firstCh-1, self.lastCh)
+
+        self.rawecog = self.ecog.data       #ecog signals
+        self.fs_signal = self.ecog.rate     #sampling frequency [Hz]
+        self.tbin_signal = 1/self.fs_signal #time bin duration [seconds]
+
         self.current_rect = []
-        self.badChannels = out['badChannels']        
-        if os.path.exists(os.path.join(pathName, 'Analog', 'ANIN4.htk')):#menu('load audio?','yes','no') == 1
+        self.badChannels = np.where( nwb.electrodes['bad'][:] )
+
+        # Load invalid intervals from NWB file
+        self.allIntervals = []
+        if nwb.invalid_times != None:
+            self.nBI = nwb.invalid_times.columns[0][:].shape[0] #number of BI
+            for ii in np.arange(self.nBI):
+                # create new interval
+                obj = CustomInterval()
+                obj.start = nwb.invalid_times.columns[0][ii]
+                obj.stop = nwb.invalid_times.columns[1][ii]
+                obj.type = 'invalid'
+                obj.color = 'red'
+                self.allIntervals.append(obj)
+
+        # menu('load audio?','yes','no') == 1
+        if os.path.exists(os.path.join(pathName, 'Analog', 'ANIN4.htk')):
             self.disp_audio = 1
-            self.audio = readHTK(os.path.join(pathName, 'Analog', 'ANIN4.htk'))    
-            
+            self.audio = readHTK(os.path.join(pathName, 'Analog', 'ANIN4.htk'))
+
             self.downsampled = self.downsample(10)
             self.audio['sampling_rate'] = self.audio['sampling_rate']/10000
-            self.fs_audio = self.audio['sampling_rate']/10            
+            self.fs_audio = self.audio['sampling_rate']/10
             self.taudio = np.arange(1, np.shape(self.downsampled)[0])/self.fs_audio
-            
         else:
             self.disp_audio = 0
-         
-        total_dur = len(self.ecog['data'])/self.ecog['sampFreq'][0][0]
+
+        total_dur = np.shape(self.ecog.data)[0]/self.fs_signal
         self.axesParams['pars']['Figure'][1].plot([0, total_dur], [0.5, 0.5], pen = 'k', width = 0.5)
 
-#        %plot bad time segments on timeline
-        BIs = self.badIntervals
-        self.BIRects = np.array([], dtype = 'object')
-        for i in range(np.shape(BIs)[0]):
-            c = pg.QtGui.QGraphicsRectItem(BIs[i][0], 0, max([BIs[i][1] - BIs[i][0], 0.01]), 1)
-            a = self.axesParams['pars']['Figure'][1]
-            c.setPen(pg.mkPen(color = 'r'))
-            c.setBrush(QtGui.QColor(255, 0, 0, 255))
-            a.addItem(c)
-            self.BIRects = np.append(self.BIRects, c)
 
-        
-        
-        
-        
-#        BIs(all(~BIs,2),:) = []; % fix row of all zeros
-#        for i=1:size(BIs,1)
-#            handles.BIRects(i) = rectangle('Position',[BIs(i,1),0,max(BIs(i,2)-BIs(i,1),.01),1],'FaceColor','r');
-#        end
-        
+        # Plot interval rectangles at upper and middle pannels
+        self.IntRects1 = np.array([], dtype = 'object')
+        self.IntRects2 = np.array([], dtype = 'object')
+        for i, obj in enumerate(self.allIntervals):
+            start = obj.start
+            stop = obj.stop
+            # on timeline
+            c = pg.QtGui.QGraphicsRectItem(start, 0, max(stop-start, 0.01), 1)
+            self.IntRects1 = np.append(self.IntRects1, c)
+            c.setPen(pg.mkPen(color = 'r'))
+            c.setBrush(QtGui.QColor(255, 0, 0, 250))
+            a = self.axesParams['pars']['Figure'][1]
+            a.addItem(c)
+            # on signals plot
+            c = pg.QtGui.QGraphicsRectItem(start, 0, max(stop-start, 0.01), 1)
+            self.IntRects2 = np.append(self.IntRects2, c)
+            c.setPen(pg.mkPen(color = 'r'))
+            c.setBrush(QtGui.QColor(255, 0, 0, 120))
+            a = self.axesParams['pars']['Figure'][0]
+            a.addItem(c)
+
+
+        # Initiate interval to show
+        self.getCurAxisParameters()
+
         self.refreshScreen()
-       
+
+
     def refreshScreen(self):
         self.AR_plotter()
-        
-    def AR_plotter(self):        
-        self.getCurAxisParameters()
-        startSamp = int(math.ceil(self.intervalStartSamples))      
-        endSamp = int(math.floor(self.intervalEndSamples))       
-        
-        channelsToShow = self.selectedChannels[self.indexToSelectedChannels]
-        self.verticalScaleFactor = float(self.axesParams['editLine']['qLine4'].text())
-        scaleFac = np.var(self.ecog['data'][: (endSamp - startSamp), :], axis = 0)/self.verticalScaleFactor #We use on fixed interval for the scaling factor to keep things comparable
-       
-        scaleVec = np.arange(1, len(channelsToShow) + 1) * max(scaleFac) * 1/50 #The multiplier is arbitrary. Find a better solution
-        
-        timebaseGuiUnits = np.arange(startSamp - 1, endSamp) * (self.intervalStartGuiUnits/self.intervalStartSamples) 
 
-        scaleV = np.zeros([len(scaleVec), 1])
-        scaleV[:, 0] = scaleVec
-        try:            
-            data = self.ecog['data'][startSamp - 1 : endSamp, channelsToShow].T
-            plotData = data + np.tile(scaleV, (1, endSamp - startSamp + 1)) #data + offset        
-        except:
-#            #if time segment shorter than window.
-            data = self.ecog['data'][:, channelsToShow].T
-            plotData = data + np.tile(scaleV, (1, endSamp - startSamp + 1)) # %data + offset
-         
-###### Rectangle Plot
+
+    def AR_plotter(self):
+        #self.getCurAxisParameters()
+        startSamp = self.intervalStartSamples
+        endSamp = self.intervalEndSamples
+        timebaseGuiUnits = np.arange(startSamp - 1, endSamp) * (self.intervalStartGuiUnits/self.intervalStartSamples)
+
+        # Use the same scaling factor for all channels, to keep things comparable
+        self.verticalScaleFactor = float(self.axesParams['editLine']['qLine4'].text())
+        scaleFac = 2*np.std(self.ecog.data[startSamp:endSamp, self.selectedChannels-1], axis=0)/self.verticalScaleFactor
+
+        # Scale variance_units, offset for each channel
+        scale_va = np.max(scaleFac)
+        self.scaleVec = np.arange(1, self.nChToShow + 1) * scale_va
+
+        scaleV = np.zeros([len(self.scaleVec), 1])
+        scaleV[:, 0] = self.scaleVec
+
+        # constrains the plotData to the chosen interval (and transpose matix)
+        # plotData dims=[self.nChToShow, plotInterval]
+        try:
+            data = self.ecog.data[startSamp - 1 : endSamp, self.selectedChannels-1].T
+            plotData = data + np.tile(scaleV, (1, endSamp - startSamp + 1)) # data + offset
+        except:  #if time segment shorter than window.
+            data = self.ecog.data[:, self.selectedChannels-1].T
+            plotData = data + np.tile(scaleV, (1, endSamp - startSamp + 1)) # data + offset
+        self.plotData = []
+        self.plotData = plotData
+
+        ## Rectangle Plot
         x = float(self.axesParams['editLine']['qLine2'].text())
         w = float(self.axesParams['editLine']['qLine3'].text())
-        
+
+        # Upper horizontal bar
         plt2 = self.axesParams['pars']['Figure'][1]
-        if self.current_rect != []:                       
+        if self.current_rect != []:
             plt2.removeItem(self.current_rect)
-        
+
         self.current_rect = pg.QtGui.QGraphicsRectItem(x, 0, w, 1)
         self.current_rect.setPen(pg.mkPen(color = 'k'))
         self.current_rect.setBrush(QtGui.QColor(0, 255, 0, 200))
         plt2.addItem(self.current_rect)
 
-        
-        for i in range(len(self.BIRects)):
-            plt2.removeItem(self.BIRects[i])
-        for i in range(len(self.BIRects)):   
-            plt2.addItem(self.BIRects[i])
+        for i in range(len(self.IntRects1)):
+            plt2.removeItem(self.IntRects1[i])
+        for i in range(len(self.IntRects1)):
+            plt2.addItem(self.IntRects1[i])
 
-        
-######       Rectangle Plot
-        
-#        %bad_t=handles.ecog.bad_t;
-#        %A line indicating zero for every channel        
-        x = np.tile([timebaseGuiUnits[0], timebaseGuiUnits[-1]], (len(scaleVec), 1))
+
+        # Middle signals plot
+        # A line indicating reference for every channel
+        x = np.tile([timebaseGuiUnits[0], timebaseGuiUnits[-1]], (len(self.scaleVec), 1))
         y = np.hstack((scaleV, scaleV))
-        plt = self.axesParams['pars']['Figure'][0]
-        plt.clear()                                                             #clear plot
+        plt = self.axesParams['pars']['Figure'][0]   #middle signal plot
+        # Clear plot
+        plt.clear()
         for l in range(np.shape(x)[0]):
-            plt.plot(x[l], y[l], pen = 'r')
+            plt.plot(x[l], y[l], pen = 'k')
         plt.setLabel('bottom', 'Time', units = 'sec')
         plt.setLabel('left', 'Channel #')
-        
-        labels = [str(ch + 1) for ch in channelsToShow]
+
+        labels = [str(ch+1) for ch in self.selectedChannels]
         ticks = list(zip(y[:, 0], labels))
-        
-        plt.getAxis('left').setTicks([ticks])       
-        
-        
-        badch = np.array([])    
+
+        plt.getAxis('left').setTicks([ticks])
+
+        # Find bad and valid channels from self.selectedChannels
+        badCh = np.intersect1d(self.selectedChannels, self.badChannels)
+        validCh = np.setdiff1d(self.selectedChannels, self.badChannels)
         nrows, ncols = np.shape(plotData)
-        for channels in enumerate(channelsToShow):
-            if np.any(str(channels) in self.badChannels):
-                np.append(badch, channels)
-        if not np.empty(badch):            
-            if len(np.where(self.badChannels == 999)) > 0:                
-                for i in range(nrows):
-                    c = 'g'
-                    if i%2 == 0:
-                        c = 'b'                    
-                    plt.plot(timebaseGuiUnits, plotData[i], pen = pg.mkPen(c, width = 1))
-                    if i in badch:
-                        plt.plot(timebaseGuiUnits, plotData[i], pen = 'r', width = 1)
+
+        # Iterate over chosen channels, plot one at a time
+        for i in range(nrows):
+            if i in badCh:
+                plt.plot(timebaseGuiUnits, plotData[i], pen = 'r', width = 1)
             else:
-                plotData[badch, :] = np.nan
-                ph = plt.plot(timebaseGuiUnits, plotData.T)      
-            
-        else:
-            #PLOT CHANNELS 
-            for i in range(nrows):
                 c = 'g'
                 if i%2 == 0:
-                    c = 'b'                    
+                    c = 'b'
+                #plt.plot(timebaseGuiUnits, plotData[i], pen = pg.mkPen(c, width = 1))
                 plt.plot(timebaseGuiUnits, plotData[i], pen = c, width = 1)
-            
-        plt.setXRange(timebaseGuiUnits[0], timebaseGuiUnits[-1], padding = 0.003) 
-        plt.setYRange(y[0, 0], y[-1, 0], padding = 0.06)
-#        %MAKE TRANSPARENT BOX AROUND BAD TIME SEGMENTS
-        self.plotData = []
-        self.plotData = plotData
-        self.showChan = channelsToShow   
-        yaxis = plt.getAxis('left').range
-        ymin, ymax = yaxis[0], yaxis[1]
-        xaxis = plt.getAxis('bottom').range
-        xmin, xmax = xaxis[0], xaxis[1]
-        
-        for i in range(np.shape(self.badIntervals)[0]):
-            BI = self.badIntervals[i]            
-            x1, y1, w, h = BI[0], ymin, BI[1] - BI[0], ymax            
-            c = pg.QtGui.QGraphicsRectItem(x1, y1, w, h)
-            c.setPen(pg.mkPen(color = (255, 255, 200)))
-            c.setBrush(QtGui.QColor(255, 255, 200, 150))
-            plt.addItem(c)
-            self.text1 = pg.TextItem(str(round(BI[0], 4)), color = 'r')
-            self.text1.setPos(BI[0], ymax)
-            plt.addItem(self.text1)
-            self.text2 = pg.TextItem(str(round(BI[1], 4)), color = 'r')
-            self.text2.setPos(BI[1], ymax)
-            plt.addItem(self.text2)          
 
-        
-        if self.disp_audio:#    % PLOT AUDIO            
-            begin = self.intervalStartGuiUnits            
-            stop = self.intervalStartGuiUnits + self.intervalLengthGuiUnits  
+
+        plt.setXRange(timebaseGuiUnits[0], timebaseGuiUnits[-1], padding = 0.003)
+        plt.setYRange(y[0, 0], y[-1, 0], padding = 0.06)
+
+        # Make red box around bad time segments
+        for i in range(len(self.IntRects2)):
+            plt.removeItem(self.IntRects2[i])
+        for i in range(len(self.IntRects2)):
+            plt.addItem(self.IntRects2[i])
+
+        # Show Annotations
+        for i in range(len(self.AnnotationsList)):
+            plt.removeItem(self.AnnotationsList[i])
+        for i in range(len(self.AnnotationsList)):
+            aux = self.AnnotationsList[i]
+            x = self.AnnotationsPosAV[i,0]
+            # Y to plot = (Y_va + Channel offset)*scale_variance
+            y_va = self.AnnotationsPosAV[i,1]
+            y = (y_va + self.AnnotationsPosAV[i,2] - self.firstCh) * scale_va
+            aux.setPos(x,y)
+            plt.addItem(aux)
+
+        # Plot audio
+        if self.disp_audio:
+            begin = self.intervalStartGuiUnits
+            stop = self.intervalStartGuiUnits + self.intervalLengthGuiUnits
             plt1 = self.axesParams['pars']['Figure'][2]
             plt1.clear()
             ind_disp = np.where((self.taudio > begin) & (self.taudio < stop))
-            x_axis = np.linspace(xmin, xmax, len(self.downsampled[ind_disp]))            
+            x_axis = np.linspace(xmin, xmax, len(self.downsampled[ind_disp]))
             plt1.plot(x_axis, self.downsampled[ind_disp], pen = 'r', width = 2)
             plt1.setXLink(plt)
-#        plt2.setXLink(plt)
+            # plt2.setXLink(plt)
 
-            
 
-            
-        
-    def getCurAxisParameters(self):        
-        self.getCurXAxisPosition()
-        
-    def getCurXAxisPosition(self):
+
+
+    def getCurAxisParameters(self):
+        self.updateCurXAxisPosition()
+
+
+    # Updates the time interval selected from the user forms,
+    # with checks for allowed values
+    def updateCurXAxisPosition(self):
+        # Read from user forms
         self.intervalStartGuiUnits = float(self.axesParams['editLine']['qLine2'].text())
-        
         self.intervalLengthGuiUnits = float(self.axesParams['editLine']['qLine3'].text())
-        
-        
-        total_dur = np.shape(self.ecog['data'])[0] * self.ecog['sampDur'][0][0]/1000        
-        if self.intervalLengthGuiUnits > total_dur:
-            self.intervalLengthGuiUnits = total_dur
-        
-        self.intervalLengthSamples = self.intervalLengthGuiUnits * (1000/self.ecog['sampDur'][0][0])
-        
-        self.intervalStartSamples = self.intervalStartGuiUnits * (1000/self.ecog['sampDur'][0][0]) # assumes seconds in GUI and milliseconds in  ecog.sampDur
-        self.intervalEndSamples = self.intervalStartSamples + self.intervalLengthSamples - 1 #We assume that the intervall length is specified in samples
-        #%should always work because plausibility has been checked when channels were entered (
-        self.indexToSelectedChannels = self.channelScrollDown
-        
+
+        max_dur = self.nBins * self.tbin_signal  # Max duration in seconds
+        min_len = 1000*self.tbin_signal          # Min accepted length
+
+        # Check for max and min allowed values: START
+        if  self.intervalStartGuiUnits < 0.001:
+            self.intervalStartGuiUnits = 0.001
+        elif self.intervalStartGuiUnits > max_dur-min_len:
+            self.intervalStartGuiUnits = max_dur-min_len
+
+        # Check for max and min allowed values: LENGTH
+        if self.intervalLengthGuiUnits + self.intervalStartGuiUnits > max_dur:
+            self.intervalLengthGuiUnits = max_dur - self.intervalStartGuiUnits
+        elif self.intervalLengthGuiUnits < min_len:
+            self.intervalLengthGuiUnits = min_len
+
+        # Updates form values (round to miliseconds for display)
+        self.intervalStartGuiUnits = np.round(self.intervalStartGuiUnits,3)
+        self.intervalLengthGuiUnits = np.round(self.intervalLengthGuiUnits,3)
+        self.axesParams['editLine']['qLine2'].setText(str(self.intervalStartGuiUnits))
+        self.axesParams['editLine']['qLine3'].setText(str(self.intervalLengthGuiUnits))
+
+        # Updates times in samples
+        self.intervalLengthSamples = int(np.floor(self.intervalLengthGuiUnits / self.tbin_signal))
+        self.intervalStartSamples = int(np.floor(self.intervalStartGuiUnits / self.tbin_signal))
+        self.intervalEndSamples = self.intervalStartSamples + self.intervalLengthSamples
+
+        self.refreshScreen()
+
+
+    # Updates the plotting time interval range
+    def time_window_resize(self, wscale):
+        self.intervalLengthGuiUnits = float(self.axesParams['editLine']['qLine3'].text())
+        self.intervalLengthGuiUnits = self.intervalLengthGuiUnits * wscale
+        self.axesParams['editLine']['qLine3'].setText(str(self.intervalLengthGuiUnits))
+        self.updateCurXAxisPosition()
+
+
+    # Updates the plotting time interval for scrolling
+    # Buttons: >>, >, <<, <
+    def time_scroll(self, scroll=0):
+        #new interval start
+        self.intervalStartSamples = self.intervalStartSamples \
+                                    + int(scroll * self.intervalLengthSamples)
+        #if the last sample of the new interval is beyond is the available data
+        # set start such that intserval is in a valid range
+        if self.intervalStartSamples + self.intervalLengthSamples > self.nBins:
+            self.intervalStartSamples = self.nBins - self.intervalLengthSamples
+        elif self.intervalStartSamples < 1:
+            self.intervalStartSamples = 1
+
+        #new interval end
+        self.intervalEndSamples = self.intervalStartSamples + self.intervalLengthSamples
+        # Updates start time in seconds (first avoid <0.001 values)
+        self.intervalStartGuiUnits = max(self.intervalStartSamples*self.tbin_signal,0.001)
+        # Round to miliseconds for display
+        self.intervalStartGuiUnits = np.round(self.intervalStartGuiUnits,3)
+        self.intervalEndGuiUnits = self.intervalEndSamples*self.tbin_signal
+        self.axesParams['editLine']['qLine2'].setText(str(self.intervalStartGuiUnits))
+        self.refreshScreen()
+
+
     def downsample(self, n):
         L = self.audio['num_samples']
         block = round(L/n)
-        n_zeros = block * n + n - L       
+        n_zeros = block * n + n - L
         self.downsampled = np.append(self.audio['data'], np.zeros([int(n_zeros)]))
         re_shape = np.reshape(self.downsampled, [int((block * n + n)/n), n])[:, 0]
         return re_shape
-            
-    
-    def loadBadTimes(self):
-        
-        filename = os.path.join(self.pathName, 'Artifacts', 'badTimeSegments.mat')
-        
-        if os.path.exists(filename):
-            loadmatfile = scipy.io.loadmat(filename)
-            badTimeSegments = loadmatfile['badTimeSegments']
-#            print '{} bad time segments loaded '.format(np.shape(loadmatfile['badTimeSegments'])[1])
-        else:
-            if not os.path.exists(os.path.join(self.pathName, 'Artifacts')):
-                os.mkdir(os.path.join(self.pathName, 'Artifacts'))
-                
-            badTimeSegments = []
-            scipy.io.savemat(filename, mdict = {'badTimeSegments': badTimeSegments})
-    
-        return badTimeSegments
-    
-    def loadBadCh(self):
-        filename = os.path.join(self.pathName, 'Artifacts', 'badChannels.txt')
-        if os.path.exists(filename):
-            with open(filename)  as f:
-                badChannels = f.read()
-#                print 'Bad Channels : {}'.format(badChannels)
-        else:
-            os.mkdir(os.path.join(self.pathName, 'Artifcats'))
-            with open(filename, 'w') as f:
-                f.write('')
-                f.close()
-            badChannels = []
-        return badChannels
-    
-    
-    def fileParts(self):
-        parts = self.pathName.split('\\')
-        return parts[-1]
 
-#def getEcog(pathName, newfs):
-    
-    def loadBlock(self, *argv):
-        
-        try:
-            saveopt = argv[0]  
-            
-        except:
-            saveopt = 0
-            
-            
-        try:
-            newfs = argv[1]
-        except:
-            newfs = 400
-            
-        if saveopt:
-            auto = 1
-        else:
-            auto = 0
-        
-            
-        if not os.path.exists(self.pathName):
-            self.pathName = QFileDialog().getExistingDirectory(self.parent, 'Open File')
-    
-   
-    
-        if os.path.exists(os.path.join(self.pathName, 'RawHTK')) and \
-            os.path.exists(os.path.join(self.pathName, 'ecog400')) and \
-            os.path.exists(os.path.join(self.pathName, 'ecog600')) and \
-            os.path.exists(os.path.join(self.pathName, 'ecog1000')) and \
-            os.path.exists(os.path.join(self.pathName, 'ecog2000')):
-            
-                print('Please choose a block folder that contains the RawHTK, ecog400 or ecog600 folder, e.g. EC34_B5')
-                
-        
-    
-    
-        blockName = self.fileParts()
-#        print blockName
-    
-    #automatically load bad time segments
-    
-        badTimeSegments = self.loadBadTimes()
-        badChannels = self.loadBadCh()
-        
-    #load data
-    
-    #try to find downsampled data
-        file_ = os.path.join(self.pathName, 'ecog' + str(newfs), 'ecog.mat')
-        out = dict()
-        if os.path.exists(file_):
-#            print 'Loading downsampled ecog....'
-            loadmatfile = h5py.File(file_)
-#            print 'done'
-            
-        elif os.path.exists(os.path.join(self.pathName, 'RawHTK')):
-#            print 'Loading downsampled ecog...'
-            loadmatfile = h5py.File(file_)
-#            print 'done'
-            ## LEFT to be implemented
-        
-            
-        out['badTimeSegments'] = badTimeSegments
-        out['badChannels'] = badChannels
-        out['blockName'] = blockName
-        out['ecogDS'] = loadmatfile['ecogDS']
-        
-        return out
 
-    def channel_Scroll_Up(self):
-        blockIndices = self.channelScrollDown        
-        self.nChannelsDisplayed = int(self.axesParams['editLine']['qLine0'].text())
-        nChanToShow = self.nChannelsDisplayed        
-        chanToShow = self.channelSelector        
-        blockIndices  = blockIndices + nChanToShow        
-        if blockIndices[-1] > len(chanToShow):
-            blockIndices = np.arange(len(chanToShow) - len(blockIndices) + 1, len(chanToShow))
-#        print blockIndices
-        self.channelScrollDown = blockIndices        
-        self.refreshScreen()
-        
-    def channel_Scroll_Down(self):
-        blockIndices = self.channelScrollDown        
-        nChanToShow = int(self.axesParams['editLine']['qLine0'].text())
-        blockIndices = blockIndices - nChanToShow
-        if blockIndices[0] <= 0:
-            blockIndices = np.arange(0, nChanToShow) #first possible block
-            
-        self.channelScrollDown = blockIndices
-        self.refreshScreen()
-        
-    def page_forward(self):
-        n, m = np.shape(self.ecog['data'])       
-        self.getCurXAxisPosition()
-        # check if inteval length is appropriate        
-        if self.intervalLengthSamples > n:
-            #set interval length to available data
-            self.intervalLengthSamples = n        
-        #new interval start
-        
-        self.intervalStartSamples = self.intervalStartSamples \
-        + self.intervalLengthSamples        
-       
-        #if the last sample of the new interval is beyond is the available data
-        # set start such that intserval is in a valid range
-        if self.intervalStartSamples + self.intervalLengthSamples > n:
-            self.intervalStartSamples = n - self.intervalLengthSamples + 1
-        
-        
-        self.setXAxisPositionSamples()
-        self.refreshScreen()
-        
-    def setXAxisPositionSamples(self):
-        t = 1000/self.ecog['sampDur'][0][0]
-        self.axesParams['editLine']['qLine2'].setText(str(self.intervalStartSamples/t))
-        self.axesParams['editLine']['qLine3'].setText(str(self.intervalLengthSamples/t))
-        
-    def page_back(self):
-        n, m = np.shape(self.ecog['data'])
-        self.getCurXAxisPosition()
-        #new interval start
-        self.intervalStartSamples = self.intervalStartSamples - self.intervalLengthSamples
-        
-        # if the last sample of the new interval is beyond is the available data
-        # set start such that intserval is in a valid range
-        if self.intervalStartSamples < 1:
-            self.intervalStartSamples = 1
-        
-        self.setXAxisPositionSamples()
-        self.refreshScreen()
-        
-    def scroll_back(self):
-        n, m = np.shape(self.ecog['data'])
-        self.getCurXAxisPosition()
-        #new interval start
-        self.intervalStartSamples = self.intervalStartSamples - self.intervalLengthSamples/3
-        
-        # if the last sample of the new interval is beyond is the available data
-        # set start such that intserval is in a valid range
-        if self.intervalStartSamples < 1:
-            self.intervalStartSamples = 1
-        
-        self.setXAxisPositionSamples()
+
+    # Updates the channels to be plotted
+    # Buttons: ^, ^^
+    def channel_Scroll_Up(self, opt='unit'):
+        # Test upper limit
+        if self.lastCh < self.nChTotal:
+            if opt=='unit':
+                step = 1
+            elif opt=='page':
+                step = np.minimum(self.nChToShow, self.nChTotal-self.lastCh)
+            # Add +1 to first and last channels
+            self.firstCh += step
+            self.lastCh += step
+            self.axesParams['editLine']['qLine0'].setText(str(self.lastCh))
+            self.axesParams['editLine']['qLine1'].setText(str(self.firstCh))
+            self.nChToShow = self.lastCh - self.firstCh + 1
+            self.selectedChannels = self.channels_mask_ind[self.firstCh-1:self.lastCh]
         self.refreshScreen()
 
-    def scroll_forward(self):
-        n, m = np.shape(self.ecog['data'])       
-        self.getCurXAxisPosition()
-        # check if inteval length is appropriate        
-        if self.intervalLengthSamples > n:
-            #set interval length to available data
-            self.intervalLengthSamples = n        
-        #new interval start
-        
-        self.intervalStartSamples = self.intervalStartSamples \
-        + self.intervalLengthSamples/3        
-       
-        #if the last sample of the new interval is beyond is the available data
-        # set start such that intserval is in a valid range
-        if self.intervalStartSamples + self.intervalLengthSamples > n:
-            self.intervalStartSamples = n - self.intervalLengthSamples + 1
-        
-        self.setXAxisPositionSamples()
+
+    # Buttons: v, vv
+    def channel_Scroll_Down(self, opt='unit'):
+        # Test lower limit
+        if self.firstCh > 1:
+            if opt=='unit':
+                step = 1
+            elif opt=='page':
+                step = np.minimum(self.nChToShow, self.firstCh-1)
+            # Subtract from first and last channels
+            self.firstCh -= step
+            self.lastCh -= step
+            self.axesParams['editLine']['qLine0'].setText(str(self.lastCh))
+            self.axesParams['editLine']['qLine1'].setText(str(self.firstCh))
+            self.nChToShow = self.lastCh - self.firstCh + 1
+            self.selectedChannels = self.channels_mask_ind[self.firstCh-1:self.lastCh]
         self.refreshScreen()
+
 
     def verticalScaleIncrease(self):
         scaleFac = float(self.axesParams['editLine']['qLine4'].text())
-        self.axesParams['editLine']['qLine4'].setText(str(scaleFac * 2))        
+        self.axesParams['editLine']['qLine4'].setText(str(scaleFac * 2))
         self.refreshScreen()
-        
+
+
     def verticalScaleDecrease(self):
         scaleFac = float(self.axesParams['editLine']['qLine4'].text())
-        self.axesParams['editLine']['qLine4'].setText(str(scaleFac/2.0))        
+        self.axesParams['editLine']['qLine4'].setText(str(scaleFac/2.0))
         self.refreshScreen()
-        
-    def plot_interval(self):
-        plotIntervalGuiUnits = float(self.axesParams['editLine']['qLine3'].text())
-        sam = self.ecog['sampDur'][0][0]
-        n = np.shape(self.ecog['data'])[0]
-        
-        if plotIntervalGuiUnits * 1000 < sam:
-            plotIntervalGuiUnits = self.ecog['sampDur'][0][0]/1000
-            self.axesParams['editLine']['qLine3'].setText(str(plotIntervalGuiUnits))
-        elif plotIntervalGuiUnits * 1000/sam > n:
-            plotIntervalGuiUnits = (n - 1) * sam/1000
-            self.axesParams['editLine']['qLine3'].setText(str(plotIntervalGuiUnits))
-        self.refreshScreen()        
-        
-    def start_location(self):
-        self.getCurXAxisPosition()
-        #interval at least one sample long
-        if self.intervalStartSamples < self.ecog['sampDur'][0][0]:
-            self.intervalStartSamples = 1 #set to the first sample
-            self.setXAxisPositionSamples()       
-        
-        if self.intervalStartSamples + self.intervalLengthSamples - 1 > \
-        np.shape(self.ecog['data'])[0]:
-            self.intervalStartSamples = np.shape(self.ecog['data'])[0] - \
-            self.intervalLengthSamples + 1
-            self.setXAxisPositionSamples()
-        
-        self.refreshScreen()
-        
-    def nChannels_Displayed(self):
-        nChanToShow = int(self.axesParams['editLine']['qLine0'].text())        
-#        nChanToShow = nChanToShow(1)# %make sure we have a scalar
-#         make we have sure indices will be in a valid range
-        chanToShow = self.channelSelector        
-        if nChanToShow < 1:
-            nChanToShow = 1
-        elif nChanToShow > len(chanToShow):
-            nChanToShow = len(chanToShow)
-        self.axesParams['editLine']['qLine0'].setText(str(nChanToShow))
-        
-        self.channelScrollDown = np.arange(0, nChanToShow)        
-        self.refreshScreen()
-        
-    def addBadTimeSeg(self, BadInterval):
-#        axes(handles.timeline_axes);        
-        x = BadInterval[0]    
-        y = 0
-        w = np.diff(np.array(BadInterval))[0] 
-        h = 1
-        c = pg.QtGui.QGraphicsRectItem(x, y, w, h)
-        c.setPen(pg.mkPen(color = 'r'))
-        c.setBrush(QtGui.QColor(255, 0, 0, 255))        
-        self.BIRects = np.append(self.BIRects, [c])        
-        if np.size(self.badIntervals) == 0:
-            self.badIntervals = np.array([BadInterval])
-        else:
-            self.badIntervals = np.vstack((self.badIntervals, np.array(BadInterval)))
-                  
-        
-    def deleteInterval(self, x):
-        BIs = self.badIntervals       
-        di = np.where((x >= BIs[:, 0]) & (x <= BIs[:, 1]))       
-        if np.size(di) > 0:
-            self.axesParams['pars']['Figure'][1].removeItem(self.BIRects[di[0][0]])
-            self.BIRects = np.delete(self.BIRects, di[0][0], axis = 0)    
-            self.badIntervals = np.delete(self.badIntervals, di, axis = 0)            
-            badTimeSegments = self.badIntervals
-            file_name = os.path.join(self.pathName, 'Artifacts', 'badTimeSegments')
-            scipy.io.savemat(file_name, {'badTimeSegments': badTimeSegments})            
-            self.refreshScreen()
-            
-            
-    def pushSave(self):
-        BAD_INTERVALS = self.badIntervals
-        fullfile = os.path.join(self.pathName, 'Artifacts', 'bad_time_segments.lab')
-        n_size = np.shape(BAD_INTERVALS)[0]
-        one = np.ones((n_size, 1))
-        variable = np.hstack((BAD_INTERVALS, one))
-        f.BadTimesConverterGUI(variable, fullfile)        
-        badTimeSegments = BAD_INTERVALS
-        file_name = os.path.join(self.pathName, 'Artifacts', 'badTimeSegments')
-        scipy.io.savemat(file_name, {'badTimeSegments': badTimeSegments})
-        my_file = os.path.join(self.pathName, 'Artifacts', 'info.txt')
-        if not os.path.exists(my_file):
-            username, okPressed = QInputDialog.getText(self, 'Enter Text', 'Who is this:', QLineEdit.Normal, '')
-            if okPressed and username != '':
-                fileid = open(os.path.join(self.pathName, 'Artifacts', 'info.txt'), 'w')
-                fileid.write(username + ' ' + datetime.datetime.today().strftime('%Y-%m-%d'))
-                fileid.close()
-        else:
-            fileid = open(os.path.join(self.pathName, 'Artifacts', 'info.txt'), 'a')
-            fileid.write(' ' + datetime.datetime.today().strftime('%Y-%m-%d'))
-            fileid.close()
 
-    def getChannel(self):
-        x = self.x_cur
-        y = self.y_cur
-    
+
+    def time_window_size(self):
+        plotIntervalGuiUnits = float(self.axesParams['editLine']['qLine3'].text())
+        n = self.ecog.data.shape[0]
+        # Minimum time interval
+        if plotIntervalGuiUnits < self.tbin_signal:
+            plotIntervalGuiUnits = self.tbin_signal
+            self.axesParams['editLine']['qLine3'].setText(str(plotIntervalGuiUnits))
+        elif plotIntervalGuiUnits/self.tbin_signal > n:
+            plotIntervalGuiUnits = (n - 1) * self.tbin_signal
+            self.axesParams['editLine']['qLine3'].setText(str(plotIntervalGuiUnits))
+        self.refreshScreen()
+
+
+    def interval_start(self):
+        self.updateCurXAxisPosition()
+        # Interval at least one sample long
+        if self.intervalStartSamples < self.tbin_signal:
+            self.intervalStartSamples = 1   #set to the first sample
+            self.setXAxisPositionSamples()
+        # Maximum interval size
+        if self.intervalStartSamples + self.intervalLengthSamples - 1 > self.nBins:
+            self.intervalStartSamples = self.nBins - self.intervalLengthSamples + 1
+            self.setXAxisPositionSamples()
+        self.refreshScreen()
+
+
+    def nChannels_Displayed(self):
+        # Update channels to show
+        self.firstCh = int(self.axesParams['editLine']['qLine1'].text())
+        self.lastCh = int(self.axesParams['editLine']['qLine0'].text())
+
+        # Make sure indices are in a valid range
+        if self.firstCh < 1:
+            self.firstCh = 1
+
+        if self.firstCh > self.nChTotal:
+            self.firstCh = self.nChTotal
+            self.lastCh = self.nChTotal
+
+        if self.lastCh < 1:
+            self.lastCh = self.firstCh
+
+        if self.lastCh > self.nChTotal:
+            self.lastCh = self.nChTotal
+
+        if self.lastCh - self.firstCh < 1:
+            self.lastCh = self.firstCh
+
+        #Update variables and values displayed on forms
+        self.nChToShow = self.lastCh - self.firstCh + 1
+        self.selectedChannels = self.channels_mask_ind[self.firstCh-1:self.lastCh]
+        self.axesParams['editLine']['qLine0'].setText(str(self.lastCh))
+        self.axesParams['editLine']['qLine1'].setText(str(self.firstCh))
+        self.refreshScreen()
+
+
+    ## Annotation functions ----------------------------------------------------
+    def AnnotationAdd(self, x, y, color='yellow', text='Event'):
+        if color=='yellow':
+            bgcolor = pg.mkBrush(250, 250, 150, 200)
+        elif color=='red':
+            bgcolor = pg.mkBrush(250, 0, 0, 200)
+        elif color=='green':
+            bgcolor = pg.mkBrush(0, 255, 0, 200)
+        elif color=='blue':
+            bgcolor = pg.mkBrush(0, 0, 255, 200)
+        c = pg.TextItem(anchor=(.5,.5), border=pg.mkPen(100, 100, 100), fill=bgcolor)
+        c.setText(text=text, color=(0,0,0))
+        # Y coordinate transformed to variance_units (for plot control)
+        y_va = y/self.scaleVec[0]
+        c.setPos(x,y_va)
+        self.AnnotationsList = np.append(self.AnnotationsList, c)
+        if len(self.AnnotationsPosAV) > 0:
+            self.AnnotationsPosAV = np.concatenate((self.AnnotationsPosAV,
+                                                    np.array([x, y_va, self.firstCh]).reshape(1,3)))
+        else:
+            self.AnnotationsPosAV = np.array([x, y_va, self.firstCh]).reshape(1,3)
+        self.refreshScreen()
+
+
+    def AnnotationDel(self, x, y):
+        x_ann = self.AnnotationsPosAV[:,0]
+        y_ann = (self.AnnotationsPosAV[:,1] + self.AnnotationsPosAV[:,2] - self.firstCh)*self.scaleVec[0]
+        # Calculates euclidian distance from click
+        euclid_dist = np.sqrt( (x_ann-x)**2 + (y_ann-y)**2 )
+        indmin = np.argmin(euclid_dist)
+        # Checks if user intends to delete annotation
+        text = self.AnnotationsList[indmin].textItem.toPlainText()
+        buttonReply = QMessageBox.question(None,
+                                           'Delete Annotation', "Delete the annotation: \n\n"+text+' ?',
+                                           QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
+        if buttonReply == QMessageBox.Yes:
+            self.AnnotationsList = np.delete(self.AnnotationsList, indmin, axis=0)
+            self.AnnotationsPosAV = np.delete(self.AnnotationsPosAV, indmin, axis=0)
+            self.refreshScreen()
+
+
+    def AnnotationSave(self):
+        buttonReply = QMessageBox.question(None, ' ', 'Save annotations on external file?',
+                                           QMessageBox.No | QMessageBox.Yes)
+        if buttonReply == QMessageBox.Yes:
+            c0 = self.AnnotationsPosAV[:,0]     # x
+            c1 = self.AnnotationsPosAV[:,1]     # y_va
+            c2 = self.AnnotationsPosAV[:,2]     # y_off
+            # colors
+            c3 = [self.AnnotationsList[i].fill.color().getRgb() for i in range(len(self.AnnotationsList))]
+            # texts
+            c4 = [self.AnnotationsList[i].textItem.toPlainText() for i in range(len(self.AnnotationsList))]
+            d = {'x':c0, 'y_va':c1, 'y_off':c2, 'color':c3, 'text':c4}
+            df = pd.DataFrame(data=d)
+            fullfile = os.path.join(self.pathName, self.fileName[:-4] + '_annotations_' +
+                                    datetime.datetime.today().strftime('%Y-%m-%d')+
+                                    '.csv')
+            df.to_csv(fullfile, header=True, index=True)
+
+
+    def AnnotationLoad(self, fname=''):
+        df = pd.read_csv(fname)
+        all_x = df['x'].values
+        all_y_va = df['y_va'].values
+        all_y_off = df['y_off'].values
+        texts = df['text'].values.tolist()
+        colors_rgb = df['color'].tolist()
+        for i, txt in enumerate(texts):    # Add loaded annotations to graph
+            rgb = make_tuple(colors_rgb[i])
+            bgcolor = pg.mkBrush(rgb[0], rgb[1], rgb[2], rgb[3])
+            c = pg.TextItem(anchor=(.5,.5), border=pg.mkPen(100, 100, 100), fill=bgcolor)
+            c.setText(text=txt, color=(0,0,0))
+            # Y coordinate transformed to variance_units (for plot control)
+            y_va = all_y_va[i]
+            x = all_x[i]
+            c.setPos(x,y_va)
+            self.AnnotationsList = np.append(self.AnnotationsList, c)
+            if len(self.AnnotationsPosAV) > 0:
+                self.AnnotationsPosAV = np.concatenate((self.AnnotationsPosAV,
+                                                        np.array([x, y_va, all_y_off[i]]).reshape(1,3)))
+            else:
+                self.AnnotationsPosAV = np.array([x, y_va, all_y_off[i]]).reshape(1,3)
+        self.refreshScreen()
+
+
+
+    ## Interval functions ------------------------------------------------------
+    def IntervalAdd(self, interval, int_type, color):
+        if color=='yellow':
+            bc = [250, 250, 150, 180]
+        elif color=='red':
+            bc = [250, 0, 0, 100]
+        elif color=='green':
+            bc = [0, 255, 0, 130]
+        elif color=='blue':
+            bc = [0, 0, 255, 100]
+        x = interval[0]
+        y = 0
+        w = np.diff(np.array(interval))[0]
+        h = 1
+        # add rectangle to upper plot
+        c = pg.QtGui.QGraphicsRectItem(x, y, w, h)
+        c.setPen(pg.mkPen(color=QtGui.QColor(bc[0], bc[1], bc[2], 255)))
+        c.setBrush(QtGui.QColor(bc[0], bc[1], bc[2], 255))
+        self.IntRects1 = np.append(self.IntRects1, [c])
+        # add rectangle to middle signal plot
+        c = pg.QtGui.QGraphicsRectItem(x, y, w, h)
+        c.setPen(pg.mkPen(color=QtGui.QColor(bc[0], bc[1], bc[2], 255)))
+        c.setBrush(QtGui.QColor(bc[0], bc[1], bc[2], bc[3]))
+        self.IntRects2 = np.append(self.IntRects2, [c])
+        # new Interval object
+        obj = CustomInterval()
+        obj.start = interval[0]
+        obj.stop = interval[1]
+        obj.type = int_type
+        obj.color = color
+        self.allIntervals.append(obj)
+        self.nBI = len(self.allIntervals)
+
+
+    def IntervalDel(self, x):
+        for i, obj in enumerate(self.allIntervals):
+            if (x >= obj.start) & (x <= obj.stop):   #interval of the click
+                self.axesParams['pars']['Figure'][1].removeItem(self.IntRects1[i])
+                self.IntRects1 = np.delete(self.IntRects1, i, axis = 0)
+                self.axesParams['pars']['Figure'][0].removeItem(self.IntRects2[i])
+                self.IntRects2 = np.delete(self.IntRects2, i, axis = 0)
+                del self.allIntervals[i]
+                self.nBI = len(self.allIntervals)
+                self.refreshScreen()
+
+
+    def IntervalSave(self):
+        buttonReply = QMessageBox.question(None, ' ', 'Save intervals on external file?',
+                                           QMessageBox.No | QMessageBox.Yes)
+        if buttonReply == QMessageBox.Yes:
+            c0, c1, c2, c3 = [], [], [], []
+            for i, obj in enumerate(self.allIntervals):
+                c0.append(obj.start)     # start
+                c1.append(obj.stop)      # stop
+                c2.append(obj.type)      # type
+                c3.append(obj.color)     # color
+            d = {'start':c0, 'stop':c1, 'type':c2, 'color':c3}
+            df = pd.DataFrame(data=d)
+            fullfile = os.path.join(self.pathName, self.fileName[:-4] + '_intervals_' +
+                                    datetime.datetime.today().strftime('%Y-%m-%d')+
+                                    '.csv')
+            df.to_csv(fullfile, header=True, index=True)
+
+
+    def IntervalLoad(self, fname):
+        df = pd.read_csv(fname)
+        for index, row in df.iterrows():    # Add loaded intervals to graph
+            interval = [row.start, row.stop]
+            int_type = row.type
+            color = row.color
+            self.IntervalAdd(interval, int_type, color)
+            #Update dictionary of interval types
+            # TO-DO
+        self.refreshScreen()
+
+
+
+    def getChannel(self, mousePoint):
+        x = mousePoint.x()
+        y = mousePoint.y()
+        print('x: ',x,'     y: ',y)
+
         if (x == []):
             pass
         else:
             start_ = float(self.axesParams['editLine']['qLine2'].text())
             end_ = float(self.axesParams['editLine']['qLine3'].text())
             points = np.round(np.linspace(start_, end_, np.shape(self.plotData)[1]), 2)
-            
+
             index = np.where(points == round(x, 2))
-            
+
             DataIndex = index[0][0]
-#            print(index)
+            #print(index)
             y_points = self.plotData[:, DataIndex]
             diff_ = abs(np.array(y_points) - y)
             index = np.argmin(diff_)
-            chanel = self.showChan + 1
+            chanel = self.selectedChannels
             channel = chanel[index]
 
-                
-                
-            plt = self.axesParams['pars']['Figure'][0]  
+            plt = self.axesParams['pars']['Figure'][0]
             yaxis = plt.getAxis('left').range
-            ymin, ymax = yaxis[0], yaxis[1]    
-           
-#            plt.setTitle('Selected Channel:' + str(channel))
+            ymin, ymax = yaxis[0], yaxis[1]
+
+            #plt.setTitle('Selected Channel:' + str(channel))
             if self.h != []:
                 plt.removeItem(self.h)
-            text_ = 'x:' + str(round(x, 2)) + '\n' + 'y:' + str(round(y, 2))      
-            self.h = pg.TextItem(text_, color = pg.mkColor(70, 70, 70), border = pg.mkPen(200, 200, 200), 
+            text_ = 'x:' + str(round(x, 2)) + '\n' + 'y:' + str(round(y, 2))
+            self.h = pg.TextItem(text_, color = pg.mkColor(70, 70, 70), border = pg.mkPen(200, 200, 200),
                             fill = pg.mkBrush(250, 250, 150, 180))
-            
+
             self.h.setPos(x, y)
             plt.addItem(self.h)
-            
+
             if self.text != []:
                 plt.removeItem(self.text)
             self.text = pg.TextItem('Selected Channel:' + str(channel), color = 'r', border = pg.mkPen(200, 200, 200))
@@ -586,7 +626,26 @@ class ecogTSGUI:
             self.text.setFont(QtGui.QFont('SansSerif', 10))
             plt.addItem(self.text)
 
-            
-            
-            
-        
+
+
+    def DrawMarkTime(self, position):
+        plt = self.axesParams['pars']['Figure'][0]     #middle signal plot
+        self.current_mark = pg.QtGui.QGraphicsRectItem(position, 0, 0, 1)
+        self.current_mark.setPen(pg.mkPen(color = 'k'))
+        self.current_mark.setBrush(QtGui.QColor(150, 150, 150, 100))
+        plt.addItem(self.current_mark)
+
+
+    def RemoveMarkTime(self):
+        plt = self.axesParams['pars']['Figure'][0]     #middle signal plot
+        plt.removeItem(self.current_mark)
+
+
+
+class CustomInterval:
+    def __init__(self):
+        self.start = -999
+        self.stop = -999
+        self.type = ''
+        self.color = ''
+        self.channels = []
