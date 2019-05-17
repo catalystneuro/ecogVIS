@@ -2,7 +2,7 @@
 #setup.py file
 from setuptools import setup
 setup(
-      name = 'ecogTSGUI',
+      name = 'ecogVIS',
       version = '1.0',
       description = 'python gui interface',
       author = 'Ben Dichter',
