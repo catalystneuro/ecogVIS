@@ -5,7 +5,7 @@ setup(
       name = 'ecogVIS',
       version = '1.0',
       description = 'python gui interface',
-      author = 'Ben Dichter',
+      author = 'Luiz Tauffer and Ben Dichter',
       email = 'ben.dichter@gmail.com',
       scripts = ['ecog_vis.py'],
       url = '',
