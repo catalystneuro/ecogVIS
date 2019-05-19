@@ -30,7 +30,9 @@ class ecogVIS:
         # Get Brain regions present in current file
         self.all_regions = list(set(nwb.electrodes['location'][:].tolist()))
         self.all_regions.sort()
-        self.channels_mask = [True]*len(self.all_regions)
+        self.regions_mask = [True]*len(self.all_regions)
+
+        self.channels_mask = np.ones(len(nwb.electrodes['location'][:]))
         self.channels_mask_ind = np.where(self.channels_mask)[0]
 
         self.h = []
@@ -331,6 +333,11 @@ class ecogVIS:
             self.axesParams['editLine']['qLine1'].setText(str(self.firstCh))
             self.nChToShow = self.lastCh - self.firstCh + 1
             self.selectedChannels = self.channels_mask_ind[self.firstCh-1:self.lastCh]
+
+            print('self.firstCh: ', self.firstCh)
+            print('self.lastCh: ', self.lastCh)
+            print('self.channels_mask_ind: ', self.channels_mask_ind)
+            print('self.selectedChannels: ', self.selectedChannels)
         self.refreshScreen()
 
 

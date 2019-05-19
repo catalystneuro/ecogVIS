@@ -75,11 +75,11 @@ class Application(QMainWindow):
 
     def on_key(self, event):
         if event.key() == QtCore.Qt.Key_Up:
-            model.channel_Scroll_Up('unit')
+            model.channel_Scroll_Up('page')
         elif event.key() == QtCore.Qt.Key_PageUp:
             model.channel_Scroll_Up('page')
         elif event.key() == QtCore.Qt.Key_Down:
-            model.channel_Scroll_Down('unit')
+            model.channel_Scroll_Down('page')
         elif event.key() == QtCore.Qt.Key_PageDown:
             model.channel_Scroll_Down('page')
         elif event.key() == QtCore.Qt.Key_Left:
@@ -469,7 +469,7 @@ class Application(QMainWindow):
         self.active_mode = 'default'
         self.reset_buttons()
         # Dialog to choose channels from specific brain regions
-        w = SelectChannelsDialog(model.all_regions, model.channels_mask)
+        w = SelectChannelsDialog(model.all_regions, model.regions_mask)
         all_locs = model.ecog.electrodes.table['location'][:]
         model.channels_mask = np.zeros(len(all_locs))
         for loc in w.choices:
