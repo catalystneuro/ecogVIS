@@ -110,6 +110,9 @@ class Application(QMainWindow):
         action_load_intervals = QAction('Load Intervals', self)
         toolsMenu.addAction(action_load_intervals)
         action_load_intervals.triggered.connect(self.load_intervals)
+        action_add_badchannel = QAction('Add Bad Channel', self)
+        toolsMenu.addAction(action_add_badchannel)
+        action_add_badchannel.triggered.connect(self.add_badchannel)
 
         helpMenu = mainMenu.addMenu('Help')
         action_about = QAction('About', self)
@@ -326,14 +329,20 @@ class Application(QMainWindow):
         print('Save file to NWB - to be implemented')
 
     def load_annotations(self):
-        # open annotations file dialog, calls function to paint them
+        # opens annotations file dialog, calls function to paint them
         fname = QFileDialog.getOpenFileName(self, 'Open file', '', "(*.csv)")
         model.AnnotationLoad(fname=fname[0])
 
     def load_intervals(self):
-        # open intervals file dialog, calls function to paint them
+        # opens intervals file dialog, calls function to paint them
         fname = QFileDialog.getOpenFileName(self, 'Open file', '', "(*.csv)")
         model.IntervalLoad(fname=fname[0])
+
+    def add_badchannel(self):
+        # opens dialog for user input
+        text, ok = QInputDialog.getText(None, 'Bad channel', 'Channel number:')
+        ch = int(text)-1
+        model.BadChannelAdd(ch=ch)
 
     def about(self):
         msg = QMessageBox()

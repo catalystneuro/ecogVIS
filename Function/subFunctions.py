@@ -54,7 +54,7 @@ class ecogVIS:
         self.tbin_signal = 1/self.fs_signal #time bin duration [seconds]
 
         self.current_rect = []
-        self.badChannels = np.where( nwb.electrodes['bad'][:] )
+        self.badChannels = np.where( nwb.electrodes['bad'][:] )[0].tolist()
 
         # Load invalid intervals from NWB file
         self.allIntervals = []
@@ -190,7 +190,7 @@ class ecogVIS:
         # Iterate over chosen channels, plot one at a time
         for i in range(nrows):
             if i in badCh:
-                plt.plot(timebaseGuiUnits, plotData[i], pen = 'r', width = 1)
+                plt.plot(timebaseGuiUnits, plotData[i], pen='r', width=.8, alpha=.3)
             else:
                 c = 'g'
                 if i%2 == 0:
@@ -584,6 +584,11 @@ class ecogVIS:
         self.refreshScreen()
 
 
+    # Channels functions -------------------------------------------------------
+    def BadChannelAdd(self, ch):
+        if ch not in self.badChannels:
+            self.badChannels.append(ch)
+            self.refreshScreen()
 
     def getChannel(self, mousePoint):
         x = mousePoint.x()
