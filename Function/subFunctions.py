@@ -30,7 +30,9 @@ class ecogVIS:
         # Get Brain regions present in current file
         self.all_regions = list(set(nwb.electrodes['location'][:].tolist()))
         self.all_regions.sort()
-        self.channels_mask = [True]*len(self.all_regions)
+        self.regions_mask = [True]*len(self.all_regions)
+
+        self.channels_mask = np.ones(len(nwb.electrodes['location'][:]))
         self.channels_mask_ind = np.where(self.channels_mask)[0]
 
         self.h = []
