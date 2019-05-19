@@ -333,11 +333,6 @@ class ecogVIS:
             self.axesParams['editLine']['qLine1'].setText(str(self.firstCh))
             self.nChToShow = self.lastCh - self.firstCh + 1
             self.selectedChannels = self.channels_mask_ind[self.firstCh-1:self.lastCh]
-
-            print('self.firstCh: ', self.firstCh)
-            print('self.lastCh: ', self.lastCh)
-            print('self.channels_mask_ind: ', self.channels_mask_ind)
-            print('self.selectedChannels: ', self.selectedChannels)
         self.refreshScreen()
 
 
