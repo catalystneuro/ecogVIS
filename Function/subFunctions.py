@@ -25,14 +25,14 @@ class ecogVIS:
         self.fileName = os.path.split(os.path.abspath(pathName))[1] #file
         self.axesParams = parameters
 
-        nwb = pynwb.NWBHDF5IO(pathName,'r').read()      #reads NWB file
-        self.ecog = nwb.acquisition['ECoG']             #ecog
+        self.nwb = pynwb.NWBHDF5IO(pathName,'r+').read()      #reads NWB file
+        self.ecog = self.nwb.acquisition['ECoG']                   #ecog
         # Get Brain regions present in current file
-        self.all_regions = list(set(nwb.electrodes['location'][:].tolist()))
+        self.all_regions = list(set(self.nwb.electrodes['location'][:].tolist()))
         self.all_regions.sort()
         self.regions_mask = [True]*len(self.all_regions)
 
-        self.channels_mask = np.ones(len(nwb.electrodes['location'][:]))
+        self.channels_mask = np.ones(len(self.nwb.electrodes['location'][:]))
         self.channels_mask_ind = np.where(self.channels_mask)[0]
 
         self.h = []
@@ -54,17 +54,17 @@ class ecogVIS:
         self.tbin_signal = 1/self.fs_signal #time bin duration [seconds]
 
         self.current_rect = []
-        self.badChannels = np.where( nwb.electrodes['bad'][:] )
+        self.badChannels = np.where( self.nwb.electrodes['bad'][:] )[0].tolist()
 
         # Load invalid intervals from NWB file
         self.allIntervals = []
-        if nwb.invalid_times != None:
-            self.nBI = nwb.invalid_times.columns[0][:].shape[0] #number of BI
+        if self.nwb.invalid_times != None:
+            self.nBI = self.nwb.invalid_times.columns[0][:].shape[0] #number of BI
             for ii in np.arange(self.nBI):
                 # create new interval
                 obj = CustomInterval()
-                obj.start = nwb.invalid_times.columns[0][ii]
-                obj.stop = nwb.invalid_times.columns[1][ii]
+                obj.start = self.nwb.invalid_times.columns[0][ii]
+                obj.stop = self.nwb.invalid_times.columns[1][ii]
                 obj.type = 'invalid'
                 obj.color = 'red'
                 self.allIntervals.append(obj)
@@ -182,15 +182,11 @@ class ecogVIS:
 
         plt.getAxis('left').setTicks([ticks])
 
-        # Find bad and valid channels from self.selectedChannels
-        badCh = np.intersect1d(self.selectedChannels, self.badChannels)
-        validCh = np.setdiff1d(self.selectedChannels, self.badChannels)
-        nrows, ncols = np.shape(plotData)
-
         # Iterate over chosen channels, plot one at a time
+        nrows, ncols = np.shape(plotData)
         for i in range(nrows):
-            if i in badCh:
-                plt.plot(timebaseGuiUnits, plotData[i], pen = 'r', width = 1)
+            if self.selectedChannels[i] in self.badChannels:
+                plt.plot(timebaseGuiUnits, plotData[i], pen='r', width=.8, alpha=.3)
             else:
                 c = 'g'
                 if i%2 == 0:
@@ -582,6 +578,29 @@ class ecogVIS:
             #Update dictionary of interval types
             # TO-DO
         self.refreshScreen()
+
+
+    # Channels functions -------------------------------------------------------
+    def BadChannelAdd(self, ch):
+        if ch not in self.badChannels:
+            self.badChannels.append(ch)
+            self.refreshScreen()
+
+    def BadChannelDel(self, ch):
+        if ch in self.badChannels:
+            self.badChannels.remove(ch)
+            self.refreshScreen()
+
+    def BadChannelSave(self):
+        # opens dialog for user confirmation
+        buttonReply = QMessageBox.question(None, ' ', 'Save Bad Channels on current NWB file?',
+                                           QMessageBox.No | QMessageBox.Yes)
+        if buttonReply == QMessageBox.Yes:
+            # Modify current list of bad channels
+            aux = [False]*self.nChTotal
+            for ind in self.badChannels:
+                aux[ind] = True
+            self.nwb.electrodes['bad'].data[:] = aux
 
 
 

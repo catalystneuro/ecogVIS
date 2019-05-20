@@ -59,6 +59,11 @@ class SelectChannelsDialog(QtGui.QDialog):
         self.selectButton.clicked.connect(self.select_all)
         self.unselectButton.clicked.connect(self.unselect_all)
 
+        self.select_all()
+        self.choices = [self.model.item(i).text() for i in
+                        range(self.model.rowCount())
+                        if self.model.item(i).checkState()
+                        == QtCore.Qt.Checked]
         self.exec_()
 
     def onAccepted(self):
