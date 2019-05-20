@@ -4,7 +4,7 @@ Timeseries visualizer for Electrocorticography (ECoG) signals stored in [NWB](ht
 ## Installation
 To clone the repository and set up a conda environment, do:
 ```
-$ git clone https://github.com/luiztauffer/ecogVIS
+$ git clone https://github.com/bendichter/ecogVIS.git
 $ conda env create -f ecogVIS/make_env.yml
 $ source activate ecog_vis
 ```
