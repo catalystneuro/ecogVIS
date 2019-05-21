@@ -15,4 +15,4 @@ dependencies:
 - pyqtgraph
 - pip:
   - PyQt5
-  - nwbext-ecog==0.6.0
+  - nwbext_ecog==0.7.2
