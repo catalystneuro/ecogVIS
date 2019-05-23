@@ -2,13 +2,14 @@
 #setup.py file
 from setuptools import setup
 setup(
-      name = 'ecogTSGUI',
+      name = 'ecogVIS',
       version = '1.0',
       description = 'python gui interface',
-      author = 'Ben Ditcher',
-      email = 'xyz@gmail.com',
-      scripts = ['ecog_ts_gui.py'],
+      author = 'Luiz Tauffer and Ben Dichter',
+      email = 'ben.dichter@gmail.com',
+      scripts = ['ecog_vis.py'],
       url = '',
-      install_requires = ['PyQt5', 'matplotlib', 'cycler', 'scipy', 'numpy', 'h5py', 'pyqtgraph']
+      install_requires = ['PyQt5', 'matplotlib', 'cycler', 'scipy', 'numpy', 'h5py', 'pyqtgraph', 'pandas', 'pynwb',
+                         'nwbext_ecog']
       
       )
