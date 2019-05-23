@@ -8,7 +8,8 @@ from PyQt5.QtWidgets import (QWidget, QLabel, QLineEdit, QMessageBox, QHBoxLayou
     QAction)
 import pyqtgraph as pg
 from Function.subFunctions import ecogVIS
-from Function.subDialogs import CustomIntervalDialog, SelectChannelsDialog
+from Function.subDialogs import (CustomIntervalDialog, SelectChannelsDialog,
+    SpectralChoiceDialog)
 import os
 import datetime
 import numpy as np
@@ -120,6 +121,10 @@ class Application(QMainWindow):
         action_save_badchannel = QAction('Save Bad Channels', self)
         channels_tools_menu.addAction(action_save_badchannel)
         action_save_badchannel.triggered.connect(self.save_badchannel)
+        analysis_tools_menu = toolsMenu.addMenu('Analysis')
+        action_spectral_analysis = QAction('Spectral Analysis', self)
+        analysis_tools_menu.addAction(action_spectral_analysis)
+        action_spectral_analysis.triggered.connect(self.spectral_analysis)
 
         helpMenu = mainMenu.addMenu('Help')
         action_about = QAction('About', self)
@@ -360,6 +365,11 @@ class Application(QMainWindow):
     def save_badchannel(self):
         model.BadChannelSave()
 
+    def spectral_analysis(self):
+        w = SpectralChoiceDialog(nwb=model.nwb)
+        print(w.data_exists)
+        print(w.decomp_type)
+        print(w.custom_data)
 
 
     def about(self):
