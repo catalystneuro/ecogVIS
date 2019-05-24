@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 import sys
 import os
-import datetime
+import time
 import numpy as np
 
 from PyQt5 import QtCore, QtGui, Qt
@@ -9,7 +9,7 @@ from PyQt5.QtCore import QCoreApplication
 from PyQt5.QtWidgets import (QWidget, QLabel, QLineEdit, QMessageBox, QHBoxLayout,
     QTextEdit, QApplication, QPushButton, QVBoxLayout, QGroupBox, QFormLayout, QDialog,
     QRadioButton, QGridLayout, QComboBox, QInputDialog, QFileDialog, QMainWindow,
-    QAction)
+    QAction, QStackedLayout)
 import pyqtgraph as pg
 from Function.subFunctions import ecogVIS
 from Function.subDialogs import (CustomIntervalDialog, SelectChannelsDialog,
@@ -26,7 +26,6 @@ intervalsDict_ = {'invalid':{'name':'invalid',
 annotationAdd_ = False
 annotationDel_ = False
 annotationColor_ = 'red'
-#class Application(QWidget):
 class Application(QMainWindow):
     keyPressed = QtCore.pyqtSignal(QtCore.QEvent)
     def __init__(self, filename, parent = None):
@@ -138,7 +137,8 @@ class Application(QMainWindow):
         self.hbox = QHBoxLayout(self.centralwidget)
         #hbox = QHBoxLayout()
 
-        groupbox1 = QGroupBox('Signals')
+        self.groupbox1 = QGroupBox('Signals')
+
         vb = CustomViewBox()
         self.win1 = pg.PlotWidget(viewBox = vb)   #middle signals plot
         self.win2 = pg.PlotWidget(border = 'k')   #upper horizontal bar
@@ -166,16 +166,18 @@ class Application(QMainWindow):
         form5layout.addWidget(self.win1)
         form5layout.addWidget(self.win3)
 
-        groupbox1.setLayout(form5layout)
+        self.groupbox1.setLayout(form5layout)
 
-        vbox = QVBoxLayout()
-        vbox.addWidget(groupbox1)
+        #self.vbox2 = QVBoxLayout()
+        self.vbox2 = QStackedLayout()
+        self.vbox2.addWidget(self.groupbox1)
+        self.vbox2.setCurrentIndex(0)
 
 
         '''
         Another vertical box layout
         '''
-        vbox1 = QVBoxLayout()
+        self.vbox1 = QVBoxLayout()
         panel1 = QGroupBox('Panel')
         panel1.setFixedWidth(200)
         panel1.setFixedHeight(200)
@@ -233,14 +235,16 @@ class Application(QMainWindow):
         grid1.addWidget(self.push3_0, 4, 3, 1, 3)
         panel1.setLayout(grid1)
 
-        panel2 = QGroupBox('Signal Type')
+        panel2 = QGroupBox('Visualization')
         panel2.setFixedWidth(200)
         panel2.setFixedHeight(100)
         form2 = QFormLayout()
-        self.rbtn1 = QRadioButton('raw ECoG')
+        self.rbtn1 = QRadioButton('Time series')
         self.rbtn1.setChecked(True)
-        self.rbtn2 = QRadioButton('High Gamma')
+        self.rbtn1.clicked.connect(self.layout_time_series)
+        self.rbtn2 = QRadioButton('Spectral analysis')
         self.rbtn2.setChecked(False)
+        self.rbtn2.clicked.connect(self.layout_spectral_analysis)
         form2.addWidget(self.rbtn1)
         form2.addWidget(self.rbtn2)
         panel2.setLayout(form2)
@@ -325,13 +329,43 @@ class Application(QMainWindow):
         form3.addWidget(self.pushbtn10, 7, 3)
         form3.addWidget(QLabel(), 8, 0)
         panel3.setLayout(form3)
-        vbox1.addWidget(panel1)
-        vbox1.addWidget(panel2)
-        vbox1.addWidget(panel3)
+        self.vbox1.addWidget(panel1)
+        self.vbox1.addWidget(panel2)
+        self.vbox1.addWidget(panel3)
 
-        self.hbox.addLayout(vbox1)   #add panels first
-        self.hbox.addLayout(vbox)    #add plots second
-        #self.setLayout(self.hbox)
+
+        '''
+        Spectral analysis Vertical Box
+        '''
+        self.groupbox3 = QGroupBox('Spectral analysis')
+
+        vb2 = CustomViewBox()
+        self.win4 = pg.PlotWidget(viewBox = vb2)   #middle signals plot
+        self.win5 = pg.PlotWidget(border = 'k')   #upper horizontal bar
+        self.win6 = pg.PlotWidget()               #lower audio plot
+        #self.win4.setBackground('w')
+        #self.win5.setBackground('w')
+        #self.win6.setBackground('w')
+
+        self.form50layout = QGridLayout() #QVBoxLayout()
+        self.form50layout.setSpacing(0.0)
+        self.form50layout.setRowStretch(0, 1)
+        self.form50layout.setRowStretch(1, 8)
+        self.form50layout.setRowStretch(2, 1)
+        self.form50layout.addWidget(self.win5)
+        self.form50layout.addWidget(self.win4)
+        self.form50layout.addWidget(self.win6)
+
+        self.groupbox3.setLayout(self.form50layout)
+        self.vbox2.addWidget(self.groupbox3)  # add to stacked list
+
+
+        '''
+        Populate horizontal box with both panels
+        '''
+        self.hbox.addLayout(self.vbox1)    #add panels first
+        self.hbox.addLayout(self.vbox2)    #add plots second
+
 
 
     def open_file(self):
@@ -370,7 +404,6 @@ class Application(QMainWindow):
         w = SpectralChoiceDialog(nwb=model.nwb, fpath=model.pathName,
                                  fname=model.fileName)
 
-
     def about(self):
         msg = QMessageBox()
         msg.setWindowTitle("About ecogVIS")
@@ -404,7 +437,6 @@ class Application(QMainWindow):
         if self.active_mode != 'annotationDel':
             self.push1_2.setChecked(False)
             annotationDel_ = False
-
 
 
     ## Annotation functions ----------------------------------------------------
@@ -529,6 +561,20 @@ class Application(QMainWindow):
 
 
 
+    ## Change Signals plot panel -----------------------------------------------
+    def layout_time_series(self):
+        self.change_signals_panel(nlay=0)
+
+    def layout_spectral_analysis(self):
+        self.spectral_analysis()
+        self.change_signals_panel(nlay=1)
+
+    def change_signals_panel(self, nlay):
+        # Changes plot panel between time series and spectral analysis
+        self.vbox2.setCurrentIndex(nlay)
+
+
+
     ## Plot control buttons ----------------------------------------------------
     def enable(self):
         if self.enableButton.text() == 'Enable':
@@ -606,7 +652,6 @@ class CustomViewBox(pg.ViewBox):
     def __init__(self):
         pg.ViewBox.__init__(self)
         #super().__init__(self)
-
 
     def mouseClickEvent(self, ev):
         global intervalDel_
