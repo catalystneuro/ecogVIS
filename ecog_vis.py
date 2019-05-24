@@ -1,5 +1,9 @@
 # -*- coding: utf-8 -*-
 import sys
+import os
+import datetime
+import numpy as np
+
 from PyQt5 import QtCore, QtGui, Qt
 from PyQt5.QtCore import QCoreApplication
 from PyQt5.QtWidgets import (QWidget, QLabel, QLineEdit, QMessageBox, QHBoxLayout,
@@ -10,9 +14,6 @@ import pyqtgraph as pg
 from Function.subFunctions import ecogVIS
 from Function.subDialogs import (CustomIntervalDialog, SelectChannelsDialog,
     SpectralChoiceDialog)
-import os
-import datetime
-import numpy as np
 
 
 model = None
@@ -366,10 +367,8 @@ class Application(QMainWindow):
         model.BadChannelSave()
 
     def spectral_analysis(self):
-        w = SpectralChoiceDialog(nwb=model.nwb)
-        print(w.data_exists)
-        print(w.decomp_type)
-        print(w.custom_data)
+        w = SpectralChoiceDialog(nwb=model.nwb, fpath=model.pathName,
+                                 fname=model.fileName)
 
 
     def about(self):
