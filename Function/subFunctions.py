@@ -58,7 +58,7 @@ class ecogVIS:
 
         # Load invalid intervals from NWB file
         self.allIntervals = []
-        if self.nwb.invalid_times != None:
+        if self.nwb.invalid_times is not None:
             self.nBI = self.nwb.invalid_times.columns[0][:].shape[0] #number of BI
             for ii in np.arange(self.nBI):
                 # create new interval
