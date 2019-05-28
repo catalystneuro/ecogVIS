@@ -2,8 +2,10 @@ from PyQt5 import QtGui, QtCore, uic
 from PyQt5.QtWidgets import QTableWidgetItem
 from ecog.utils import bands as default_bands
 from ecog.signal_processing.preprocess_data import preprocess_data
+from threading import Event, Thread
 import numpy as np
 import os
+import time
 
 path = os.path.dirname(__file__)
 
@@ -109,8 +111,8 @@ class SpectralChoiceDialog(QtGui.QDialog, Ui_SpectralChoice):
         self.pushButton_1.clicked.connect(self.add_band)
         self.pushButton_2.clicked.connect(self.del_band)
 
-        self.buttonBox.accepted.connect(self.out_accepted)
-        self.buttonBox.rejected.connect(self.out_cancel)
+        self.runButton.clicked.connect(self.out_accepted)
+        self.cancelButton.clicked.connect(self.out_cancel)
 
         self.exec_()
 
@@ -228,29 +230,61 @@ class SpectralChoiceDialog(QtGui.QDialog, Ui_SpectralChoice):
         self.tableWidget.removeRow(nRows-1)
 
     def out_accepted(self):
+        self.label_2.setText('Processing signals. Please wait...')
+        self.pushButton_1.setEnabled(False)
+        self.pushButton_2.setEnabled(False)
+        self.tableWidget.setEnabled(False)
+        self.groupBox.setEnabled(False)
+        self.runButton.setEnabled(False)
+        self.cancelButton.setEnabled(False)
         if self.decomp_type=='custom':
             nRows = self.tableWidget.rowCount()
+            print(nRows)
             self.custom_bands = np.zeros((2,nRows))
             for i in np.arange(nRows):
-                self.custom_bands[i,0] = float(self.tableWidget.item(i, 0).text())
-                self.custom_bands[i,1] = float(self.tableWidget.item(i, 0).text())
+                self.custom_bands[0,i] = float(self.tableWidget.item(i, 0).text())
+                self.custom_bands[1,0] = float(self.tableWidget.item(i, 1).text())
         # If Decomposition data does not exist in NWB file and user decides to create it
         # NOT WORKING 100%, IT SHOULD FREEZE DIALOG WHILE PROCESSING HAPPENS
         if not self.data_exists:
-            self.label_2.setText('Processing signals. Please wait...')
-            self.pushButton_1.setEnabled(False)
-            self.pushButton_2.setEnabled(False)
-            self.tableWidget.setEnabled(False)
-            self.groupBox.setEnabled(False)
-            self.buttonBox.setEnabled(False)
             subj, aux = self.fname.split('_')
             block = [ aux.split('.')[0][1:] ]
-            aux = preprocess_data(path=self.fpath, subject=subj, blocks=block,
-                                  filter=self.decomp_type, bands_vals=self.custom_bands)
+
+            ready = Event()
+            program = ChildProgram(ready=ready, path=self.fpath, subject=subj,
+                                   blocks=block, filter=self.decomp_type,
+                                   bands_vals=self.custom_bands)
+
+            # configure & start thread
+            thread = Thread(target=program.run)
+            thread.start()
+            # block until ready
+            ready.wait()
+
         self.accept()
+
 
     def out_cancel(self):
         self.data_exists = False
         self.decomp_type = None
         self.custom_bands = None
         self.close()
+
+
+class ChildProgram:
+    def __init__(self, ready, path, subject, blocks, filter, bands_vals):
+        self.ready = ready
+        self.fpath = path
+        self.subject = subject
+        self.blocks = blocks
+        self.filter = filter
+        self.bands_vals = bands_vals
+
+    def run(self):
+        preprocess_data(path=self.fpath,
+                      subject=self.subject,
+                      blocks=self.blocks,
+                      filter=self.filter,
+                      bands_vals=self.bands_vals)
+        # then fire the ready event
+        self.ready.set()

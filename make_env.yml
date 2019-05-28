@@ -1,4 +1,4 @@
-name: ecog_vis
+name: ecog_vis2
 channels:
 - defaults
 - anaconda
@@ -24,4 +24,4 @@ dependencies:
   - nwbext_ecog==0.7.2
   #- git+https://github.com/BouchardLab/process_ecog.git
   - git+https://github.com/luiztauffer/process_ecog.git@docker
-  - git+https://github.com/luiztauffer/ecogVIS.git
+  #- git+https://github.com/luiztauffer/ecogVIS.git

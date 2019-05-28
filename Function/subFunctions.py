@@ -21,12 +21,15 @@ import nwbext_ecog
 class ecogVIS:
     def __init__(self, par, pathName, parameters):
         self.parent = par
+        self.fullpath = pathName
         self.pathName = os.path.split(os.path.abspath(pathName))[0] #path
         self.fileName = os.path.split(os.path.abspath(pathName))[1] #file
         self.axesParams = parameters
 
-        self.nwb = pynwb.NWBHDF5IO(pathName,'r+').read()      #reads NWB file
-        self.ecog = self.nwb.acquisition['ECoG']                   #ecog
+        self.file = pynwb.NWBHDF5IO(self.fullpath,'r+')
+        self.nwb = self.file.read()      #reads NWB file
+        self.ecog = self.nwb.acquisition['ECoG']              #ecog
+        self.plotData = self.ecog.data
         # Get Brain regions present in current file
         self.all_regions = list(set(self.nwb.electrodes['location'][:].tolist()))
         self.all_regions.sort()
@@ -36,6 +39,7 @@ class ecogVIS:
         self.channels_mask_ind = np.where(self.channels_mask)[0]
 
         self.h = []
+        self.plot_panel = 'time_series'
         self.text = []
         self.AnnotationsList = []
         self.AnnotationsPosAV = np.array([])    #(x, y_va, y_off)
@@ -49,7 +53,6 @@ class ecogVIS:
         self.nChToShow = self.lastCh - self.firstCh + 1
         self.selectedChannels = np.arange(self.firstCh-1, self.lastCh)
 
-        self.rawecog = self.ecog.data       #ecog signals
         self.fs_signal = self.ecog.rate     #sampling frequency [Hz]
         self.tbin_signal = 1/self.fs_signal #time bin duration [seconds]
 
@@ -84,7 +87,6 @@ class ecogVIS:
         total_dur = np.shape(self.ecog.data)[0]/self.fs_signal
         self.axesParams['pars']['Figure'][1].plot([0, total_dur], [0.5, 0.5], pen = 'k', width = 0.5)
 
-
         # Plot interval rectangles at upper and middle pannels
         self.IntRects1 = np.array([], dtype = 'object')
         self.IntRects2 = np.array([], dtype = 'object')
@@ -106,19 +108,26 @@ class ecogVIS:
             a = self.axesParams['pars']['Figure'][0]
             a.addItem(c)
 
-
         # Initiate interval to show
         self.getCurAxisParameters()
 
         self.refreshScreen()
 
 
+    # Re-opens the file, if new data is included
+    def refresh_file(self):
+        self.file.close()   #closes current NWB file
+        self.file= pynwb.NWBHDF5IO(self.fullpath,'r+')
+        self.nwb = self.file.read()      #reads NWB file
+        self.ecog = self.nwb.acquisition['ECoG']                   #ecog
+
+
     def refreshScreen(self):
-        self.AR_plotter()
+        self.TimeSeries_plotter()
 
 
-    def AR_plotter(self):
-        #self.getCurAxisParameters()
+    # Plots time series signals ------------------------------------------------
+    def TimeSeries_plotter(self):
         startSamp = self.intervalStartSamples
         endSamp = self.intervalEndSamples
         timebaseGuiUnits = np.arange(startSamp - 1, endSamp) * (self.intervalStartGuiUnits/self.intervalStartSamples)
@@ -137,13 +146,13 @@ class ecogVIS:
         # constrains the plotData to the chosen interval (and transpose matix)
         # plotData dims=[self.nChToShow, plotInterval]
         try:
-            data = self.ecog.data[startSamp - 1 : endSamp, self.selectedChannels-1].T
+            #data = self.ecog.data[startSamp - 1 : endSamp, self.selectedChannels-1].T
+            data = self.plotData[startSamp - 1 : endSamp, self.selectedChannels-1].T
             plotData = data + np.tile(scaleV, (1, endSamp - startSamp + 1)) # data + offset
         except:  #if time segment shorter than window.
-            data = self.ecog.data[:, self.selectedChannels-1].T
+            #data = self.ecog.data[:, self.selectedChannels-1].T
+            data = self.plotData[:, self.selectedChannels-1].T
             plotData = data + np.tile(scaleV, (1, endSamp - startSamp + 1)) # data + offset
-        self.plotData = []
-        self.plotData = plotData
 
         ## Rectangle Plot
         x = float(self.axesParams['editLine']['qLine2'].text())
@@ -227,8 +236,6 @@ class ecogVIS:
             plt1.plot(x_axis, self.downsampled[ind_disp], pen = 'r', width = 2)
             plt1.setXLink(plt)
             # plt2.setXLink(plt)
-
-
 
 
     def getCurAxisParameters(self):
@@ -364,7 +371,7 @@ class ecogVIS:
 
     def time_window_size(self):
         plotIntervalGuiUnits = float(self.axesParams['editLine']['qLine3'].text())
-        n = self.ecog.data.shape[0]
+        n = model.nBins
         # Minimum time interval
         if plotIntervalGuiUnits < self.tbin_signal:
             plotIntervalGuiUnits = self.tbin_signal
