@@ -1,5 +1,7 @@
 from PyQt5 import QtGui, QtCore, uic
-from PyQt5.QtWidgets import QTableWidgetItem
+from PyQt5.QtWidgets import (QTableWidgetItem, QGridLayout, QGroupBox, QVBoxLayout,
+    QWidget)
+import pyqtgraph as pg
 from ecog.utils import bands as default_bands
 from ecog.signal_processing.preprocess_data import preprocess_data
 from threading import Event, Thread
@@ -251,3 +253,79 @@ class ChildProgram:
                       bands_vals=self.bands_vals)
         # then fire the ready event
         self.ready.set()
+
+
+
+# Creates Periodogram dialog ---------------------------------------------------
+class PeriodogramDialog(QtGui.QDialog):
+    def __init__(self, model, x, y):
+        super().__init__()
+
+        self.model = model
+        self.x = x
+        self.y = y
+        self.relative_index = np.argmin(np.abs(self.model.scaleVec-self.y))
+        self.chosen_channel = model.selectedChannels[self.relative_index]
+        self.BIs = model.IntRects2
+
+        self.fig1 = pg.PlotWidget()               #uppper periodogram plot
+        self.fig2 = pg.PlotWidget()               #lower voltage plot
+        self.fig1.setBackground('w')
+        self.fig2.setBackground('w')
+
+        grid = QGridLayout() #QVBoxLayout()
+        grid.setSpacing(0.0)
+        grid.setRowStretch(0, 2)
+        grid.setRowStretch(1, 1)
+        grid.addWidget(self.fig1)
+        grid.addWidget(self.fig2)
+
+        self.setLayout(grid)
+        self.setWindowTitle('Periodogram')
+
+        # Draw plots -----------------------------------------------------------
+        startSamp = self.model.intervalStartSamples
+        endSamp = self.model.intervalEndSamples
+
+        # Upper Panel: Periodogram plot ----------------------------------------
+        spectrogram = model.nwb.modules['ecephys'].data_interfaces['Bandpower_default'].data
+        periodogram = np.mean(spectrogram[startSamp - 1 : endSamp, self.chosen_channel, :], 0)
+        bands_centers = model.nwb.modules['ecephys'].data_interfaces['Bandpower_default'].bands['filter_param_0'][:]
+        plt1 = self.fig1   # Lower voltage plot
+        plt1.clear()       # Clear plot
+        plt1.setLabel('bottom', 'Band center', units = 'Hz')
+        plt1.setLabel('left', 'Average power', units = 'V**2/Hz')
+        plt1.setTitle('Channel #'+str(self.chosen_channel+1))
+        plt1.plot(bands_centers, periodogram, pen='k', width=1)
+
+        # Lower Panel: Voltage time series plot --------------------------------
+        try:
+            plotVoltage = self.model.plotData[startSamp - 1 : endSamp, self.chosen_channel]
+        except:  #if time segment shorter than window.
+            plotVoltage = self.model.plotData[:, self.chosen_channel]
+
+        timebaseGuiUnits = np.arange(startSamp - 1, endSamp) * (self.model.intervalStartGuiUnits/self.model.intervalStartSamples)
+        plt2 = self.fig2   # Lower voltage plot
+        plt2.clear()       # Clear plot
+        plt2.setLabel('bottom', 'Time', units='sec')
+        plt2.setLabel('left', 'Signal', units='Volts')
+        plt2.plot(timebaseGuiUnits, np.zeros(len(timebaseGuiUnits)), pen='k', width=.8)
+        if self.chosen_channel in self.model.badChannels:
+            plt2.plot(timebaseGuiUnits, plotVoltage, pen='r', width=.8, alpha=.3)
+        else:
+            plt2.plot(timebaseGuiUnits, plotVoltage, pen='b', width=1)
+        plt2.setXRange(timebaseGuiUnits[0], timebaseGuiUnits[-1], padding=0.003)
+        yrange = 3*np.std(plotVoltage)
+        plt2.setYRange(-yrange, yrange, padding = 0.06)
+
+        # Make red box around bad time segments
+        for i in model.IntRects2:
+            x = i.rect().left()
+            w = i.rect().width()
+            c = pg.QtGui.QGraphicsRectItem(x, -1, w, 2)
+            bc = [250, 0, 0, 100]
+            c.setPen(pg.mkPen(color=QtGui.QColor(bc[0], bc[1], bc[2], 255)))
+            c.setBrush(QtGui.QColor(bc[0], bc[1], bc[2], bc[3]))
+            plt2.addItem(c)
+
+        self.exec_()

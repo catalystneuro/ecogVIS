@@ -14,7 +14,7 @@ import pyqtgraph as pg
 from pyqtgraph.widgets.MatplotlibWidget import MatplotlibWidget
 from Function.subFunctions import ecogVIS
 from Function.subDialogs import (CustomIntervalDialog, SelectChannelsDialog,
-    SpectralChoiceDialog)
+    SpectralChoiceDialog, PeriodogramDialog)
 
 
 model = None
@@ -27,6 +27,8 @@ intervalsDict_ = {'invalid':{'name':'invalid',
 annotationAdd_ = False
 annotationDel_ = False
 annotationColor_ = 'red'
+periodogram_ = False
+
 class Application(QMainWindow):
     keyPressed = QtCore.pyqtSignal(QtCore.QEvent)
     def __init__(self, filename, parent = None):
@@ -52,8 +54,7 @@ class Application(QMainWindow):
 
         # Run the main function
         parameters = {}
-        parameters['pars'] = {'Figure': [self.win1, self.win2, self.win3,
-                                         self.win4]}#, self.win5, self.win6]}
+        parameters['pars'] = {'Figure': [self.win1, self.win2, self.win3]}
         parameters['editLine'] = {'qLine0': self.qline0, 'qLine1': self.qline1,
                                   'qLine2': self.qline2, 'qLine3': self.qline3,
                                   'qLine4': self.qline4}
@@ -138,7 +139,6 @@ class Application(QMainWindow):
         '''
         Buttons and controls vertical box layout
         '''
-        self.vbox1 = QVBoxLayout()
         panel1 = QGroupBox('Panel')
         panel1.setFixedWidth(200)
         panel1.setFixedHeight(200)
@@ -180,6 +180,10 @@ class Application(QMainWindow):
         self.push3_0 = QPushButton('Select')
         self.push3_0.clicked.connect(self.ChannelSelect)
 
+        self.push4_0 = QPushButton('Periodogram')
+        self.push4_0.setCheckable(True)
+        self.push4_0.clicked.connect(self.PeriodogramSelect)
+
         # Buttons layout
         grid1 = QGridLayout()
         grid1.addWidget(qlabelAnnotations, 0, 0, 1, 3)
@@ -194,8 +198,10 @@ class Application(QMainWindow):
         grid1.addWidget(self.push2_3, 3, 4, 1, 2)
         grid1.addWidget(qlabelChannels, 4, 0, 1, 3)
         grid1.addWidget(self.push3_0, 4, 3, 1, 3)
+        grid1.addWidget(self.push4_0, 5, 0, 1, 6)
         panel1.setLayout(grid1)
 
+        # Traces panel ---------------------------------------------------------
         panel2 = QGroupBox('Traces')
         panel2.setFixedWidth(200)
         panel2.setFixedHeight(100)
@@ -215,6 +221,7 @@ class Application(QMainWindow):
         grid2.addWidget(self.rbtn2, 1, 0, 1, 2)
         panel2.setLayout(grid2)
 
+        # Plot controls panel --------------------------------------------------
         panel3 = QGroupBox('Plot Controls')
         panel3.setFixedWidth(200)
         self.enableButton = QPushButton('Enable')
@@ -295,6 +302,8 @@ class Application(QMainWindow):
         form_2.addWidget(self.pushbtn10, 7, 3)
         form_2.addWidget(QLabel(), 8, 0)
         panel3.setLayout(form_2)
+
+        self.vbox1 = QVBoxLayout()
         self.vbox1.addWidget(panel1)
         self.vbox1.addWidget(panel2)
         self.vbox1.addWidget(panel3)
@@ -313,8 +322,6 @@ class Application(QMainWindow):
         self.win1.setMouseEnabled(x = False, y = False)
         self.win2.setMouseEnabled(x = False, y = False)
         self.win3.setMouseEnabled(x = False, y = False)
-
-        self.figure1 = self.win1.plot(x = [], y = [])
 
         self.win2.hideAxis('left')
         self.win2.hideAxis('bottom')
@@ -337,31 +344,6 @@ class Application(QMainWindow):
         self.vbox2.addWidget(self.groupbox1)
         self.vbox2.setCurrentIndex(0)
 
-
-        '''
-        Spectral analysis Vertical Box
-        '''
-        vb2 = CustomViewBox()
-        self.win4 = MatplotlibWidget()
-        #self.win4 = pg.PlotWidget(viewBox = vb2)  #upper periodogram plot
-        #self.win5 = pg.PlotWidget(border = 'k')   #middle spectrogram plot
-        #self.win6 = pg.PlotWidget()               #lower time series plot
-        #self.win4.setBackground('w')
-        #self.win5.setBackground('w')
-        #self.win6.setBackground('w')
-
-        form_4 = QGridLayout() #QVBoxLayout()
-        #form_4.setSpacing(0.0)
-        #form_4.setRowStretch(0, 3)
-        #form_4.setRowStretch(1, 5)
-        #form_4.setRowStretch(2, 2)
-        #form_4.addWidget(self.win5)
-        #form_4.addWidget(self.win4)
-        #form_4.addWidget(self.win6)
-
-        self.groupbox3 = QGroupBox('Spectral analysis')
-        self.groupbox3.setLayout(form_4)
-        self.vbox2.addWidget(self.groupbox3)  # add to stacked list
 
         '''
         Create a horizontal box layout and populate it with panels
@@ -428,8 +410,9 @@ class Application(QMainWindow):
         global intervalDel_
         global annotationAdd_
         global annotationDel_
+        global periodogram_
 
-        #self.active_mode = 'default', 'intervalAdd', 'intervalDel'
+        #self.active_mode = 'default', 'intervalAdd', 'intervalDel', 'periodogram'
         if self.active_mode != 'intervalAdd':
             self.push2_1.setChecked(False)
             intervalAdd_ = False
@@ -445,6 +428,10 @@ class Application(QMainWindow):
         if self.active_mode != 'annotationDel':
             self.push1_2.setChecked(False)
             annotationDel_ = False
+
+        if self.active_mode != 'periodogram':
+            self.push4_0.setChecked(False)
+            periodogram_ = False
 
 
     ## Annotation functions ----------------------------------------------------
@@ -562,6 +549,20 @@ class Application(QMainWindow):
         # Update signals plot
         model.selectedChannels = model.channels_mask_ind[model.firstCh-1:model.lastCh]
         model.refreshScreen()
+
+
+
+    # Select channel for Periodogram display -----------------------------------
+    def PeriodogramSelect(self):
+        global periodogram_
+        if self.push4_0.isChecked():  #if button is pressed down
+            self.active_mode = 'periodogram'
+            self.reset_buttons()
+            periodogram_ = True
+        else:
+            self.active_mode = 'default'
+            self.reset_buttons()
+
 
     #def get_channel(self, event):
     #    mousePoint = self.win1.plotItem.vb.mapSceneToView(event.scenePos())
@@ -699,6 +700,7 @@ class CustomViewBox(pg.ViewBox):
         global annotationAdd_
         global annotationDel_
         global annotationColor_
+        global periodogram_
 
         if intervalDel_:
             mousePoint = self.mapSceneToView(ev.scenePos())
@@ -724,6 +726,15 @@ class CustomViewBox(pg.ViewBox):
             y = mousePoint.y()
             try:
                 model.AnnotationDel(x=x, y=y)
+            except Exception as ex:
+                print(str(ex))
+
+        if periodogram_:
+            mousePoint = self.mapSceneToView(ev.scenePos())
+            x = mousePoint.x()
+            y = mousePoint.y()
+            try:
+                PeriodogramDialog(model=model, x=x, y=y)
             except Exception as ex:
                 print(str(ex))
 

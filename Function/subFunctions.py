@@ -101,7 +101,7 @@ class ecogVIS:
             a = self.axesParams['pars']['Figure'][1]
             a.addItem(c)
             # on signals plot
-            c = pg.QtGui.QGraphicsRectItem(start, 0, max(stop-start, 0.01), 1)
+            c = pg.QtGui.QGraphicsRectItem(start, -1, max(stop-start, 0.01), 2)
             self.IntRects2 = np.append(self.IntRects2, c)
             c.setPen(pg.mkPen(color = 'r'))
             c.setBrush(QtGui.QColor(255, 0, 0, 120))
@@ -522,16 +522,14 @@ class ecogVIS:
         elif color=='blue':
             bc = [0, 0, 255, 100]
         x = interval[0]
-        y = 0
         w = np.diff(np.array(interval))[0]
-        h = 1
         # add rectangle to upper plot
-        c = pg.QtGui.QGraphicsRectItem(x, y, w, h)
+        c = pg.QtGui.QGraphicsRectItem(x, 0, w, 1)
         c.setPen(pg.mkPen(color=QtGui.QColor(bc[0], bc[1], bc[2], 255)))
         c.setBrush(QtGui.QColor(bc[0], bc[1], bc[2], 255))
         self.IntRects1 = np.append(self.IntRects1, [c])
         # add rectangle to middle signal plot
-        c = pg.QtGui.QGraphicsRectItem(x, y, w, h)
+        c = pg.QtGui.QGraphicsRectItem(x, -1, w, 2)
         c.setPen(pg.mkPen(color=QtGui.QColor(bc[0], bc[1], bc[2], 255)))
         c.setBrush(QtGui.QColor(bc[0], bc[1], bc[2], bc[3]))
         self.IntRects2 = np.append(self.IntRects2, [c])
