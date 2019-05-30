@@ -130,11 +130,10 @@ class ecogVIS:
     def TimeSeries_plotter(self):
         startSamp = self.intervalStartSamples
         endSamp = self.intervalEndSamples
-        timebaseGuiUnits = np.arange(startSamp - 1, endSamp) * (self.intervalStartGuiUnits/self.intervalStartSamples)
 
         # Use the same scaling factor for all channels, to keep things comparable
         self.verticalScaleFactor = float(self.axesParams['editLine']['qLine4'].text())
-        scaleFac = 2*np.std(self.ecog.data[startSamp:endSamp, self.selectedChannels-1], axis=0)/self.verticalScaleFactor
+        scaleFac = 2*np.std(self.plotData[startSamp:endSamp, self.selectedChannels-1], axis=0)/self.verticalScaleFactor
 
         # Scale variance_units, offset for each channel
         scale_va = np.max(scaleFac)
@@ -176,6 +175,7 @@ class ecogVIS:
 
         # Middle signals plot
         # A line indicating reference for every channel
+        timebaseGuiUnits = np.arange(startSamp - 1, endSamp) * (self.intervalStartGuiUnits/self.intervalStartSamples)
         x = np.tile([timebaseGuiUnits[0], timebaseGuiUnits[-1]], (len(self.scaleVec), 1))
         y = np.hstack((scaleV, scaleV))
         plt = self.axesParams['pars']['Figure'][0]   #middle signal plot
@@ -272,7 +272,7 @@ class ecogVIS:
 
         # Updates times in samples
         self.intervalLengthSamples = int(np.floor(self.intervalLengthGuiUnits / self.tbin_signal))
-        self.intervalStartSamples = int(np.floor(self.intervalStartGuiUnits / self.tbin_signal))
+        self.intervalStartSamples = int(max(np.floor(self.intervalStartGuiUnits / self.tbin_signal),1))
         self.intervalEndSamples = self.intervalStartSamples + self.intervalLengthSamples
 
         self.refreshScreen()

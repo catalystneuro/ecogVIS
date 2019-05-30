@@ -571,6 +571,7 @@ class Application(QMainWindow):
 
     ## Change Signals plot panel -----------------------------------------------
     def voltage_time_series(self):
+        self.rbtn1.setChecked(True)
         if self.combo3.currentText()=='raw':
             model.plot_panel = 'voltage_raw'
             model.plotData = model.ecog.data
@@ -597,12 +598,13 @@ class Application(QMainWindow):
 
     def power_time_series(self):
         try:     #if decomposition already exists on NWB file
-            decomp = model.nwb.modules['ecephys'].data_interfaces['Bandpower_default']
+            model.plotData = model.nwb.modules['ecephys'].data_interfaces['high_gamma'].data
         except:  #if not, opens dialog for user choice
             self.spectral_analysis()
+            model.plotData = model.nwb.modules['ecephys'].data_interfaces['high_gamma'].data
         model.plot_panel = 'spectral_power'
         #total number of bins
-        model.nBins = model.nwb.modules['ecephys'].data_interfaces['Bandpower_default'].data.shape[0]
+        model.nBins = model.plotData.shape[0]
         #sampling frequency [Hz]
         model.fs_signal = model.nwb.modules['ecephys'].data_interfaces['Bandpower_default'].rate
         #time bin duration [seconds]

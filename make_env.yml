@@ -1,4 +1,4 @@
-name: ecog_vis2
+name: ecog_vis
 channels:
 - defaults
 - anaconda
