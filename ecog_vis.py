@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 import sys
 import os
-import datetime
+import time
 import numpy as np
 
 from PyQt5 import QtCore, QtGui, Qt
@@ -9,11 +9,12 @@ from PyQt5.QtCore import QCoreApplication
 from PyQt5.QtWidgets import (QWidget, QLabel, QLineEdit, QMessageBox, QHBoxLayout,
     QTextEdit, QApplication, QPushButton, QVBoxLayout, QGroupBox, QFormLayout, QDialog,
     QRadioButton, QGridLayout, QComboBox, QInputDialog, QFileDialog, QMainWindow,
-    QAction)
+    QAction, QStackedLayout)
 import pyqtgraph as pg
+from pyqtgraph.widgets.MatplotlibWidget import MatplotlibWidget
 from Function.subFunctions import ecogVIS
 from Function.subDialogs import (CustomIntervalDialog, SelectChannelsDialog,
-    SpectralChoiceDialog)
+    SpectralChoiceDialog, PeriodogramDialog)
 
 
 model = None
@@ -26,7 +27,8 @@ intervalsDict_ = {'invalid':{'name':'invalid',
 annotationAdd_ = False
 annotationDel_ = False
 annotationColor_ = 'red'
-#class Application(QWidget):
+periodogram_ = False
+
 class Application(QMainWindow):
     keyPressed = QtCore.pyqtSignal(QtCore.QEvent)
     def __init__(self, filename, parent = None):
@@ -53,8 +55,9 @@ class Application(QMainWindow):
         # Run the main function
         parameters = {}
         parameters['pars'] = {'Figure': [self.win1, self.win2, self.win3]}
-        parameters['editLine'] = {'qLine0': self.qline0, 'qLine1': self.qline1, 'qLine2': self.qline2, 'qLine3': self.qline3,
-                  'qLine4': self.qline4}
+        parameters['editLine'] = {'qLine0': self.qline0, 'qLine1': self.qline1,
+                                  'qLine2': self.qline2, 'qLine3': self.qline3,
+                                  'qLine4': self.qline4}
 
         model = ecogVIS(self, filename, parameters)
 
@@ -132,54 +135,13 @@ class Application(QMainWindow):
         helpMenu.addAction(action_about)
         action_about.triggered.connect(self.about)
 
-        '''
-        create a horizontal box layout
-        '''
-        self.hbox = QHBoxLayout(self.centralwidget)
-        #hbox = QHBoxLayout()
-
-        groupbox1 = QGroupBox('Signals')
-        vb = CustomViewBox()
-        self.win1 = pg.PlotWidget(viewBox = vb)   #middle signals plot
-        self.win2 = pg.PlotWidget(border = 'k')   #upper horizontal bar
-        self.win3 = pg.PlotWidget()               #lower audio plot
-        self.win1.setBackground('w')
-        self.win2.setBackground('w')
-        self.win3.setBackground('w')
-        self.win1.setMouseEnabled(x = False, y = False)
-        self.win2.setMouseEnabled(x = False, y = False)
-        self.win3.setMouseEnabled(x = False, y = False)
-
-        self.figure1 = self.win1.plot(x = [], y = [])
-
-        self.win2.hideAxis('left')
-        self.win2.hideAxis('bottom')
-        self.win3.hideAxis('left')
-        self.win3.hideAxis('bottom')
-
-        form5layout = QGridLayout() #QVBoxLayout()
-        form5layout.setSpacing(0.0)
-        form5layout.setRowStretch(0, 1)
-        form5layout.setRowStretch(1, 8)
-        form5layout.setRowStretch(2, 1)
-        form5layout.addWidget(self.win2)
-        form5layout.addWidget(self.win1)
-        form5layout.addWidget(self.win3)
-
-        groupbox1.setLayout(form5layout)
-
-        vbox = QVBoxLayout()
-        vbox.addWidget(groupbox1)
-
 
         '''
-        Another vertical box layout
+        Buttons and controls vertical box layout
         '''
-        vbox1 = QVBoxLayout()
         panel1 = QGroupBox('Panel')
         panel1.setFixedWidth(200)
         panel1.setFixedHeight(200)
-        grid1 = QGridLayout()
 
         # Annotation buttons
         qlabelAnnotations = QLabel('Annotation:')
@@ -218,7 +180,12 @@ class Application(QMainWindow):
         self.push3_0 = QPushButton('Select')
         self.push3_0.clicked.connect(self.ChannelSelect)
 
+        self.push4_0 = QPushButton('Periodogram')
+        self.push4_0.setCheckable(True)
+        self.push4_0.clicked.connect(self.PeriodogramSelect)
+
         # Buttons layout
+        grid1 = QGridLayout()
         grid1.addWidget(qlabelAnnotations, 0, 0, 1, 3)
         grid1.addWidget(self.combo1, 0, 3, 1, 3)
         grid1.addWidget(self.push1_1, 1, 0, 1, 2)
@@ -231,23 +198,32 @@ class Application(QMainWindow):
         grid1.addWidget(self.push2_3, 3, 4, 1, 2)
         grid1.addWidget(qlabelChannels, 4, 0, 1, 3)
         grid1.addWidget(self.push3_0, 4, 3, 1, 3)
+        grid1.addWidget(self.push4_0, 5, 0, 1, 6)
         panel1.setLayout(grid1)
 
-        panel2 = QGroupBox('Signal Type')
+        # Traces panel ---------------------------------------------------------
+        panel2 = QGroupBox('Traces')
         panel2.setFixedWidth(200)
         panel2.setFixedHeight(100)
-        form2 = QFormLayout()
-        self.rbtn1 = QRadioButton('raw ECoG')
+        self.rbtn1 = QRadioButton('Voltage')
         self.rbtn1.setChecked(True)
-        self.rbtn2 = QRadioButton('High Gamma')
+        self.rbtn1.clicked.connect(self.voltage_time_series)
+        self.combo3 = QComboBox()
+        self.combo3.addItem('raw')
+        self.combo3.addItem('preprocessed')
+        self.combo3.activated.connect(self.voltage_time_series)
+        self.rbtn2 = QRadioButton('High gamma')
         self.rbtn2.setChecked(False)
-        form2.addWidget(self.rbtn1)
-        form2.addWidget(self.rbtn2)
-        panel2.setLayout(form2)
+        self.rbtn2.clicked.connect(self.power_time_series)
+        grid2 = QGridLayout()
+        grid2.addWidget(self.rbtn1, 0, 0, 1, 1)
+        grid2.addWidget(self.combo3, 0, 1, 1, 1)
+        grid2.addWidget(self.rbtn2, 1, 0, 1, 2)
+        panel2.setLayout(grid2)
 
+        # Plot controls panel --------------------------------------------------
         panel3 = QGroupBox('Plot Controls')
         panel3.setFixedWidth(200)
-        form3 = QGridLayout()
         self.enableButton = QPushButton('Enable')
         self.enableButton.setFixedWidth(100)
         self.enableButton.clicked.connect(self.enable)
@@ -299,39 +275,83 @@ class Application(QMainWindow):
         self.pushbtn10 = QPushButton('/2')
         self.pushbtn10.clicked.connect(self.verticalScaleDecrease)
 
-        form3.addWidget(self.enableButton, 0, 1)
-        form3.addWidget(qlabel1, 1, 0)
-        form3.addWidget(self.qline0, 1, 1)
-        form3.addWidget(self.pushbtn1_1, 1, 2)
-        form3.addWidget(self.pushbtn1_2, 1, 3)
-        form3.addWidget(qlabel2, 2, 0)
-        form3.addWidget(self.qline1, 2, 1)
-        form3.addWidget(self.pushbtn2_1, 2, 2)
-        form3.addWidget(self.pushbtn2_2, 2, 3)
+        form_2 = QGridLayout()
+        form_2.addWidget(self.enableButton, 0, 1)
+        form_2.addWidget(qlabel1, 1, 0)
+        form_2.addWidget(self.qline0, 1, 1)
+        form_2.addWidget(self.pushbtn1_1, 1, 2)
+        form_2.addWidget(self.pushbtn1_2, 1, 3)
+        form_2.addWidget(qlabel2, 2, 0)
+        form_2.addWidget(self.qline1, 2, 1)
+        form_2.addWidget(self.pushbtn2_1, 2, 2)
+        form_2.addWidget(self.pushbtn2_2, 2, 3)
 
-        form3.addWidget(qlabel3, 4, 0, 1, 2)
-        form3.addWidget(self.qline2, 4, 2, 1, 2)
-        form3.addWidget(self.pushbtn3, 5, 0)
-        form3.addWidget(self.pushbtn4, 5, 1)
-        form3.addWidget(self.pushbtn6, 5, 2)
-        form3.addWidget(self.pushbtn5, 5, 3)
-        form3.addWidget(qlabel4, 6, 0)
-        form3.addWidget(self.qline3, 6, 1)
-        form3.addWidget(self.pushbtn7, 6, 2)
-        form3.addWidget(self.pushbtn8, 6, 3)
-        form3.addWidget(qlabel5, 7, 0)
-        form3.addWidget(self.qline4, 7, 1)
-        form3.addWidget(self.pushbtn9, 7, 2)
-        form3.addWidget(self.pushbtn10, 7, 3)
-        form3.addWidget(QLabel(), 8, 0)
-        panel3.setLayout(form3)
-        vbox1.addWidget(panel1)
-        vbox1.addWidget(panel2)
-        vbox1.addWidget(panel3)
+        form_2.addWidget(qlabel3, 4, 0, 1, 2)
+        form_2.addWidget(self.qline2, 4, 2, 1, 2)
+        form_2.addWidget(self.pushbtn3, 5, 0)
+        form_2.addWidget(self.pushbtn4, 5, 1)
+        form_2.addWidget(self.pushbtn6, 5, 2)
+        form_2.addWidget(self.pushbtn5, 5, 3)
+        form_2.addWidget(qlabel4, 6, 0)
+        form_2.addWidget(self.qline3, 6, 1)
+        form_2.addWidget(self.pushbtn7, 6, 2)
+        form_2.addWidget(self.pushbtn8, 6, 3)
+        form_2.addWidget(qlabel5, 7, 0)
+        form_2.addWidget(self.qline4, 7, 1)
+        form_2.addWidget(self.pushbtn9, 7, 2)
+        form_2.addWidget(self.pushbtn10, 7, 3)
+        form_2.addWidget(QLabel(), 8, 0)
+        panel3.setLayout(form_2)
 
-        self.hbox.addLayout(vbox1)   #add panels first
-        self.hbox.addLayout(vbox)    #add plots second
-        #self.setLayout(self.hbox)
+        self.vbox1 = QVBoxLayout()
+        self.vbox1.addWidget(panel1)
+        self.vbox1.addWidget(panel2)
+        self.vbox1.addWidget(panel3)
+
+
+        '''
+        Time series plots Vertical Box
+        '''
+        vb = CustomViewBox()
+        self.win1 = pg.PlotWidget(viewBox = vb)   #middle signals plot
+        self.win2 = pg.PlotWidget(border = 'k')   #upper horizontal bar
+        self.win3 = pg.PlotWidget()               #lower audio plot
+        self.win1.setBackground('w')
+        self.win2.setBackground('w')
+        self.win3.setBackground('w')
+        self.win1.setMouseEnabled(x = False, y = False)
+        self.win2.setMouseEnabled(x = False, y = False)
+        self.win3.setMouseEnabled(x = False, y = False)
+
+        self.win2.hideAxis('left')
+        self.win2.hideAxis('bottom')
+        self.win3.hideAxis('left')
+        self.win3.hideAxis('bottom')
+
+        form_3 = QGridLayout() #QVBoxLayout()
+        form_3.setSpacing(0.0)
+        form_3.setRowStretch(0, 1)
+        form_3.setRowStretch(1, 8)
+        form_3.setRowStretch(2, 1)
+        form_3.addWidget(self.win2)
+        form_3.addWidget(self.win1)
+        form_3.addWidget(self.win3)
+
+        self.groupbox1 = QGroupBox('Signals')
+        self.groupbox1.setLayout(form_3)
+
+        self.vbox2 = QStackedLayout()
+        self.vbox2.addWidget(self.groupbox1)
+        self.vbox2.setCurrentIndex(0)
+
+
+        '''
+        Create a horizontal box layout and populate it with panels
+        '''
+        self.hbox = QHBoxLayout(self.centralwidget)
+        self.hbox.addLayout(self.vbox1)    #add panels first
+        self.hbox.addLayout(self.vbox2)    #add plots second
+
 
 
     def open_file(self):
@@ -366,9 +386,12 @@ class Application(QMainWindow):
     def save_badchannel(self):
         model.BadChannelSave()
 
+
     def spectral_analysis(self):
         w = SpectralChoiceDialog(nwb=model.nwb, fpath=model.pathName,
                                  fname=model.fileName)
+        model.refresh_file()        # re-opens the file, now with new data
+        self.power_time_series()    # refresh plot graphs
 
 
     def about(self):
@@ -387,8 +410,9 @@ class Application(QMainWindow):
         global intervalDel_
         global annotationAdd_
         global annotationDel_
+        global periodogram_
 
-        #self.active_mode = 'default', 'intervalAdd', 'intervalDel'
+        #self.active_mode = 'default', 'intervalAdd', 'intervalDel', 'periodogram'
         if self.active_mode != 'intervalAdd':
             self.push2_1.setChecked(False)
             intervalAdd_ = False
@@ -405,6 +429,9 @@ class Application(QMainWindow):
             self.push1_2.setChecked(False)
             annotationDel_ = False
 
+        if self.active_mode != 'periodogram':
+            self.push4_0.setChecked(False)
+            periodogram_ = False
 
 
     ## Annotation functions ----------------------------------------------------
@@ -523,9 +550,69 @@ class Application(QMainWindow):
         model.selectedChannels = model.channels_mask_ind[model.firstCh-1:model.lastCh]
         model.refreshScreen()
 
+
+
+    # Select channel for Periodogram display -----------------------------------
+    def PeriodogramSelect(self):
+        global periodogram_
+        if self.push4_0.isChecked():  #if button is pressed down
+            self.active_mode = 'periodogram'
+            self.reset_buttons()
+            periodogram_ = True
+        else:
+            self.active_mode = 'default'
+            self.reset_buttons()
+
+
     #def get_channel(self, event):
     #    mousePoint = self.win1.plotItem.vb.mapSceneToView(event.scenePos())
     #    model.getChannel(mousePoint)
+
+
+
+    ## Change Signals plot panel -----------------------------------------------
+    def voltage_time_series(self):
+        self.rbtn1.setChecked(True)
+        if self.combo3.currentText()=='raw':
+            model.plot_panel = 'voltage_raw'
+            model.plotData = model.ecog.data
+            model.nBins = model.plotData.shape[0]     #total number of bins
+            model.fs_signal = model.ecog.rate     #sampling frequency [Hz]
+            model.tbin_signal = 1/model.fs_signal #time bin duration [seconds]
+        elif self.combo3.currentText()=='preprocessed':
+            try:   #if preprocessed signals already exist on NWB file
+                model.plotData = model.nwb.modules['ecephys'].data_interfaces['LFP'].electrical_series['preprocessed'].data
+                model.plot_panel = 'voltage_preprocessed'
+            except:
+                self.spectral_analysis()
+                model.plot_panel = 'voltage_preprocessed'
+                model.plotData = model.nwb.modules['ecephys'].data_interfaces['LFP'].electrical_series['preprocessed'].data
+            #total number of bins
+            model.nBins = model.nwb.modules['ecephys'].data_interfaces['LFP'].electrical_series['preprocessed'].data.shape[0]
+            #sampling frequency [Hz]
+            model.fs_signal = model.nwb.modules['ecephys'].data_interfaces['LFP'].electrical_series['preprocessed'].rate
+            #time bin duration [seconds]
+            model.tbin_signal = 1/model.fs_signal
+        model.getCurAxisParameters()    #updates time points
+        model.refreshScreen()
+
+
+    def power_time_series(self):
+        try:     #if decomposition already exists on NWB file
+            model.plotData = model.nwb.modules['ecephys'].data_interfaces['high_gamma'].data
+        except:  #if not, opens dialog for user choice
+            self.spectral_analysis()
+            model.plotData = model.nwb.modules['ecephys'].data_interfaces['high_gamma'].data
+        model.plot_panel = 'spectral_power'
+        #total number of bins
+        model.nBins = model.plotData.shape[0]
+        #sampling frequency [Hz]
+        model.fs_signal = model.nwb.modules['ecephys'].data_interfaces['Bandpower_default'].rate
+        #time bin duration [seconds]
+        model.tbin_signal = 1/model.fs_signal
+        model.getCurAxisParameters()    #updates time points
+        model.refreshScreen()
+
 
 
 
@@ -601,18 +688,19 @@ class Application(QMainWindow):
         model.nChannels_Displayed()
 
 
+
 ## Viewbox for signal plots ----------------------------------------------------
 class CustomViewBox(pg.ViewBox):
     def __init__(self):
         pg.ViewBox.__init__(self)
         #super().__init__(self)
 
-
     def mouseClickEvent(self, ev):
         global intervalDel_
         global annotationAdd_
         global annotationDel_
         global annotationColor_
+        global periodogram_
 
         if intervalDel_:
             mousePoint = self.mapSceneToView(ev.scenePos())
@@ -638,6 +726,15 @@ class CustomViewBox(pg.ViewBox):
             y = mousePoint.y()
             try:
                 model.AnnotationDel(x=x, y=y)
+            except Exception as ex:
+                print(str(ex))
+
+        if periodogram_:
+            mousePoint = self.mapSceneToView(ev.scenePos())
+            x = mousePoint.x()
+            y = mousePoint.y()
+            try:
+                PeriodogramDialog(model=model, x=x, y=y)
             except Exception as ex:
                 print(str(ex))
 

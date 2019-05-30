@@ -21,12 +21,15 @@ import nwbext_ecog
 class ecogVIS:
     def __init__(self, par, pathName, parameters):
         self.parent = par
+        self.fullpath = pathName
         self.pathName = os.path.split(os.path.abspath(pathName))[0] #path
         self.fileName = os.path.split(os.path.abspath(pathName))[1] #file
         self.axesParams = parameters
 
-        self.nwb = pynwb.NWBHDF5IO(pathName,'r+').read()      #reads NWB file
-        self.ecog = self.nwb.acquisition['ECoG']                   #ecog
+        self.file = pynwb.NWBHDF5IO(self.fullpath,'r+')
+        self.nwb = self.file.read()      #reads NWB file
+        self.ecog = self.nwb.acquisition['ECoG']              #ecog
+        self.plotData = self.ecog.data
         # Get Brain regions present in current file
         self.all_regions = list(set(self.nwb.electrodes['location'][:].tolist()))
         self.all_regions.sort()
@@ -36,6 +39,7 @@ class ecogVIS:
         self.channels_mask_ind = np.where(self.channels_mask)[0]
 
         self.h = []
+        self.plot_panel = 'time_series'
         self.text = []
         self.AnnotationsList = []
         self.AnnotationsPosAV = np.array([])    #(x, y_va, y_off)
@@ -49,7 +53,6 @@ class ecogVIS:
         self.nChToShow = self.lastCh - self.firstCh + 1
         self.selectedChannels = np.arange(self.firstCh-1, self.lastCh)
 
-        self.rawecog = self.ecog.data       #ecog signals
         self.fs_signal = self.ecog.rate     #sampling frequency [Hz]
         self.tbin_signal = 1/self.fs_signal #time bin duration [seconds]
 
@@ -84,7 +87,6 @@ class ecogVIS:
         total_dur = np.shape(self.ecog.data)[0]/self.fs_signal
         self.axesParams['pars']['Figure'][1].plot([0, total_dur], [0.5, 0.5], pen = 'k', width = 0.5)
 
-
         # Plot interval rectangles at upper and middle pannels
         self.IntRects1 = np.array([], dtype = 'object')
         self.IntRects2 = np.array([], dtype = 'object')
@@ -99,13 +101,12 @@ class ecogVIS:
             a = self.axesParams['pars']['Figure'][1]
             a.addItem(c)
             # on signals plot
-            c = pg.QtGui.QGraphicsRectItem(start, 0, max(stop-start, 0.01), 1)
+            c = pg.QtGui.QGraphicsRectItem(start, -1, max(stop-start, 0.01), 2)
             self.IntRects2 = np.append(self.IntRects2, c)
             c.setPen(pg.mkPen(color = 'r'))
             c.setBrush(QtGui.QColor(255, 0, 0, 120))
             a = self.axesParams['pars']['Figure'][0]
             a.addItem(c)
-
 
         # Initiate interval to show
         self.getCurAxisParameters()
@@ -113,19 +114,26 @@ class ecogVIS:
         self.refreshScreen()
 
 
+    # Re-opens the file, if new data is included
+    def refresh_file(self):
+        self.file.close()   #closes current NWB file
+        self.file= pynwb.NWBHDF5IO(self.fullpath,'r+')
+        self.nwb = self.file.read()      #reads NWB file
+        self.ecog = self.nwb.acquisition['ECoG']                   #ecog
+
+
     def refreshScreen(self):
-        self.AR_plotter()
+        self.TimeSeries_plotter()
 
 
-    def AR_plotter(self):
-        #self.getCurAxisParameters()
+    # Plots time series signals ------------------------------------------------
+    def TimeSeries_plotter(self):
         startSamp = self.intervalStartSamples
         endSamp = self.intervalEndSamples
-        timebaseGuiUnits = np.arange(startSamp - 1, endSamp) * (self.intervalStartGuiUnits/self.intervalStartSamples)
 
         # Use the same scaling factor for all channels, to keep things comparable
         self.verticalScaleFactor = float(self.axesParams['editLine']['qLine4'].text())
-        scaleFac = 2*np.std(self.ecog.data[startSamp:endSamp, self.selectedChannels-1], axis=0)/self.verticalScaleFactor
+        scaleFac = 2*np.std(self.plotData[startSamp:endSamp, self.selectedChannels-1], axis=0)/self.verticalScaleFactor
 
         # Scale variance_units, offset for each channel
         scale_va = np.max(scaleFac)
@@ -137,13 +145,13 @@ class ecogVIS:
         # constrains the plotData to the chosen interval (and transpose matix)
         # plotData dims=[self.nChToShow, plotInterval]
         try:
-            data = self.ecog.data[startSamp - 1 : endSamp, self.selectedChannels-1].T
+            #data = self.ecog.data[startSamp - 1 : endSamp, self.selectedChannels-1].T
+            data = self.plotData[startSamp - 1 : endSamp, self.selectedChannels-1].T
             plotData = data + np.tile(scaleV, (1, endSamp - startSamp + 1)) # data + offset
         except:  #if time segment shorter than window.
-            data = self.ecog.data[:, self.selectedChannels-1].T
+            #data = self.ecog.data[:, self.selectedChannels-1].T
+            data = self.plotData[:, self.selectedChannels-1].T
             plotData = data + np.tile(scaleV, (1, endSamp - startSamp + 1)) # data + offset
-        self.plotData = []
-        self.plotData = plotData
 
         ## Rectangle Plot
         x = float(self.axesParams['editLine']['qLine2'].text())
@@ -167,6 +175,7 @@ class ecogVIS:
 
         # Middle signals plot
         # A line indicating reference for every channel
+        timebaseGuiUnits = np.arange(startSamp - 1, endSamp) * (self.intervalStartGuiUnits/self.intervalStartSamples)
         x = np.tile([timebaseGuiUnits[0], timebaseGuiUnits[-1]], (len(self.scaleVec), 1))
         y = np.hstack((scaleV, scaleV))
         plt = self.axesParams['pars']['Figure'][0]   #middle signal plot
@@ -229,8 +238,6 @@ class ecogVIS:
             # plt2.setXLink(plt)
 
 
-
-
     def getCurAxisParameters(self):
         self.updateCurXAxisPosition()
 
@@ -265,7 +272,7 @@ class ecogVIS:
 
         # Updates times in samples
         self.intervalLengthSamples = int(np.floor(self.intervalLengthGuiUnits / self.tbin_signal))
-        self.intervalStartSamples = int(np.floor(self.intervalStartGuiUnits / self.tbin_signal))
+        self.intervalStartSamples = int(max(np.floor(self.intervalStartGuiUnits / self.tbin_signal),1))
         self.intervalEndSamples = self.intervalStartSamples + self.intervalLengthSamples
 
         self.refreshScreen()
@@ -364,7 +371,7 @@ class ecogVIS:
 
     def time_window_size(self):
         plotIntervalGuiUnits = float(self.axesParams['editLine']['qLine3'].text())
-        n = self.ecog.data.shape[0]
+        n = model.nBins
         # Minimum time interval
         if plotIntervalGuiUnits < self.tbin_signal:
             plotIntervalGuiUnits = self.tbin_signal
@@ -515,16 +522,14 @@ class ecogVIS:
         elif color=='blue':
             bc = [0, 0, 255, 100]
         x = interval[0]
-        y = 0
         w = np.diff(np.array(interval))[0]
-        h = 1
         # add rectangle to upper plot
-        c = pg.QtGui.QGraphicsRectItem(x, y, w, h)
+        c = pg.QtGui.QGraphicsRectItem(x, 0, w, 1)
         c.setPen(pg.mkPen(color=QtGui.QColor(bc[0], bc[1], bc[2], 255)))
         c.setBrush(QtGui.QColor(bc[0], bc[1], bc[2], 255))
         self.IntRects1 = np.append(self.IntRects1, [c])
         # add rectangle to middle signal plot
-        c = pg.QtGui.QGraphicsRectItem(x, y, w, h)
+        c = pg.QtGui.QGraphicsRectItem(x, -1, w, 2)
         c.setPen(pg.mkPen(color=QtGui.QColor(bc[0], bc[1], bc[2], 255)))
         c.setBrush(QtGui.QColor(bc[0], bc[1], bc[2], bc[3]))
         self.IntRects2 = np.append(self.IntRects2, [c])
