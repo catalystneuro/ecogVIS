@@ -7,6 +7,7 @@ Created on Fri Jul 13 21:32:20 2018
 """
 import os
 import scipy.io
+from scipy.signal import resample
 import numpy as np
 import pandas as pd
 import h5py
@@ -72,24 +73,29 @@ class ecogVIS:
                 obj.color = 'red'
                 self.allIntervals.append(obj)
 
-        # menu('load audio?','yes','no') == 1
-        if os.path.exists(os.path.join(pathName, 'Analog', 'ANIN4.htk')):
-            self.disp_audio = 1
-            self.audio = readHTK(os.path.join(pathName, 'Analog', 'ANIN4.htk'))
-
-            self.downsampled = self.downsample(10)
-            self.audio['sampling_rate'] = self.audio['sampling_rate']/10000
-            self.fs_audio = self.audio['sampling_rate']/10
-            self.taudio = np.arange(1, np.shape(self.downsampled)[0])/self.fs_audio
+        # Load stimulus signal (audio)
+        self.nStim = len(self.nwb.stimulus)
+        self.stimList = list(self.nwb.stimulus.keys())
+        self.stimResampled = {}
+        for stim in self.stimList:
+            self.parent.combo4.addItem(stim)   #add stimulus name to dropdown button
+            #output = self.stimResample(self.nwb.stimulus[stim], 100)
+            #self.stimResampled[stim] = output[0]
+            #self.stimX = output[1]
+            #self.downsampled = self.audio_resample(10)
+            #self.audio['sampling_rate'] = self.audio['sampling_rate']/10000
+            #self.fs_audio = self.audio['sampling_rate']/10
+            #self.taudio = np.arange(1, np.shape(self.downsampled)[0])/self.fs_audio
         else:
             self.disp_audio = 0
 
         total_dur = np.shape(self.ecog.data)[0]/self.fs_signal
         self.axesParams['pars']['Figure'][1].plot([0, total_dur], [0.5, 0.5], pen = 'k', width = 0.5)
 
-        # Plot interval rectangles at upper and middle pannels
+        # Plot interval rectangles at upper, middle and bottom pannels
         self.IntRects1 = np.array([], dtype = 'object')
         self.IntRects2 = np.array([], dtype = 'object')
+        self.IntRects3 = np.array([], dtype = 'object')
         for i, obj in enumerate(self.allIntervals):
             start = obj.start
             stop = obj.stop
@@ -107,14 +113,20 @@ class ecogVIS:
             c.setBrush(QtGui.QColor(255, 0, 0, 120))
             a = self.axesParams['pars']['Figure'][0]
             a.addItem(c)
+            # on stimuli plot
+            c = pg.QtGui.QGraphicsRectItem(start, -1, max(stop-start, 0.01), 2)
+            self.IntRects3 = np.append(self.IntRects3, c)
+            c.setPen(pg.mkPen(color = 'r'))
+            c.setBrush(QtGui.QColor(255, 0, 0, 120))
+            a = self.axesParams['pars']['Figure'][2]
+            a.addItem(c)
 
-        # Initiate interval to show
+        # Initiate plots
         self.getCurAxisParameters()
-
         self.refreshScreen()
 
 
-    # Re-opens the file, if new data is included
+    # Re-opens the file, for when new data is included
     def refresh_file(self):
         self.file.close()   #closes current NWB file
         self.file= pynwb.NWBHDF5IO(self.fullpath,'r+')
@@ -122,6 +134,7 @@ class ecogVIS:
         self.ecog = self.nwb.acquisition['ECoG']                   #ecog
 
 
+    # Re-draws all plots
     def refreshScreen(self):
         self.TimeSeries_plotter()
 
@@ -158,19 +171,20 @@ class ecogVIS:
         w = float(self.axesParams['editLine']['qLine3'].text())
 
         # Upper horizontal bar
-        plt2 = self.axesParams['pars']['Figure'][1]
+        plt1 = self.axesParams['pars']['Figure'][1]
         if self.current_rect != []:
-            plt2.removeItem(self.current_rect)
+            plt1.removeItem(self.current_rect)
 
         self.current_rect = pg.QtGui.QGraphicsRectItem(x, 0, w, 1)
         self.current_rect.setPen(pg.mkPen(color = 'k'))
         self.current_rect.setBrush(QtGui.QColor(0, 255, 0, 200))
-        plt2.addItem(self.current_rect)
+        plt1.addItem(self.current_rect)
 
+        # Show Intervals
         for i in range(len(self.IntRects1)):
-            plt2.removeItem(self.IntRects1[i])
+            plt1.removeItem(self.IntRects1[i])
         for i in range(len(self.IntRects1)):
-            plt2.addItem(self.IntRects1[i])
+            plt1.addItem(self.IntRects1[i])
 
 
         # Middle signals plot
@@ -178,44 +192,39 @@ class ecogVIS:
         timebaseGuiUnits = np.arange(startSamp - 1, endSamp) * (self.intervalStartGuiUnits/self.intervalStartSamples)
         x = np.tile([timebaseGuiUnits[0], timebaseGuiUnits[-1]], (len(self.scaleVec), 1))
         y = np.hstack((scaleV, scaleV))
-        plt = self.axesParams['pars']['Figure'][0]   #middle signal plot
+        plt2 = self.axesParams['pars']['Figure'][0]   #middle signal plot
         # Clear plot
-        plt.clear()
+        plt2.clear()
         for l in range(np.shape(x)[0]):
-            plt.plot(x[l], y[l], pen = 'k')
-        plt.setLabel('bottom', 'Time', units = 'sec')
-        plt.setLabel('left', 'Channel #')
-
+            plt2.plot(x[l], y[l], pen = 'k')
+        plt2.setLabel('bottom', 'Time', units = 'sec')
+        plt2.setLabel('left', 'Channel #')
         labels = [str(ch+1) for ch in self.selectedChannels]
         ticks = list(zip(y[:, 0], labels))
-
-        plt.getAxis('left').setTicks([ticks])
+        plt2.getAxis('left').setTicks([ticks])
 
         # Iterate over chosen channels, plot one at a time
         nrows, ncols = np.shape(plotData)
         for i in range(nrows):
             if self.selectedChannels[i] in self.badChannels:
-                plt.plot(timebaseGuiUnits, plotData[i], pen='r', width=.8, alpha=.3)
+                plt2.plot(timebaseGuiUnits, plotData[i], pen='r', width=.8, alpha=.3)
             else:
                 c = 'g'
                 if i%2 == 0:
                     c = 'b'
-                #plt.plot(timebaseGuiUnits, plotData[i], pen = pg.mkPen(c, width = 1))
-                plt.plot(timebaseGuiUnits, plotData[i], pen = c, width = 1)
+                plt2.plot(timebaseGuiUnits, plotData[i], pen = c, width = 1)
+        plt2.setXRange(timebaseGuiUnits[0], timebaseGuiUnits[-1], padding = 0.003)
+        plt2.setYRange(y[0, 0], y[-1, 0], padding = 0.06)
 
-
-        plt.setXRange(timebaseGuiUnits[0], timebaseGuiUnits[-1], padding = 0.003)
-        plt.setYRange(y[0, 0], y[-1, 0], padding = 0.06)
-
-        # Make red box around bad time segments
+        # Show Intervals
         for i in range(len(self.IntRects2)):
-            plt.removeItem(self.IntRects2[i])
+            plt2.removeItem(self.IntRects2[i])
         for i in range(len(self.IntRects2)):
-            plt.addItem(self.IntRects2[i])
+            plt2.addItem(self.IntRects2[i])
 
         # Show Annotations
         for i in range(len(self.AnnotationsList)):
-            plt.removeItem(self.AnnotationsList[i])
+            plt2.removeItem(self.AnnotationsList[i])
         for i in range(len(self.AnnotationsList)):
             aux = self.AnnotationsList[i]
             x = self.AnnotationsPosAV[i,0]
@@ -223,19 +232,23 @@ class ecogVIS:
             y_va = self.AnnotationsPosAV[i,1]
             y = (y_va + self.AnnotationsPosAV[i,2] - self.firstCh) * scale_va
             aux.setPos(x,y)
-            plt.addItem(aux)
+            plt2.addItem(aux)
 
-        # Plot audio
-        if self.disp_audio:
-            begin = self.intervalStartGuiUnits
-            stop = self.intervalStartGuiUnits + self.intervalLengthGuiUnits
-            plt1 = self.axesParams['pars']['Figure'][2]
-            plt1.clear()
-            ind_disp = np.where((self.taudio > begin) & (self.taudio < stop))
-            x_axis = np.linspace(xmin, xmax, len(self.downsampled[ind_disp]))
-            plt1.plot(x_axis, self.downsampled[ind_disp], pen = 'r', width = 2)
-            plt1.setXLink(plt)
-            # plt2.setXLink(plt)
+        # Bottom plot - Stimuli
+        plt3 = self.axesParams['pars']['Figure'][2]
+        plt3.clear()
+        #if self.parent.combo4.currentText() is not None:
+        #    stimName = self.parent.combo4.currentText()
+        #    stimData = self.stimResampled[stimName]
+            #plt3.plot(self.stimX, stimData, pen='k', width=1)
+            #plt3.setXLink(plt)
+            #plt3.setXRange(timebaseGuiUnits[0], timebaseGuiUnits[-1])
+
+            #begin = self.intervalStartGuiUnits
+            #stop = self.intervalStartGuiUnits + self.intervalLengthGuiUnits
+            #ind_disp = np.where((self.taudio > begin) & (self.taudio < stop))
+            #x_axis = np.linspace(xmin, xmax, len(self.downsampled[ind_disp]))
+
 
 
     def getCurAxisParameters(self):
@@ -310,13 +323,12 @@ class ecogVIS:
         self.refreshScreen()
 
 
-    def downsample(self, n):
-        L = self.audio['num_samples']
-        block = round(L/n)
-        n_zeros = block * n + n - L
-        self.downsampled = np.append(self.audio['data'], np.zeros([int(n_zeros)]))
-        re_shape = np.reshape(self.downsampled, [int((block * n + n)/n), n])[:, 0]
-        return re_shape
+    def stimResample(self, stim, frs=100):
+        dt_stim = 1./stim.rate
+        nb_stim = stim.data.shape[0]
+        x = np.linspace(dt_stim, nb_stim*dt_stim, nb_stim)
+        yrs, xrs = resample(stim.data[:], frs, t=x)
+        return yrs, xrs
 
 
 

@@ -14,7 +14,7 @@ import pyqtgraph as pg
 from pyqtgraph.widgets.MatplotlibWidget import MatplotlibWidget
 from Function.subFunctions import ecogVIS
 from Function.subDialogs import (CustomIntervalDialog, SelectChannelsDialog,
-    SpectralChoiceDialog, PeriodogramDialog)
+    SpectralChoiceDialog, PeriodogramDialog, NoHighGammaDialog, NoPreprocessedDialog)
 
 
 model = None
@@ -37,7 +37,7 @@ class Application(QMainWindow):
 
         self.centralwidget = QWidget()
         self.setCentralWidget(self.centralwidget)
-        self.resize(800, 600)
+        self.resize(900, 700)
         self.setWindowTitle('ecogVIS')
 
         # e.g.: /home/User/freesurfer_subjects/Subject_XX.nwb
@@ -141,7 +141,7 @@ class Application(QMainWindow):
         '''
         panel1 = QGroupBox('Panel')
         panel1.setFixedWidth(200)
-        panel1.setFixedHeight(200)
+        #panel1.setFixedHeight(200)
 
         # Annotation buttons
         qlabelAnnotations = QLabel('Annotation:')
@@ -201,10 +201,11 @@ class Application(QMainWindow):
         grid1.addWidget(self.push4_0, 5, 0, 1, 6)
         panel1.setLayout(grid1)
 
+
         # Traces panel ---------------------------------------------------------
         panel2 = QGroupBox('Traces')
         panel2.setFixedWidth(200)
-        panel2.setFixedHeight(100)
+        #panel2.setFixedHeight(100)
         self.rbtn1 = QRadioButton('Voltage')
         self.rbtn1.setChecked(True)
         self.rbtn1.clicked.connect(self.voltage_time_series)
@@ -214,12 +215,19 @@ class Application(QMainWindow):
         self.combo3.activated.connect(self.voltage_time_series)
         self.rbtn2 = QRadioButton('High gamma')
         self.rbtn2.setChecked(False)
-        self.rbtn2.clicked.connect(self.power_time_series)
+        self.rbtn2.clicked.connect(self.highgamma_time_series)
+        qlabelStimuli = QLabel('Stimuli:')
+        self.combo4 = QComboBox()
+        self.combo4.addItem('None')
+
         grid2 = QGridLayout()
         grid2.addWidget(self.rbtn1, 0, 0, 1, 1)
         grid2.addWidget(self.combo3, 0, 1, 1, 1)
         grid2.addWidget(self.rbtn2, 1, 0, 1, 2)
+        grid2.addWidget(qlabelStimuli, 2, 0, 1, 1)
+        grid2.addWidget(self.combo4, 2, 1, 1, 1)
         panel2.setLayout(grid2)
+
 
         # Plot controls panel --------------------------------------------------
         panel3 = QGroupBox('Plot Controls')
@@ -390,8 +398,9 @@ class Application(QMainWindow):
     def spectral_analysis(self):
         w = SpectralChoiceDialog(nwb=model.nwb, fpath=model.pathName,
                                  fname=model.fileName)
-        model.refresh_file()        # re-opens the file, now with new data
-        self.power_time_series()    # refresh plot graphs
+        if w.value==1:       # Pressed Run
+            model.refresh_file()        # re-opens the file, now with new data
+
 
 
     def about(self):
@@ -583,35 +592,35 @@ class Application(QMainWindow):
             try:   #if preprocessed signals already exist on NWB file
                 model.plotData = model.nwb.modules['ecephys'].data_interfaces['LFP'].electrical_series['preprocessed'].data
                 model.plot_panel = 'voltage_preprocessed'
+                #total number of bins
+                model.nBins = model.nwb.modules['ecephys'].data_interfaces['LFP'].electrical_series['preprocessed'].data.shape[0]
+                #sampling frequency [Hz]
+                model.fs_signal = model.nwb.modules['ecephys'].data_interfaces['LFP'].electrical_series['preprocessed'].rate
+                #time bin duration [seconds]
+                model.tbin_signal = 1/model.fs_signal
             except:
-                self.spectral_analysis()
-                model.plot_panel = 'voltage_preprocessed'
-                model.plotData = model.nwb.modules['ecephys'].data_interfaces['LFP'].electrical_series['preprocessed'].data
-            #total number of bins
-            model.nBins = model.nwb.modules['ecephys'].data_interfaces['LFP'].electrical_series['preprocessed'].data.shape[0]
-            #sampling frequency [Hz]
-            model.fs_signal = model.nwb.modules['ecephys'].data_interfaces['LFP'].electrical_series['preprocessed'].rate
-            #time bin duration [seconds]
-            model.tbin_signal = 1/model.fs_signal
+                self.combo3.setCurrentIndex(self.combo3.findText('raw'))
+                NoPreprocessedDialog()
         model.getCurAxisParameters()    #updates time points
         model.refreshScreen()
 
 
-    def power_time_series(self):
+    def highgamma_time_series(self):
         try:     #if decomposition already exists on NWB file
             model.plotData = model.nwb.modules['ecephys'].data_interfaces['high_gamma'].data
-        except:  #if not, opens dialog for user choice
-            self.spectral_analysis()
-            model.plotData = model.nwb.modules['ecephys'].data_interfaces['high_gamma'].data
-        model.plot_panel = 'spectral_power'
-        #total number of bins
-        model.nBins = model.plotData.shape[0]
-        #sampling frequency [Hz]
-        model.fs_signal = model.nwb.modules['ecephys'].data_interfaces['Bandpower_default'].rate
-        #time bin duration [seconds]
-        model.tbin_signal = 1/model.fs_signal
-        model.getCurAxisParameters()    #updates time points
-        model.refreshScreen()
+            model.plot_panel = 'spectral_power'
+            #total number of bins
+            model.nBins = model.plotData.shape[0]
+            #sampling frequency [Hz]
+            model.fs_signal = model.nwb.modules['ecephys'].data_interfaces['high_gamma'].rate
+            #time bin duration [seconds]
+            model.tbin_signal = 1/model.fs_signal
+            model.getCurAxisParameters()    #updates time points
+            model.refreshScreen()
+        except:  #if not, opens warning dialog
+            self.rbtn1.setChecked(True)
+            NoHighGammaDialog()
+
 
 
 
