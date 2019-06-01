@@ -76,12 +76,19 @@ class ecogVIS:
         # Load stimulus signal (audio)
         self.nStim = len(self.nwb.stimulus)
         self.stimList = list(self.nwb.stimulus.keys())
-        self.stimResampled = {}
+        self.stimY = {}
         for stim in self.stimList:
             self.parent.combo4.addItem(stim)   #add stimulus name to dropdown button
-            #output = self.stimResample(self.nwb.stimulus[stim], 100)
-            #self.stimResampled[stim] = output[0]
+            dt_stim = 1./self.nwb.stimulus[stim].rate
+            nb_stim = self.nwb.stimulus[stim].data.shape[0]
+            self.stimX = np.linspace(dt_stim, nb_stim*dt_stim, nb_stim)
+            self.stimY[stim] = self.nwb.stimulus[stim].data
+
+            #nb_stim = self.nwb.stimulus[stim].data.shape[0]
+            #output = self.stimResample(self.nwb.stimulus[stim], int(nb_stim/100))
+            #self.stimY[stim] = output[0]
             #self.stimX = output[1]
+
             #self.downsampled = self.audio_resample(10)
             #self.audio['sampling_rate'] = self.audio['sampling_rate']/10000
             #self.fs_audio = self.audio['sampling_rate']/10
@@ -89,13 +96,13 @@ class ecogVIS:
         else:
             self.disp_audio = 0
 
+
         total_dur = np.shape(self.ecog.data)[0]/self.fs_signal
         self.axesParams['pars']['Figure'][1].plot([0, total_dur], [0.5, 0.5], pen = 'k', width = 0.5)
 
         # Plot interval rectangles at upper, middle and bottom pannels
         self.IntRects1 = np.array([], dtype = 'object')
         self.IntRects2 = np.array([], dtype = 'object')
-        self.IntRects3 = np.array([], dtype = 'object')
         for i, obj in enumerate(self.allIntervals):
             start = obj.start
             stop = obj.stop
@@ -113,13 +120,7 @@ class ecogVIS:
             c.setBrush(QtGui.QColor(255, 0, 0, 120))
             a = self.axesParams['pars']['Figure'][0]
             a.addItem(c)
-            # on stimuli plot
-            c = pg.QtGui.QGraphicsRectItem(start, -1, max(stop-start, 0.01), 2)
-            self.IntRects3 = np.append(self.IntRects3, c)
-            c.setPen(pg.mkPen(color = 'r'))
-            c.setBrush(QtGui.QColor(255, 0, 0, 120))
-            a = self.axesParams['pars']['Figure'][2]
-            a.addItem(c)
+
 
         # Initiate plots
         self.getCurAxisParameters()
@@ -177,8 +178,11 @@ class ecogVIS:
 
         self.current_rect = pg.QtGui.QGraphicsRectItem(x, 0, w, 1)
         self.current_rect.setPen(pg.mkPen(color = 'k'))
-        self.current_rect.setBrush(QtGui.QColor(0, 255, 0, 200))
+        self.current_rect.setBrush(QtGui.QColor(0, 0, 0, 20))
         plt1.addItem(self.current_rect)
+        plt1.getAxis('left').setWidth(w=53)
+        plt1.getAxis('left').setStyle(showValues=False)
+        plt1.setLabel('left', 'Span')
 
         # Show Intervals
         for i in range(len(self.IntRects1)):
@@ -215,6 +219,7 @@ class ecogVIS:
                 plt2.plot(timebaseGuiUnits, plotData[i], pen = c, width = 1)
         plt2.setXRange(timebaseGuiUnits[0], timebaseGuiUnits[-1], padding = 0.003)
         plt2.setYRange(y[0, 0], y[-1, 0], padding = 0.06)
+        plt2.getAxis('left').setWidth(w=53)
 
         # Show Intervals
         for i in range(len(self.IntRects2)):
@@ -237,17 +242,15 @@ class ecogVIS:
         # Bottom plot - Stimuli
         plt3 = self.axesParams['pars']['Figure'][2]
         plt3.clear()
-        #if self.parent.combo4.currentText() is not None:
-        #    stimName = self.parent.combo4.currentText()
-        #    stimData = self.stimResampled[stimName]
-            #plt3.plot(self.stimX, stimData, pen='k', width=1)
-            #plt3.setXLink(plt)
-            #plt3.setXRange(timebaseGuiUnits[0], timebaseGuiUnits[-1])
-
-            #begin = self.intervalStartGuiUnits
-            #stop = self.intervalStartGuiUnits + self.intervalLengthGuiUnits
-            #ind_disp = np.where((self.taudio > begin) & (self.taudio < stop))
-            #x_axis = np.linspace(xmin, xmax, len(self.downsampled[ind_disp]))
+        xmask = (self.stimX > timebaseGuiUnits[0]) * (self.stimX < timebaseGuiUnits[-1])
+        if self.parent.combo4.currentText() is not '':
+            stimName = self.parent.combo4.currentText()
+            stimData = self.stimY[stimName]
+            plt3.plot(self.stimX[xmask], stimData[xmask], pen='k', width=1)
+            plt3.setXLink(plt2)
+        plt3.setLabel('left', 'Stim')
+        plt3.getAxis('left').setWidth(w=53)
+        plt3.getAxis('left').setStyle(showValues=False)
 
 
 
@@ -323,11 +326,11 @@ class ecogVIS:
         self.refreshScreen()
 
 
-    def stimResample(self, stim, frs=100):
+    def stimResample(self, stim, num=100):
         dt_stim = 1./stim.rate
         nb_stim = stim.data.shape[0]
         x = np.linspace(dt_stim, nb_stim*dt_stim, nb_stim)
-        yrs, xrs = resample(stim.data[:], frs, t=x)
+        yrs, xrs = resample(stim.data[:], num, t=x)
         return yrs, xrs
 
 

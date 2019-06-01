@@ -37,7 +37,7 @@ class Application(QMainWindow):
 
         self.centralwidget = QWidget()
         self.setCentralWidget(self.centralwidget)
-        self.resize(900, 700)
+        self.resize(900, 600)
         self.setWindowTitle('ecogVIS')
 
         # e.g.: /home/User/freesurfer_subjects/Subject_XX.nwb
@@ -218,7 +218,7 @@ class Application(QMainWindow):
         self.rbtn2.clicked.connect(self.highgamma_time_series)
         qlabelStimuli = QLabel('Stimuli:')
         self.combo4 = QComboBox()
-        self.combo4.addItem('None')
+        self.combo4.activated.connect(self.choose_stim)
 
         grid2 = QGridLayout()
         grid2.addWidget(self.rbtn1, 0, 0, 1, 1)
@@ -308,7 +308,6 @@ class Application(QMainWindow):
         form_2.addWidget(self.qline4, 7, 1)
         form_2.addWidget(self.pushbtn9, 7, 2)
         form_2.addWidget(self.pushbtn10, 7, 3)
-        form_2.addWidget(QLabel(), 8, 0)
         panel3.setLayout(form_2)
 
         self.vbox1 = QVBoxLayout()
@@ -330,10 +329,13 @@ class Application(QMainWindow):
         self.win1.setMouseEnabled(x = False, y = False)
         self.win2.setMouseEnabled(x = False, y = False)
         self.win3.setMouseEnabled(x = False, y = False)
+        self.win1.hideButtons()
+        self.win2.hideButtons()
+        self.win3.hideButtons()
 
-        self.win2.hideAxis('left')
+        #self.win2.hideAxis('left')
         self.win2.hideAxis('bottom')
-        self.win3.hideAxis('left')
+        #self.win3.hideAxis('left')
         self.win3.hideAxis('bottom')
 
         form_3 = QGridLayout() #QVBoxLayout()
@@ -398,7 +400,7 @@ class Application(QMainWindow):
     def spectral_analysis(self):
         w = SpectralChoiceDialog(nwb=model.nwb, fpath=model.pathName,
                                  fname=model.fileName)
-        if w.value==1:       # Pressed Run
+        if w.value==1:       # If new data was created
             model.refresh_file()        # re-opens the file, now with new data
 
 
@@ -622,7 +624,10 @@ class Application(QMainWindow):
             NoHighGammaDialog()
 
 
-
+    def choose_stim(self):
+        stimName = self.combo4.currentText()
+        if stimName != '':
+            model.refreshScreen()
 
 
     ## Plot control buttons ----------------------------------------------------
