@@ -158,13 +158,13 @@ class ecogVIS:
         # constrains the plotData to the chosen interval (and transpose matix)
         # plotData dims=[self.nChToShow, plotInterval]
         try:
-            #data = self.ecog.data[startSamp - 1 : endSamp, self.selectedChannels-1].T
             data = self.plotData[startSamp - 1 : endSamp, self.selectedChannels-1].T
-            plotData = data + np.tile(scaleV, (1, endSamp - startSamp + 1)) # data + offset
+            means = np.reshape(np.mean(data, 1),(-1,1))  #to align each trace around its reference trace
+            plotData = data + np.tile(scaleV-means, (1, endSamp - startSamp + 1)) # data + offset
         except:  #if time segment shorter than window.
-            #data = self.ecog.data[:, self.selectedChannels-1].T
             data = self.plotData[:, self.selectedChannels-1].T
-            plotData = data + np.tile(scaleV, (1, endSamp - startSamp + 1)) # data + offset
+            means = np.reshape(np.mean(data, 1),(-1,1))  #to align each trace around its reference trace
+            plotData = data + np.tile(scaleV-means, (1, endSamp - startSamp + 1)) # data + offset
 
         ## Rectangle Plot
         x = float(self.axesParams['editLine']['qLine2'].text())
