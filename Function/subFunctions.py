@@ -7,7 +7,7 @@ Created on Fri Jul 13 21:32:20 2018
 """
 import os
 import scipy.io
-from scipy.signal import resample
+from scipy import signal
 import numpy as np
 import pandas as pd
 import h5py
@@ -242,8 +242,8 @@ class ecogVIS:
         # Bottom plot - Stimuli
         plt3 = self.axesParams['pars']['Figure'][2]
         plt3.clear()
-        xmask = (self.stimX > timebaseGuiUnits[0]) * (self.stimX < timebaseGuiUnits[-1])
         if self.parent.combo4.currentText() is not '':
+            xmask = (self.stimX > timebaseGuiUnits[0]) * (self.stimX < timebaseGuiUnits[-1])
             stimName = self.parent.combo4.currentText()
             stimData = self.stimY[stimName]
             plt3.plot(self.stimX[xmask], stimData[xmask], pen='k', width=1)
@@ -330,7 +330,7 @@ class ecogVIS:
         dt_stim = 1./stim.rate
         nb_stim = stim.data.shape[0]
         x = np.linspace(dt_stim, nb_stim*dt_stim, nb_stim)
-        yrs, xrs = resample(stim.data[:], num, t=x)
+        yrs, xrs = signal.resample(stim.data[:], num, t=x)
         return yrs, xrs
 
 

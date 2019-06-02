@@ -6,6 +6,7 @@ from ecog.utils import bands as default_bands
 from ecog.signal_processing.preprocess_data import preprocess_data
 from threading import Event, Thread
 import numpy as np
+from scipy import signal
 import os
 import time
 
@@ -26,7 +27,6 @@ class CustomIntervalDialog(QtGui.QDialog, Ui_CustomInterval):
             return text, color
         else:
             return '', ''
-
 
 
 # Warning of no High gamma data in the NWB file ------------ -------------------
@@ -131,7 +131,6 @@ class SelectChannelsDialog(QtGui.QDialog):
         for i in range(self.model.rowCount()):
             item = self.model.item(i)
             item.setCheckState(QtCore.Qt.Unchecked)
-
 
 
 # Creates Spectral Analysis choice dialog --------------------------------------
@@ -369,15 +368,22 @@ class PeriodogramDialog(QtGui.QDialog):
         endSamp = self.model.intervalEndSamples
 
         # Upper Panel: Periodogram plot ----------------------------------------
-        spectrogram = model.nwb.modules['ecephys'].data_interfaces['Bandpower_default'].data
-        periodogram = np.mean(spectrogram[startSamp - 1 : endSamp, self.chosen_channel, :], 0)
-        bands_centers = model.nwb.modules['ecephys'].data_interfaces['Bandpower_default'].bands['filter_param_0'][:]
+        #spectrogram = model.nwb.modules['ecephys'].data_interfaces['Bandpower_default'].data
+        #periodogram = np.mean(spectrogram[startSamp - 1 : endSamp, self.chosen_channel, :], 0)
+        #bands_centers = model.nwb.modules['ecephys'].data_interfaces['Bandpower_default'].bands['filter_param_0'][:]
+
+        #signal = model.nwb.modules['ecephys'].data_interfaces['LFP'].data[startSamp-1:endSamp, self.chosen_channel]
+        #fs = model.nwb.modules['ecephys'].data_interfaces['LFP'].rate
+        trace = model.plotData[startSamp-1:endSamp, self.chosen_channel]
+        fs = model.fs_signal
+        fx, Py = signal.periodogram(trace, fs=fs)
+
         plt1 = self.fig1   # Lower voltage plot
         plt1.clear()       # Clear plot
         plt1.setLabel('bottom', 'Band center', units = 'Hz')
         plt1.setLabel('left', 'Average power', units = 'V**2/Hz')
         plt1.setTitle('Channel #'+str(self.chosen_channel+1))
-        plt1.plot(bands_centers, periodogram, pen='k', width=1)
+        plt1.plot(fx, Py, pen='k', width=1)
 
         # Lower Panel: Voltage time series plot --------------------------------
         try:

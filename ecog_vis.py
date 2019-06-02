@@ -584,6 +584,7 @@ class Application(QMainWindow):
     ## Change Signals plot panel -----------------------------------------------
     def voltage_time_series(self):
         self.rbtn1.setChecked(True)
+        self.push4_0.setEnabled(True)
         if self.combo3.currentText()=='raw':
             model.plot_panel = 'voltage_raw'
             model.plotData = model.ecog.data
@@ -619,6 +620,7 @@ class Application(QMainWindow):
             model.tbin_signal = 1/model.fs_signal
             model.getCurAxisParameters()    #updates time points
             model.refreshScreen()
+            self.push4_0.setEnabled(False)
         except:  #if not, opens warning dialog
             self.rbtn1.setChecked(True)
             NoHighGammaDialog()
