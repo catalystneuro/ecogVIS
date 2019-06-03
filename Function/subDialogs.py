@@ -384,6 +384,7 @@ class PeriodogramDialog(QtGui.QDialog):
         plt1.setLabel('left', 'Average power', units = 'V**2/Hz')
         plt1.setTitle('Channel #'+str(self.chosen_channel+1))
         plt1.plot(fx, Py, pen='k', width=1)
+        plt1.setXRange(0., 200.)
 
         # Lower Panel: Voltage time series plot --------------------------------
         try:

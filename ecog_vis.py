@@ -17,7 +17,6 @@ from Function.subDialogs import (CustomIntervalDialog, SelectChannelsDialog,
     SpectralChoiceDialog, PeriodogramDialog, NoHighGammaDialog, NoPreprocessedDialog)
 
 
-model = None
 intervalAdd_ = False
 intervalDel_ = False
 intervalType_ = 'invalid'
@@ -33,7 +32,6 @@ class Application(QMainWindow):
     keyPressed = QtCore.pyqtSignal(QtCore.QEvent)
     def __init__(self, filename, parent = None):
         super().__init__()
-        global model
 
         self.centralwidget = QWidget()
         self.setCentralWidget(self.centralwidget)
@@ -59,7 +57,7 @@ class Application(QMainWindow):
                                   'qLine2': self.qline2, 'qLine3': self.qline3,
                                   'qLine4': self.qline4}
 
-        model = ecogVIS(self, filename, parameters)
+        self.model = ecogVIS(self, filename, parameters)
 
 
 
@@ -80,17 +78,17 @@ class Application(QMainWindow):
 
     def on_key(self, event):
         if event.key() == QtCore.Qt.Key_Up:
-            model.channel_Scroll_Up('page')
+            self.model.channel_Scroll_Up('page')
         elif event.key() == QtCore.Qt.Key_PageUp:
-            model.channel_Scroll_Up('page')
+            self.model.channel_Scroll_Up('page')
         elif event.key() == QtCore.Qt.Key_Down:
-            model.channel_Scroll_Down('page')
+            self.model.channel_Scroll_Down('page')
         elif event.key() == QtCore.Qt.Key_PageDown:
-            model.channel_Scroll_Down('page')
+            self.model.channel_Scroll_Down('page')
         elif event.key() == QtCore.Qt.Key_Left:
-            model.time_scroll(scroll=-1/3)
+            self.model.time_scroll(scroll=-1/3)
         elif event.key() == QtCore.Qt.Key_Right:
-            model.time_scroll(scroll=1/3)
+            self.model.time_scroll(scroll=1/3)
         event.accept()
 
 
@@ -101,7 +99,7 @@ class Application(QMainWindow):
         # Adding actions to file menu
         action_open_file = QAction('Open Another File', self)
         fileMenu.addAction(action_open_file)
-        action_open_file.triggered.connect(self.open_file)
+        action_open_file.triggered.connect(self.open_another_file)
         action_save_file = QAction('Save to NWB', self)
         fileMenu.addAction(action_save_file)
         action_save_file.triggered.connect(self.save_file)
@@ -319,7 +317,7 @@ class Application(QMainWindow):
         '''
         Time series plots Vertical Box
         '''
-        vb = CustomViewBox()
+        vb = CustomViewBox(self)
         self.win1 = pg.PlotWidget(viewBox = vb)   #middle signals plot
         self.win2 = pg.PlotWidget(border = 'k')   #upper horizontal bar
         self.win3 = pg.PlotWidget()               #lower audio plot
@@ -368,40 +366,59 @@ class Application(QMainWindow):
         filename, _ = QFileDialog.getOpenFileName(None, 'Open file', '', "(*.nwb)")
         return filename
 
+
+    def open_another_file(self):
+        # Opens new file dialog
+        filename, _ = QFileDialog.getOpenFileName(None, 'Open file', '', "(*.nwb)")
+        if os.path.isfile(filename):
+            # Reset file specific variables on GUI
+            self.combo4.clear()
+            self.win1.clear()
+            self.win2.clear()
+            self.win3.clear()
+            parameters = {}
+            parameters['pars'] = {'Figure': [self.win1, self.win2, self.win3]}
+            parameters['editLine'] = {'qLine0': self.qline0, 'qLine1': self.qline1,
+                                      'qLine2': self.qline2, 'qLine3': self.qline3,
+                                      'qLine4': self.qline4}
+            # Rebuild the model
+            self.model = ecogVIS(self, filename, parameters)
+
+
     def save_file(self):
         print('Save file to NWB - to be implemented')
 
     def load_annotations(self):
         # opens annotations file dialog, calls function to paint them
         fname = QFileDialog.getOpenFileName(self, 'Open file', '', "(*.csv)")
-        model.AnnotationLoad(fname=fname[0])
+        self.model.AnnotationLoad(fname=fname[0])
 
     def load_intervals(self):
         # opens intervals file dialog, calls function to paint them
         fname = QFileDialog.getOpenFileName(self, 'Open file', '', "(*.csv)")
-        model.IntervalLoad(fname=fname[0])
+        self.model.IntervalLoad(fname=fname[0])
 
     def add_badchannel(self):
         # opens dialog for user input
         text, ok = QInputDialog.getText(None, 'Add as bad channel', 'Channel number:')
         ch = int(text)-1
-        model.BadChannelAdd(ch=ch)
+        self.model.BadChannelAdd(ch=ch)
 
     def del_badchannel(self):
         # opens dialog for user input
         text, ok = QInputDialog.getText(None, 'Delete bad channel', 'Channel number:')
         ch = int(text)-1
-        model.BadChannelDel(ch=ch)
+        self.model.BadChannelDel(ch=ch)
 
     def save_badchannel(self):
-        model.BadChannelSave()
+        self.model.BadChannelSave()
 
 
     def spectral_analysis(self):
-        w = SpectralChoiceDialog(nwb=model.nwb, fpath=model.pathName,
-                                 fname=model.fileName)
+        w = SpectralChoiceDialog(nwb=self.model.nwb, fpath=self.model.pathName,
+                                 fname=self.model.fileName)
         if w.value==1:       # If new data was created
-            model.refresh_file()        # re-opens the file, now with new data
+            self.model.refresh_file()        # re-opens the file, now with new data
 
 
 
@@ -477,7 +494,7 @@ class Application(QMainWindow):
         self.active_mode = 'default'
         self.reset_buttons()
         try:
-            model.AnnotationSave()
+            self.model.AnnotationSave()
         except Exception as ex:
             self.log_error(str(ex))
 
@@ -532,7 +549,7 @@ class Application(QMainWindow):
         self.active_mode = 'default'
         self.reset_buttons()
         try:
-            model.IntervalSave()
+            self.model.IntervalSave()
         except Exception as ex:
             self.log_error(str(ex))
 
@@ -543,23 +560,23 @@ class Application(QMainWindow):
         self.active_mode = 'default'
         self.reset_buttons()
         # Dialog to choose channels from specific brain regions
-        w = SelectChannelsDialog(model.all_regions, model.regions_mask)
-        all_locs = model.ecog.electrodes.table['location'][:]
-        model.channels_mask = np.zeros(len(all_locs))
+        w = SelectChannelsDialog(self.model.all_regions, self.model.regions_mask)
+        all_locs = self.model.ecog.electrodes.table['location'][:]
+        self.model.channels_mask = np.zeros(len(all_locs))
         for loc in w.choices:
-            model.channels_mask += all_locs==loc
+            self.model.channels_mask += all_locs==loc
         #Indices of channels from chosen regions
-        model.channels_mask_ind = np.where(model.channels_mask)[0]
-        model.nChTotal = len(model.channels_mask_ind)
+        self.model.channels_mask_ind = np.where(self.model.channels_mask)[0]
+        self.model.nChTotal = len(self.model.channels_mask_ind)
         # Reset channels span control
-        model.lastCh = np.minimum(16, model.nChTotal)
-        model.firstCh = 1
-        model.nChToShow = model.lastCh - model.firstCh + 1
-        self.qline0.setText(str(model.lastCh))
-        self.qline1.setText(str(model.firstCh))
+        self.model.lastCh = np.minimum(16, self.model.nChTotal)
+        self.model.firstCh = 1
+        self.model.nChToShow = self.model.lastCh - self.model.firstCh + 1
+        self.qline0.setText(str(self.model.lastCh))
+        self.qline1.setText(str(self.model.firstCh))
         # Update signals plot
-        model.selectedChannels = model.channels_mask_ind[model.firstCh-1:model.lastCh]
-        model.refreshScreen()
+        self.model.selectedChannels = self.model.channels_mask_ind[self.model.firstCh-1:self.model.lastCh]
+        self.model.refreshScreen()
 
 
 
@@ -575,51 +592,46 @@ class Application(QMainWindow):
             self.reset_buttons()
 
 
-    #def get_channel(self, event):
-    #    mousePoint = self.win1.plotItem.vb.mapSceneToView(event.scenePos())
-    #    model.getChannel(mousePoint)
-
-
 
     ## Change Signals plot panel -----------------------------------------------
     def voltage_time_series(self):
         self.rbtn1.setChecked(True)
         self.push4_0.setEnabled(True)
         if self.combo3.currentText()=='raw':
-            model.plot_panel = 'voltage_raw'
-            model.plotData = model.ecog.data
-            model.nBins = model.plotData.shape[0]     #total number of bins
-            model.fs_signal = model.ecog.rate     #sampling frequency [Hz]
-            model.tbin_signal = 1/model.fs_signal #time bin duration [seconds]
+            self.model.plot_panel = 'voltage_raw'
+            self.model.plotData = self.model.ecog.data
+            self.model.nBins = self.model.plotData.shape[0]     #total number of bins
+            self.model.fs_signal = self.model.ecog.rate     #sampling frequency [Hz]
+            self.model.tbin_signal = 1/self.model.fs_signal #time bin duration [seconds]
         elif self.combo3.currentText()=='preprocessed':
             try:   #if preprocessed signals already exist on NWB file
-                model.plotData = model.nwb.modules['ecephys'].data_interfaces['LFP'].electrical_series['preprocessed'].data
-                model.plot_panel = 'voltage_preprocessed'
+                self.model.plotData = self.model.nwb.modules['ecephys'].data_interfaces['LFP'].electrical_series['preprocessed'].data
+                self.model.plot_panel = 'voltage_preprocessed'
                 #total number of bins
-                model.nBins = model.nwb.modules['ecephys'].data_interfaces['LFP'].electrical_series['preprocessed'].data.shape[0]
+                self.model.nBins = self.model.nwb.modules['ecephys'].data_interfaces['LFP'].electrical_series['preprocessed'].data.shape[0]
                 #sampling frequency [Hz]
-                model.fs_signal = model.nwb.modules['ecephys'].data_interfaces['LFP'].electrical_series['preprocessed'].rate
+                self.model.fs_signal = self.model.nwb.modules['ecephys'].data_interfaces['LFP'].electrical_series['preprocessed'].rate
                 #time bin duration [seconds]
-                model.tbin_signal = 1/model.fs_signal
+                self.model.tbin_signal = 1/self.model.fs_signal
             except:
                 self.combo3.setCurrentIndex(self.combo3.findText('raw'))
                 NoPreprocessedDialog()
-        model.getCurAxisParameters()    #updates time points
-        model.refreshScreen()
+        self.model.getCurAxisParameters()    #updates time points
+        self.model.refreshScreen()
 
 
     def highgamma_time_series(self):
         try:     #if decomposition already exists on NWB file
-            model.plotData = model.nwb.modules['ecephys'].data_interfaces['high_gamma'].data
-            model.plot_panel = 'spectral_power'
+            self.model.plotData = self.model.nwb.modules['ecephys'].data_interfaces['high_gamma'].data
+            self.model.plot_panel = 'spectral_power'
             #total number of bins
-            model.nBins = model.plotData.shape[0]
+            self.model.nBins = self.model.plotData.shape[0]
             #sampling frequency [Hz]
-            model.fs_signal = model.nwb.modules['ecephys'].data_interfaces['high_gamma'].rate
+            self.model.fs_signal = self.model.nwb.modules['ecephys'].data_interfaces['high_gamma'].rate
             #time bin duration [seconds]
-            model.tbin_signal = 1/model.fs_signal
-            model.getCurAxisParameters()    #updates time points
-            model.refreshScreen()
+            self.model.tbin_signal = 1/self.model.fs_signal
+            self.model.getCurAxisParameters()    #updates time points
+            self.model.refreshScreen()
             self.push4_0.setEnabled(False)
         except:  #if not, opens warning dialog
             self.rbtn1.setChecked(True)
@@ -629,7 +641,7 @@ class Application(QMainWindow):
     def choose_stim(self):
         stimName = self.combo4.currentText()
         if stimName != '':
-            model.refreshScreen()
+            self.model.refreshScreen()
 
 
     ## Plot control buttons ----------------------------------------------------
@@ -650,66 +662,66 @@ class Application(QMainWindow):
             self.qline4.setEnabled(False)
 
     def scroll_up(self):
-        model.channel_Scroll_Up('unit')
+        self.model.channel_Scroll_Up('unit')
 
     def scroll_up_page(self):
-        model.channel_Scroll_Up('page')
+        self.model.channel_Scroll_Up('page')
 
     def scroll_down(self):
-        model.channel_Scroll_Down('unit')
+        self.model.channel_Scroll_Down('unit')
 
     def scroll_down_page(self):
-        model.channel_Scroll_Down('page')
+        self.model.channel_Scroll_Down('page')
 
     def page_backward(self):
-        model.time_scroll(scroll=-1)
+        self.model.time_scroll(scroll=-1)
 
     def scroll_backward(self):
-        model.time_scroll(scroll=-1/3)
+        self.model.time_scroll(scroll=-1/3)
 
     def page_forward(self):
-        model.time_scroll(scroll=1)
+        self.model.time_scroll(scroll=1)
 
     def scroll_forward(self):
-        model.time_scroll(scroll=1/3)
+        self.model.time_scroll(scroll=1/3)
 
     def verticalScale(self):
-        model.refreshScreen()
+        self.model.refreshScreen()
 
     def horizontalScaleIncrease(self):
-        model.horizontalScaleIncrease()
+        self.model.horizontalScaleIncrease()
 
     def horizontalScaleDecrease(self):
-        model.horizontalScaleDecrease()
+        self.model.horizontalScaleDecrease()
 
     def verticalScaleIncrease(self):
-        model.verticalScaleIncrease()
+        self.model.verticalScaleIncrease()
 
     def verticalScaleDecrease(self):
-        model.verticalScaleDecrease()
+        self.model.verticalScaleDecrease()
 
     def time_window_size(self):
-        model.updateCurXAxisPosition()
+        self.model.updateCurXAxisPosition()
 
     def time_window_enlarge(self):
-        model.time_window_resize(2.)
+        self.model.time_window_resize(2.)
 
     def time_window_reduce(self):
-        model.time_window_resize(0.5)
+        self.model.time_window_resize(0.5)
 
     def interval_start(self):
-        model.updateCurXAxisPosition()
+        self.model.updateCurXAxisPosition()
 
     def channelDisplayed(self):
-        model.nChannels_Displayed()
+        self.model.nChannels_Displayed()
 
 
 
 ## Viewbox for signal plots ----------------------------------------------------
 class CustomViewBox(pg.ViewBox):
-    def __init__(self):
+    def __init__(self, parent):
         pg.ViewBox.__init__(self)
-        #super().__init__(self)
+        self.parent = parent
 
     def mouseClickEvent(self, ev):
         global intervalDel_
@@ -722,7 +734,7 @@ class CustomViewBox(pg.ViewBox):
             mousePoint = self.mapSceneToView(ev.scenePos())
             x = mousePoint.x()
             try:
-                model.IntervalDel(round(x, 3))
+                self.parent.model.IntervalDel(round(x, 3))
             except Exception as ex:
                 print(str(ex))
 
@@ -732,7 +744,7 @@ class CustomViewBox(pg.ViewBox):
             y = mousePoint.y()
             try:
                 text, ok = QInputDialog.getText(None, 'Annotations', 'Enter your annotation:')
-                model.AnnotationAdd(x=x, y=y, color=annotationColor_, text=text)
+                self.parent.model.AnnotationAdd(x=x, y=y, color=annotationColor_, text=text)
             except Exception as ex:
                 print(str(ex))
 
@@ -741,7 +753,7 @@ class CustomViewBox(pg.ViewBox):
             x = mousePoint.x()
             y = mousePoint.y()
             try:
-                model.AnnotationDel(x=x, y=y)
+                self.parent.model.AnnotationDel(x=x, y=y)
             except Exception as ex:
                 print(str(ex))
 
@@ -750,7 +762,7 @@ class CustomViewBox(pg.ViewBox):
             x = mousePoint.x()
             y = mousePoint.y()
             try:
-                PeriodogramDialog(model=model, x=x, y=y)
+                PeriodogramDialog(model=self.parent.model, x=x, y=y)
             except Exception as ex:
                 print(str(ex))
 
@@ -768,9 +780,9 @@ class CustomViewBox(pg.ViewBox):
                 if ev.isStart():    #first click before dragging
                     a = self.mapSceneToView(ev.scenePos())
                     self.pos1 = a.x()              #initial x mark
-                    model.DrawMarkTime(self.pos1)     #temporary line on x mark
+                    self.parent.model.DrawMarkTime(self.pos1)     #temporary line on x mark
                 elif ev.isFinish():  #release from dragging
-                    model.RemoveMarkTime()   #remove line on x mark
+                    self.parent.model.RemoveMarkTime()   #remove line on x mark
                     a = self.mapSceneToView(ev.scenePos())
                     self.pos2 = a.x()              #final x mark
                     if self.pos1 is not None:
@@ -780,8 +792,8 @@ class CustomViewBox(pg.ViewBox):
                             interval = [round(self.pos1, 3), round(self.pos2, 3)]
                         color = intervalsDict_[intervalType_]['color']
                         intervalsDict_[intervalType_]['counts'] += 1
-                        model.IntervalAdd(interval, intervalType_, color)
-                        model.refreshScreen()
+                        self.parent.model.IntervalAdd(interval, intervalType_, color)
+                        self.parent.model.refreshScreen()
 
 
 

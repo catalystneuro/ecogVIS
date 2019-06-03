@@ -96,7 +96,6 @@ class ecogVIS:
         else:
             self.disp_audio = 0
 
-
         total_dur = np.shape(self.ecog.data)[0]/self.fs_signal
         self.axesParams['pars']['Figure'][1].plot([0, total_dur], [0.5, 0.5], pen = 'k', width = 0.5)
 
