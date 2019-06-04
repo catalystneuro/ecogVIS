@@ -2,6 +2,7 @@ from PyQt5 import QtGui, QtCore, uic
 from PyQt5.QtWidgets import (QTableWidgetItem, QGridLayout, QGroupBox, QVBoxLayout,
     QWidget, QLabel)
 import pyqtgraph as pg
+import pyqtgraph.opengl as gl
 from ecog.utils import bands as default_bands
 from ecog.signal_processing.preprocess_data import preprocess_data
 from threading import Event, Thread
@@ -66,6 +67,41 @@ class NoPreprocessedDialog(QtGui.QDialog):
         self.exec_()
 
     def onAccepted(self):
+        self.accept()
+
+
+
+# Exit confirmation ------------------------------------------------------------
+Ui_Exit, _ = uic.loadUiType(os.path.join(path,"exit_gui.ui"))
+class ExitDialog(QtGui.QDialog, Ui_Exit):
+    def __init__(self, parent):
+        super().__init__()
+        self.setupUi(self)
+
+        self.pushButton_1.setEnabled(False)
+        self.pushButton_1.clicked.connect(self.save)
+        self.pushButton_2.clicked.connect(self.cancel)
+        self.pushButton_3.clicked.connect(self.exit)
+
+        if parent.model.unsaved_changes_annotation or parent.model.unsaved_changes_interval:
+            text = "There are unsaved changes in this session.\n"+ \
+                   "Do you want to save them before exit?"
+            self.label.setText(text)
+            self.pushButton_1.setEnabled(True)
+
+        self.setWindowTitle('Exit ecogVIS')
+        self.exec_()
+
+    def save(self):
+        self.value = 1
+        self.accept()
+
+    def cancel(self):
+        self.value = 0
+        self.accept()
+
+    def exit(self):
+        self.value = -1
         self.accept()
 
 
@@ -368,15 +404,11 @@ class PeriodogramDialog(QtGui.QDialog):
         endSamp = self.model.intervalEndSamples
 
         # Upper Panel: Periodogram plot ----------------------------------------
-        #spectrogram = model.nwb.modules['ecephys'].data_interfaces['Bandpower_default'].data
-        #periodogram = np.mean(spectrogram[startSamp - 1 : endSamp, self.chosen_channel, :], 0)
-        #bands_centers = model.nwb.modules['ecephys'].data_interfaces['Bandpower_default'].bands['filter_param_0'][:]
-
-        #signal = model.nwb.modules['ecephys'].data_interfaces['LFP'].data[startSamp-1:endSamp, self.chosen_channel]
-        #fs = model.nwb.modules['ecephys'].data_interfaces['LFP'].rate
         trace = model.plotData[startSamp-1:endSamp, self.chosen_channel]
         fs = model.fs_signal
-        fx, Py = signal.periodogram(trace, fs=fs)
+        dF = 0.1       #Frequency bin size
+        nfft = fs/dF   #dF = fs/nfft
+        fx, Py = signal.periodogram(trace, fs=fs, nfft=nfft)
 
         plt1 = self.fig1   # Lower voltage plot
         plt1.clear()       # Clear plot
@@ -415,5 +447,75 @@ class PeriodogramDialog(QtGui.QDialog):
             c.setPen(pg.mkPen(color=QtGui.QColor(bc[0], bc[1], bc[2], 255)))
             c.setBrush(QtGui.QColor(bc[0], bc[1], bc[2], bc[3]))
             plt2.addItem(c)
+
+        self.exec_()
+
+
+
+# Creates Group Periodogram dialog ---------------------------------------------
+class GroupPeriodogramDialog(QtGui.QDialog):
+    def __init__(self, model, x, y):
+        super().__init__()
+
+        self.model = model
+        self.x = x
+        self.y = y
+        self.relative_index = np.argmin(np.abs(self.model.scaleVec-self.y))
+        self.chosen_channel = model.selectedChannels[self.relative_index]
+        self.BIs = model.IntRects2
+
+        self.fig1 = gl.GLViewWidget()               #uppper periodogram plot
+        #self.fig1.setBackgroundColor('w')
+        self.fig2 = pg.PlotWidget()               #lower voltage plot
+        self.fig2.setBackground('w')
+
+        self.fig1.opts['distance'] = 200
+        # create the background grids
+        gx = gl.GLGridItem()
+        gx.rotate(90, 0, 1, 0)
+        gx.translate(-10, 0, 0)
+        self.fig1.addItem(gx)
+        gy = gl.GLGridItem()
+        gy.rotate(90, 1, 0, 0)
+        gy.translate(0, -10, 0)
+        self.fig1.addItem(gy)
+        gz = gl.GLGridItem()
+        gz.translate(0, 0, -10)
+        self.fig1.addItem(gz)
+
+        grid = QGridLayout() #QVBoxLayout()
+        grid.setSpacing(0.0)
+        grid.setRowStretch(0, 2)
+        grid.setRowStretch(1, 1)
+        grid.addWidget(self.fig1)
+        grid.addWidget(self.fig2)
+
+        self.setLayout(grid)
+        self.setWindowTitle('Periodogram')
+
+        # Upper Panel: Periodogram plot ----------------------------------------
+        startSamp = self.model.intervalStartSamples
+        endSamp = self.model.intervalEndSamples
+        fs = model.fs_signal
+        dF = 0.1       #Frequency bin size
+        nfft = fs/dF   #dF = fs/nfft
+        X = np.zeros((2000,3))
+        for i in np.array([1,2,3]): #self.model.selectedChannels:
+            trace = model.plotData[startSamp-1:endSamp, self.chosen_channel-1]
+            fx, Py = signal.periodogram(trace, fs=fs, nfft=nfft)
+            X[:,0] = i
+            X[:,1] = fx[0:2000]
+            X[:,2] = Py[0:2000]
+            print(i)
+            line = gl.GLLinePlotItem(pos=X, color=pg.glColor('w'))
+            line.setLabel('bottom', 'Frequency', units = 'Hz')
+            #line.setData()
+            self.fig1.addItem(line)
+        #self.fig1.show()
+
+        #plt1.setLabel('left', 'Average power', units = 'V**2/Hz')
+        #plt1.setTitle('Channel #'+str(self.chosen_channel+1))
+        #plt1.plot(fx, Py, pen='k', width=1)
+        self.fig1.setXRange(0., 200.)
 
         self.exec_()

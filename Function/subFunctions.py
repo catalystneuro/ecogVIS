@@ -26,6 +26,7 @@ class ecogVIS:
         self.pathName = os.path.split(os.path.abspath(pathName))[0] #path
         self.fileName = os.path.split(os.path.abspath(pathName))[1] #file
         self.axesParams = parameters
+        self.parent.setWindowTitle('ecogVIS - ' + self.fileName)
 
         self.file = pynwb.NWBHDF5IO(self.fullpath,'r+')
         self.nwb = self.file.read()      #reads NWB file
@@ -44,6 +45,8 @@ class ecogVIS:
         self.text = []
         self.AnnotationsList = []
         self.AnnotationsPosAV = np.array([])    #(x, y_va, y_off)
+        self.unsaved_changes_annotation = False
+        self.unsaved_changes_interval = False
 
         self.nBins = self.ecog.data.shape[0]     #total number of bins
         self.nChTotal = self.ecog.data.shape[1]     #total number of channels
@@ -461,6 +464,7 @@ class ecogVIS:
         else:
             self.AnnotationsPosAV = np.array([x, y_va, self.firstCh]).reshape(1,3)
         self.refreshScreen()
+        self.unsaved_changes_annotation = True
 
 
     def AnnotationDel(self, x, y):
@@ -478,6 +482,7 @@ class ecogVIS:
             self.AnnotationsList = np.delete(self.AnnotationsList, indmin, axis=0)
             self.AnnotationsPosAV = np.delete(self.AnnotationsPosAV, indmin, axis=0)
             self.refreshScreen()
+            self.unsaved_changes_annotation = True
 
 
     def AnnotationSave(self):
@@ -497,6 +502,7 @@ class ecogVIS:
                                     datetime.datetime.today().strftime('%Y-%m-%d')+
                                     '.csv')
             df.to_csv(fullfile, header=True, index=True)
+            self.unsaved_changes_annotation = False
 
 
     def AnnotationLoad(self, fname=''):
@@ -555,6 +561,7 @@ class ecogVIS:
         obj.color = color
         self.allIntervals.append(obj)
         self.nBI = len(self.allIntervals)
+        self.unsaved_changes_interval = True
 
 
     def IntervalDel(self, x):
@@ -567,6 +574,7 @@ class ecogVIS:
                 del self.allIntervals[i]
                 self.nBI = len(self.allIntervals)
                 self.refreshScreen()
+                self.unsaved_changes_interval = True
 
 
     def IntervalSave(self):
@@ -585,6 +593,7 @@ class ecogVIS:
                                     datetime.datetime.today().strftime('%Y-%m-%d')+
                                     '.csv')
             df.to_csv(fullfile, header=True, index=True)
+            self.unsaved_changes_interval = False
 
 
     def IntervalLoad(self, fname):

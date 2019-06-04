@@ -14,7 +14,8 @@ import pyqtgraph as pg
 from pyqtgraph.widgets.MatplotlibWidget import MatplotlibWidget
 from Function.subFunctions import ecogVIS
 from Function.subDialogs import (CustomIntervalDialog, SelectChannelsDialog,
-    SpectralChoiceDialog, PeriodogramDialog, NoHighGammaDialog, NoPreprocessedDialog)
+    SpectralChoiceDialog, PeriodogramDialog, NoHighGammaDialog, NoPreprocessedDialog,
+    ExitDialog, GroupPeriodogramDialog)
 
 
 intervalAdd_ = False
@@ -60,6 +61,16 @@ class Application(QMainWindow):
         self.model = ecogVIS(self, filename, parameters)
 
 
+    def closeEvent(self, event):
+        w = ExitDialog(self)
+        if w.value == -1: #just exit
+            event.accept()
+        elif w.value == 1: #save and exit
+            self.AnnotationSave()
+            self.IntervalSave()
+            event.accept()
+        elif w.value == 0: #ignore
+            event.ignore()
 
     def log_error(self, error):
         pwd = os.getcwd()
@@ -372,6 +383,8 @@ class Application(QMainWindow):
         filename, _ = QFileDialog.getOpenFileName(None, 'Open file', '', "(*.nwb)")
         if os.path.isfile(filename):
             # Reset file specific variables on GUI
+            self.rbtn1.setChecked(True)
+            self.combo3.setCurrentIndex(self.combo3.findText('raw'))
             self.combo4.clear()
             self.win1.clear()
             self.win2.clear()
@@ -390,25 +403,29 @@ class Application(QMainWindow):
 
     def load_annotations(self):
         # opens annotations file dialog, calls function to paint them
-        fname = QFileDialog.getOpenFileName(self, 'Open file', '', "(*.csv)")
-        self.model.AnnotationLoad(fname=fname[0])
+        fname, aux = QFileDialog.getOpenFileName(self, 'Open file', '', "(*.csv)")
+        if fname!='':
+            self.model.AnnotationLoad(fname=fname)
 
     def load_intervals(self):
         # opens intervals file dialog, calls function to paint them
-        fname = QFileDialog.getOpenFileName(self, 'Open file', '', "(*.csv)")
-        self.model.IntervalLoad(fname=fname[0])
+        fname, aux = QFileDialog.getOpenFileName(self, 'Open file', '', "(*.csv)")
+        if fname!='':
+            self.model.IntervalLoad(fname=fname)
 
     def add_badchannel(self):
         # opens dialog for user input
         text, ok = QInputDialog.getText(None, 'Add as bad channel', 'Channel number:')
-        ch = int(text)-1
-        self.model.BadChannelAdd(ch=ch)
+        if ok:
+            ch = int(text)-1
+            self.model.BadChannelAdd(ch=ch)
 
     def del_badchannel(self):
         # opens dialog for user input
         text, ok = QInputDialog.getText(None, 'Delete bad channel', 'Channel number:')
-        ch = int(text)-1
-        self.model.BadChannelDel(ch=ch)
+        if ok:
+            ch = int(text)-1
+            self.model.BadChannelDel(ch=ch)
 
     def save_badchannel(self):
         self.model.BadChannelSave()
@@ -763,6 +780,7 @@ class CustomViewBox(pg.ViewBox):
             y = mousePoint.y()
             try:
                 PeriodogramDialog(model=self.parent.model, x=x, y=y)
+                #GroupPeriodogramDialog(model=self.parent.model, x=x, y=y)
             except Exception as ex:
                 print(str(ex))
 
@@ -803,7 +821,7 @@ def main(filename):
     app = QCoreApplication.instance()
     if app is None:
         app = QApplication(sys.argv)  #instantiate a QtGui (holder for the app)
-    ex = Application(filename)
+    ex = Application(filename=filename)
     sys.exit(app.exec_())
 
 # If called from a command line, e.g.: $ python ecog_ts_gui.py
