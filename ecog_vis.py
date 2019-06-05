@@ -15,7 +15,7 @@ from pyqtgraph.widgets.MatplotlibWidget import MatplotlibWidget
 from Function.subFunctions import ecogVIS
 from Function.subDialogs import (CustomIntervalDialog, SelectChannelsDialog,
     SpectralChoiceDialog, PeriodogramDialog, NoHighGammaDialog, NoPreprocessedDialog,
-    ExitDialog, GroupPeriodogramDialog)
+    ExitDialog, ERPDialog, CalcHighGammaDialog, GroupPeriodogramDialog)
 
 
 intervalAdd_ = False
@@ -42,6 +42,7 @@ class Application(QMainWindow):
         # e.g.: /home/User/freesurfer_subjects/Subject_XX.nwb
         if not os.path.isfile(filename):
             filename = self.open_file()
+        self.file = filename
 
         self.error = None
         self.keyPressed.connect(self.on_key)
@@ -58,7 +59,7 @@ class Application(QMainWindow):
                                   'qLine2': self.qline2, 'qLine3': self.qline3,
                                   'qLine4': self.qline4}
 
-        self.model = ecogVIS(self, filename, parameters)
+        self.model = ecogVIS(self, parameters)
 
 
     def closeEvent(self, event):
@@ -138,6 +139,9 @@ class Application(QMainWindow):
         action_spectral_analysis = QAction('Spectral Analysis', self)
         analysis_tools_menu.addAction(action_spectral_analysis)
         action_spectral_analysis.triggered.connect(self.spectral_analysis)
+        action_erp = QAction('ERP', self)
+        analysis_tools_menu.addAction(action_erp)
+        action_erp.triggered.connect(self.event_related_potential)
 
         helpMenu = mainMenu.addMenu('Help')
         action_about = QAction('About', self)
@@ -188,10 +192,14 @@ class Application(QMainWindow):
         qlabelChannels = QLabel('Channels:')
         self.push3_0 = QPushButton('Select')
         self.push3_0.clicked.connect(self.ChannelSelect)
-
+        # One-click Periodogram
         self.push4_0 = QPushButton('Periodogram')
         self.push4_0.setCheckable(True)
         self.push4_0.clicked.connect(self.PeriodogramSelect)
+        # One-click calculate High Gamma
+        self.push5_0 = QPushButton('Calc High Gamma')
+        self.push5_0.setCheckable(False)
+        self.push5_0.clicked.connect(self.CalcHighGamma)
 
         # Buttons layout
         grid1 = QGridLayout()
@@ -208,42 +216,34 @@ class Application(QMainWindow):
         grid1.addWidget(qlabelChannels, 4, 0, 1, 3)
         grid1.addWidget(self.push3_0, 4, 3, 1, 3)
         grid1.addWidget(self.push4_0, 5, 0, 1, 6)
+        grid1.addWidget(self.push5_0, 6, 0, 1, 6)
         panel1.setLayout(grid1)
 
 
         # Traces panel ---------------------------------------------------------
         panel2 = QGroupBox('Traces')
         panel2.setFixedWidth(200)
-        #panel2.setFixedHeight(100)
-        self.rbtn1 = QRadioButton('Voltage')
-        self.rbtn1.setChecked(True)
-        self.rbtn1.clicked.connect(self.voltage_time_series)
+        qlabelSignal = QLabel('Signal:')
         self.combo3 = QComboBox()
         self.combo3.addItem('raw')
         self.combo3.addItem('preprocessed')
+        self.combo3.addItem('high gamma')
         self.combo3.activated.connect(self.voltage_time_series)
-        self.rbtn2 = QRadioButton('High gamma')
-        self.rbtn2.setChecked(False)
-        self.rbtn2.clicked.connect(self.highgamma_time_series)
         qlabelStimuli = QLabel('Stimuli:')
         self.combo4 = QComboBox()
         self.combo4.activated.connect(self.choose_stim)
 
         grid2 = QGridLayout()
-        grid2.addWidget(self.rbtn1, 0, 0, 1, 1)
+        grid2.addWidget(qlabelSignal, 0, 0, 1, 1)
         grid2.addWidget(self.combo3, 0, 1, 1, 1)
-        grid2.addWidget(self.rbtn2, 1, 0, 1, 2)
-        grid2.addWidget(qlabelStimuli, 2, 0, 1, 1)
-        grid2.addWidget(self.combo4, 2, 1, 1, 1)
+        grid2.addWidget(qlabelStimuli, 1, 0, 1, 1)
+        grid2.addWidget(self.combo4, 1, 1, 1, 1)
         panel2.setLayout(grid2)
 
 
         # Plot controls panel --------------------------------------------------
         panel3 = QGroupBox('Plot Controls')
         panel3.setFixedWidth(200)
-        self.enableButton = QPushButton('Enable')
-        self.enableButton.setFixedWidth(100)
-        self.enableButton.clicked.connect(self.enable)
         qlabel1 = QLabel('Top')
         qlabel2 = QLabel('Bottom')
         qlabel3 = QLabel('Interval \nstart(s)')
@@ -293,30 +293,29 @@ class Application(QMainWindow):
         self.pushbtn10.clicked.connect(self.verticalScaleDecrease)
 
         form_2 = QGridLayout()
-        form_2.addWidget(self.enableButton, 0, 1)
-        form_2.addWidget(qlabel1, 1, 0)
-        form_2.addWidget(self.qline0, 1, 1)
-        form_2.addWidget(self.pushbtn1_1, 1, 2)
-        form_2.addWidget(self.pushbtn1_2, 1, 3)
-        form_2.addWidget(qlabel2, 2, 0)
-        form_2.addWidget(self.qline1, 2, 1)
-        form_2.addWidget(self.pushbtn2_1, 2, 2)
-        form_2.addWidget(self.pushbtn2_2, 2, 3)
+        form_2.addWidget(qlabel1, 0, 0)
+        form_2.addWidget(self.qline0, 0, 1)
+        form_2.addWidget(self.pushbtn1_1, 0, 2)
+        form_2.addWidget(self.pushbtn1_2, 0, 3)
+        form_2.addWidget(qlabel2, 1, 0)
+        form_2.addWidget(self.qline1, 1, 1)
+        form_2.addWidget(self.pushbtn2_1, 1, 2)
+        form_2.addWidget(self.pushbtn2_2, 1, 3)
 
-        form_2.addWidget(qlabel3, 4, 0, 1, 2)
-        form_2.addWidget(self.qline2, 4, 2, 1, 2)
-        form_2.addWidget(self.pushbtn3, 5, 0)
-        form_2.addWidget(self.pushbtn4, 5, 1)
-        form_2.addWidget(self.pushbtn6, 5, 2)
-        form_2.addWidget(self.pushbtn5, 5, 3)
-        form_2.addWidget(qlabel4, 6, 0)
-        form_2.addWidget(self.qline3, 6, 1)
-        form_2.addWidget(self.pushbtn7, 6, 2)
-        form_2.addWidget(self.pushbtn8, 6, 3)
-        form_2.addWidget(qlabel5, 7, 0)
-        form_2.addWidget(self.qline4, 7, 1)
-        form_2.addWidget(self.pushbtn9, 7, 2)
-        form_2.addWidget(self.pushbtn10, 7, 3)
+        form_2.addWidget(qlabel3, 2, 0, 1, 2)
+        form_2.addWidget(self.qline2, 2, 2, 1, 2)
+        form_2.addWidget(self.pushbtn3, 3, 0)
+        form_2.addWidget(self.pushbtn4, 3, 1)
+        form_2.addWidget(self.pushbtn6, 3, 2)
+        form_2.addWidget(self.pushbtn5, 3, 3)
+        form_2.addWidget(qlabel4, 4, 0)
+        form_2.addWidget(self.qline3, 4, 1)
+        form_2.addWidget(self.pushbtn7, 4, 2)
+        form_2.addWidget(self.pushbtn8, 4, 3)
+        form_2.addWidget(qlabel5, 5, 0)
+        form_2.addWidget(self.qline4, 5, 1)
+        form_2.addWidget(self.pushbtn9, 5, 2)
+        form_2.addWidget(self.pushbtn10, 5, 3)
         panel3.setLayout(form_2)
 
         self.vbox1 = QVBoxLayout()
@@ -383,7 +382,6 @@ class Application(QMainWindow):
         filename, _ = QFileDialog.getOpenFileName(None, 'Open file', '', "(*.nwb)")
         if os.path.isfile(filename):
             # Reset file specific variables on GUI
-            self.rbtn1.setChecked(True)
             self.combo3.setCurrentIndex(self.combo3.findText('raw'))
             self.combo4.clear()
             self.win1.clear()
@@ -437,6 +435,10 @@ class Application(QMainWindow):
         if w.value==1:       # If new data was created
             self.model.refresh_file()        # re-opens the file, now with new data
 
+    def event_related_potential(self):
+        # If file contains trials information
+        if self.model.nwb.trials is not None:
+            w = ERPDialog(parent=self)
 
 
     def about(self):
@@ -608,19 +610,24 @@ class Application(QMainWindow):
             self.active_mode = 'default'
             self.reset_buttons()
 
+    # One-click calculate High Gamma -------------------------------------------
+    def CalcHighGamma(self):
+        w = CalcHighGammaDialog(self)
+        if w.value==1:       # If new data was created
+            self.model.refresh_file()        # re-opens the file, now with new data
 
 
     ## Change Signals plot panel -----------------------------------------------
     def voltage_time_series(self):
-        self.rbtn1.setChecked(True)
-        self.push4_0.setEnabled(True)
         if self.combo3.currentText()=='raw':
+            self.push4_0.setEnabled(True)
             self.model.plot_panel = 'voltage_raw'
             self.model.plotData = self.model.ecog.data
             self.model.nBins = self.model.plotData.shape[0]     #total number of bins
             self.model.fs_signal = self.model.ecog.rate     #sampling frequency [Hz]
             self.model.tbin_signal = 1/self.model.fs_signal #time bin duration [seconds]
         elif self.combo3.currentText()=='preprocessed':
+            self.push4_0.setEnabled(True)
             try:   #if preprocessed signals already exist on NWB file
                 self.model.plotData = self.model.nwb.modules['ecephys'].data_interfaces['LFP'].electrical_series['preprocessed'].data
                 self.model.plot_panel = 'voltage_preprocessed'
@@ -633,26 +640,25 @@ class Application(QMainWindow):
             except:
                 self.combo3.setCurrentIndex(self.combo3.findText('raw'))
                 NoPreprocessedDialog()
+        elif self.combo3.currentText()=='high gamma':
+            try:     #if decomposition already exists on NWB file
+                self.model.plotData = self.model.nwb.modules['ecephys'].data_interfaces['high_gamma'].data
+                self.model.plot_panel = 'spectral_power'
+                #total number of bins
+                self.model.nBins = self.model.plotData.shape[0]
+                #sampling frequency [Hz]
+                self.model.fs_signal = self.model.nwb.modules['ecephys'].data_interfaces['high_gamma'].rate
+                #time bin duration [seconds]
+                self.model.tbin_signal = 1/self.model.fs_signal
+                self.model.getCurAxisParameters()    #updates time points
+                self.model.refreshScreen()
+                self.push4_0.setEnabled(False)
+            except:  #if not, opens warning dialog
+                self.combo3.setCurrentIndex(self.combo3.findText('raw'))
+                NoHighGammaDialog()
         self.model.getCurAxisParameters()    #updates time points
         self.model.refreshScreen()
 
-
-    def highgamma_time_series(self):
-        try:     #if decomposition already exists on NWB file
-            self.model.plotData = self.model.nwb.modules['ecephys'].data_interfaces['high_gamma'].data
-            self.model.plot_panel = 'spectral_power'
-            #total number of bins
-            self.model.nBins = self.model.plotData.shape[0]
-            #sampling frequency [Hz]
-            self.model.fs_signal = self.model.nwb.modules['ecephys'].data_interfaces['high_gamma'].rate
-            #time bin duration [seconds]
-            self.model.tbin_signal = 1/self.model.fs_signal
-            self.model.getCurAxisParameters()    #updates time points
-            self.model.refreshScreen()
-            self.push4_0.setEnabled(False)
-        except:  #if not, opens warning dialog
-            self.rbtn1.setChecked(True)
-            NoHighGammaDialog()
 
 
     def choose_stim(self):
@@ -662,22 +668,6 @@ class Application(QMainWindow):
 
 
     ## Plot control buttons ----------------------------------------------------
-    def enable(self):
-        if self.enableButton.text() == 'Enable':
-            self.enableButton.setText('Disable')
-            self.qline0.setEnabled(True)
-            self.qline1.setEnabled(True)
-            self.qline2.setEnabled(True)
-            self.qline3.setEnabled(True)
-            self.qline4.setEnabled(True)
-        else:
-            self.enableButton.setText('Enable')
-            self.qline0.setEnabled(False)
-            self.qline1.setEnabled(False)
-            self.qline2.setEnabled(False)
-            self.qline3.setEnabled(False)
-            self.qline4.setEnabled(False)
-
     def scroll_up(self):
         self.model.channel_Scroll_Up('unit')
 

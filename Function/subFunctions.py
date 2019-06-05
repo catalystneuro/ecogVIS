@@ -20,11 +20,11 @@ import pynwb
 import nwbext_ecog
 
 class ecogVIS:
-    def __init__(self, par, pathName, parameters):
+    def __init__(self, par, parameters):
         self.parent = par
-        self.fullpath = pathName
-        self.pathName = os.path.split(os.path.abspath(pathName))[0] #path
-        self.fileName = os.path.split(os.path.abspath(pathName))[1] #file
+        self.fullpath = par.file
+        self.pathName = os.path.split(os.path.abspath(par.file))[0] #path
+        self.fileName = os.path.split(os.path.abspath(par.file))[1] #file
         self.axesParams = parameters
         self.parent.setWindowTitle('ecogVIS - ' + self.fileName)
 

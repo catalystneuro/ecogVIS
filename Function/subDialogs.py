@@ -70,6 +70,56 @@ class NoPreprocessedDialog(QtGui.QDialog):
         self.accept()
 
 
+# Calculates High gamma from data in the NWB file ------------------------------
+class CalcHighGammaDialog(QtGui.QDialog):
+    def __init__(self, parent):
+        super().__init__()
+        self.fpath = parent.model.pathName
+        self.fname = parent.model.fileName
+        self.value = -1
+
+        self.okButton = QtGui.QPushButton("OK")
+        self.okButton.setEnabled(True)
+        self.okButton.clicked.connect(self.ok)
+        self.cancelButton = QtGui.QPushButton("Cancel")
+        self.cancelButton.clicked.connect(self.cancel)
+        try:
+            hg = parent.model.nwb.modules['ecephys'].data_interfaces['high_gamma'].data
+            self.text = QLabel("High gamma data already exists in the current NWB file.")
+            self.okButton.setEnabled(False)
+        except:
+            self.text = QLabel("Calculate high gamma power?\n"+
+                                "The results will be saved in the current NWB file.")
+        hbox = QtGui.QHBoxLayout()
+        hbox.addWidget(self.okButton)
+        hbox.addWidget(self.cancelButton)
+        vbox = QtGui.QVBoxLayout()
+        vbox.addWidget(self.text)
+        vbox.addLayout(hbox)
+        self.setLayout(vbox)
+        self.setWindowTitle('Calculate high gama power')
+        self.exec_()
+
+    def ok(self):
+        self.text.setText('Processing spectral decomposition. Please wait...')
+        self.okButton.setEnabled(False)
+        self.cancelButton.setEnabled(False)
+        subj, aux = self.fname.split('_')
+        block = [ aux.split('.')[0][1:] ]
+        self.thread = ChildProgram(path=self.fpath, subject=subj,
+                                   blocks=block, filter='high_gamma',
+                                   bands_vals=None)
+        self.thread.finished.connect(self.out_close)
+        self.thread.start()
+
+    def out_close(self):
+        self.value = 1
+        self.accept()
+
+    def cancel(self):
+        self.value = -1
+        self.accept()
+
 
 # Exit confirmation ------------------------------------------------------------
 Ui_Exit, _ = uic.loadUiType(os.path.join(path,"exit_gui.ui"))
@@ -347,9 +397,6 @@ class SpectralChoiceDialog(QtGui.QDialog, Ui_SpectralChoice):
         self.accept()
 
     def out_cancel(self):
-        self.data_exists = False
-        self.decomp_type = None
-        self.custom_bands = None
         self.value = -1
         self.accept()
 
@@ -519,3 +566,61 @@ class GroupPeriodogramDialog(QtGui.QDialog):
         self.fig1.setXRange(0., 200.)
 
         self.exec_()
+
+
+
+
+# Creates Event-Related Potential dialog ---------------------------------------
+class ERPDialog(QtGui.QDialog):
+    def __init__(self, parent):
+        super().__init__()
+        # Enable antialiasing for prettier plots
+        pg.setConfigOptions(antialias=True)
+
+        self.parent = parent
+        self.nCols = 16
+
+        self.win = pg.GraphicsLayoutWidget()
+        self.win.resize(1200,600)
+        self.win.setBackground('w')
+
+        # Start populating with plots
+        #win.addPlot(data3, row=1, col=0, colspan=2)
+        for j in np.arange(35):
+            Y_mean, Y_sem, X = self.calc_psth(ch=j)
+            row = np.floor(j/self.nCols)
+            col = j%self.nCols
+            p = self.win.addPlot(row=row, col=col)
+            p.plot(x=X, y=Y_mean, pen=(0,0,0))
+            p.hideButtons()
+            p.hideAxis('left')
+            p.hideAxis('bottom')
+            txt = pg.TextItem(text="Ch #"+str(j), color='k', fill=(0, 0, 0, 20))
+            p.addItem(txt)
+            txt.setPos(0, max(Y_mean))
+            #p.setBackgroundColor(QtGui.QColor(100,100,100,100))
+
+        grid = QGridLayout()
+        grid.addWidget(self.win)
+        self.setLayout(grid)
+        self.setWindowTitle('PSTH')
+        self.resize(1000, 600)
+        self.exec_()
+
+    def calc_psth(self, ch):
+        data = self.parent.model.nwb.modules['ecephys'].data_interfaces['high_gamma'].data
+        fs = 400.#self.parent.model.fs_signal
+        start_times = self.parent.model.nwb.trials['start_time'][:]
+        start_bins = (start_times*fs).astype('int')
+        #stop_times = nwb.trials['stop_time'][:]
+        nBinsTr = int(2.*fs)
+        stop_bins = start_bins + nBinsTr
+        nTrials = len(start_times)
+
+        Y = np.zeros((nTrials,nBinsTr))+np.nan
+        for tr in np.arange(nTrials):
+            Y[tr,:] = data[start_bins[tr]:stop_bins[tr], ch]
+        Y_mean = np.nanmean(Y, 0)
+        Y_sem = np.nanstd(Y, 0)/np.sqrt(Y.shape[0])
+        X = np.arange(0, nBinsTr)/fs
+        return Y_mean, Y_sem, X

@@ -15,6 +15,7 @@ dependencies:
 - h5py
 - pyqtgraph
 - pynwb
+- pyopengl
 #because of process_ecog
 - nomkl
 - scikit-learn
