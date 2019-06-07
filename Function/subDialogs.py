@@ -5,6 +5,7 @@ import pyqtgraph as pg
 import pyqtgraph.opengl as gl
 from ecog.utils import bands as default_bands
 from ecog.signal_processing.preprocess_data import preprocess_data
+from .FS_colorLUT import get_lut
 from threading import Event, Thread
 import numpy as np
 from scipy import signal
@@ -586,7 +587,8 @@ class ERPDialog(QtGui.QDialog):
 
         # Start populating with plots
         #win.addPlot(data3, row=1, col=0, colspan=2)
-        for j in np.arange(35):
+        cmap = get_lut()
+        for j in np.arange(100):
             Y_mean, Y_sem, X = self.calc_psth(ch=j)
             row = np.floor(j/self.nCols)
             col = j%self.nCols
@@ -595,9 +597,13 @@ class ERPDialog(QtGui.QDialog):
             p.hideButtons()
             p.hideAxis('left')
             p.hideAxis('bottom')
-            txt = pg.TextItem(text="Ch #"+str(j), color='k', fill=(0, 0, 0, 20))
-            p.addItem(txt)
-            txt.setPos(0, max(Y_mean))
+            loc = 'ctx-lh-'+self.parent.model.nwb.electrodes['location'][j]
+            vb = p.getViewBox()
+            color = tuple(cmap[loc])
+            vb.setBackgroundColor((*color,100))  # append 50 alpha to color tuple
+            #txt = pg.TextItem(text="Ch #"+str(j), color='k', fill=(0, 0, 0, 20))
+            #p.addItem(txt)
+            #txt.setPos(0, max(Y_mean))
             #p.setBackgroundColor(QtGui.QColor(100,100,100,100))
 
         grid = QGridLayout()
