@@ -242,8 +242,6 @@ class Application(QMainWindow):
 
 
         # Plot controls panel --------------------------------------------------
-        panel3 = QGroupBox('Plot Controls')
-        panel3.setFixedWidth(200)
         qlabel1 = QLabel('Top')
         qlabel2 = QLabel('Bottom')
         qlabel3 = QLabel('Interval \nstart(s)')
@@ -311,6 +309,9 @@ class Application(QMainWindow):
         form_2.addWidget(self.qline4, 5, 1)
         form_2.addWidget(self.pushbtn9, 5, 2)
         form_2.addWidget(self.pushbtn10, 5, 3)
+
+        panel3 = QGroupBox('Plot Controls')
+        panel3.setFixedWidth(200)
         panel3.setLayout(form_2)
 
         self.vbox1 = QVBoxLayout()
