@@ -581,8 +581,16 @@ class ERPDialog(QtGui.QDialog):
         self.parent = parent
         self.nCols = 16
         self.reference = 'start_time'
+        self.Y_start_mean = {}
+        self.Y_start_sem = {}
+        self.Y_stop_mean = {}
+        self.Y_stop_sem = {}
+        self.X = []
+        self.Yscale = {}
 
         #Left panel
+        self.push0_0 = QPushButton('Calc ERP')
+        self.push0_0.clicked.connect(self.draw_erp)
         label1 = QLabel('Reference:')
         self.push1_0 = QPushButton('Start')
         self.push1_0.setCheckable(True)
@@ -594,15 +602,18 @@ class ERPDialog(QtGui.QDialog):
         self.push1_1.clicked.connect(self.set_stop)
         label2 = QLabel('Width (sec):')
         self.qline2 = QLineEdit('2')
-        self.qline2.returnPressed.connect(self.draw_erp)
+        self.qline2.returnPressed.connect(self.set_width)
         label3 = QLabel('Y scale:')
         self.combo1 = QComboBox()
         self.combo1.addItem('individual')
         self.combo1.addItem('global max')
         self.combo1.addItem('global std')
+        self.combo1.activated.connect(self.scale_plots)
         self.push2_0 = QPushButton('Significant')
         self.push2_0.setCheckable(True)
         self.push2_0.setChecked(False)
+        self.push3_0 = QPushButton('Channels')
+        self.push3_0.clicked.connect(self.channel_select)
 
         grid0 = QGridLayout()
         grid0.addWidget(label1, 0, 0, 1, 2)
@@ -616,11 +627,16 @@ class ERPDialog(QtGui.QDialog):
         grid0.addWidget(self.combo1, 7, 0, 1, 2)
         grid0.addWidget(QHLine(), 8, 0, 1, 2)
         grid0.addWidget(self.push2_0, 9, 0, 1, 2)
+        grid0.addWidget(self.push3_0, 10, 0, 1, 2)
         grid0.setAlignment(QtCore.Qt.AlignTop)
 
         panel0 = QGroupBox('Controls:')
         panel0.setFixedWidth(120)
         panel0.setLayout(grid0)
+
+        self.leftbox = QVBoxLayout()
+        self.leftbox.addWidget(self.push0_0)
+        self.leftbox.addWidget(panel0)
 
         # Right panel
         self.win = pg.GraphicsLayoutWidget()
@@ -638,40 +654,9 @@ class ERPDialog(QtGui.QDialog):
         scroll.setWidgetResizable(False)
         scroll.setWidget(self.win)
 
-        # Start populating with plots
-        cmap = get_lut()
-        for j in np.arange(256):
-            Y_mean, Y_sem, X = self.calc_psth(ch=j)
-            row = np.floor(j/self.nCols)
-            col = j%self.nCols
-            p = self.win.getItem(row=row, col=col)
-            if p == None:
-                p = self.win.addPlot(row=row, col=col)
-            p.clear()
-            p.setMouseEnabled(x=False, y=False)
-            p.plot(x=X, y=Y_mean, pen=(0,0,0))
-            p.hideButtons()
-            p.setXRange(X[0], X[-1])
-            #Axis control
-            left = p.getAxis('left')
-            left.setStyle(showValues=False)
-            left.setTicks([])
-            bottom = p.getAxis('bottom')
-            bottom.setStyle(showValues=False)
-            bottom.setTicks([])
-            loc = 'ctx-lh-'+self.parent.model.nwb.electrodes['location'][j]
-            vb = p.getViewBox()
-            color = tuple(cmap[loc])
-            vb.setBackgroundColor((*color,100))  # append alpha to color tuple
-            #vb.setFrameStyle(QtGui.QFrame.Box)
-            vb.border = pg.mkPen(color = 'w')
-            #txt = pg.TextItem(text="Ch #"+str(j), color='k')
-            #txt = pg.TextItem(html='<div style="text-align: center"><span style="color: #FFF; font-size: 6pt;">Ch #</span></div>')
-            #p.addItem(txt)
-            #txt.setPos(0, max(Y_mean))
-
         self.hbox = QHBoxLayout()
-        self.hbox.addWidget(panel0)
+        #self.hbox.addWidget(panel0)
+        self.hbox.addLayout(self.leftbox)
         self.hbox.addWidget(scroll)
         self.setLayout(self.hbox)
         self.setWindowTitle('Event-Related Potentials')
@@ -688,6 +673,47 @@ class ERPDialog(QtGui.QDialog):
         self.push1_0.setChecked(False)
         self.draw_erp()
 
+    def set_width(self):
+        self.Y_start_mean = {}
+        self.Y_start_sem = {}
+        self.Y_stop_mean = {}
+        self.Y_stop_sem = {}
+        self.X = []
+        self.draw_erp()
+
+    def scale_plots(self):
+        for j in np.arange(256):
+            row = np.floor(j/self.nCols)
+            col = j%self.nCols
+            p = self.win.getItem(row=row, col=col)
+            if p == None:
+                return
+            else:
+                curr_txt = self.combo1.currentText()
+                #if curr_txt!='individual'
+                #    p.setYRange(self.Yscale[curr_txt][0], self.Yscale[curr_txt][1])
+
+
+    def get_psth(self, ch):
+        if self.reference == 'start_time':
+            if str(ch) in self.Y_start_mean:   #If it was calculated already
+                return self.Y_start_mean[str(ch)], self.Y_start_sem[str(ch)], self.X
+            else:                              #If it isn't calculated yet
+                Y_mean, Y_sem, X = self.calc_psth(ch=ch)
+                self.Y_start_mean[str(ch)] = Y_mean
+                self.Y_start_sem[str(ch)] = Y_sem
+                self.X = X
+                return self.Y_start_mean[str(ch)], self.Y_start_sem[str(ch)], self.X
+        if self.reference == 'stop_time':
+            if str(ch) in self.Y_stop_mean:
+                return self.Y_stop_mean[str(ch)], self.Y_stop_sem[str(ch)], self.X
+            else:
+                Y_mean, Y_sem, X = self.calc_psth(ch=ch)
+                self.Y_stop_mean[str(ch)] = Y_mean
+                self.Y_stop_sem[str(ch)] = Y_sem
+                self.X = X
+                return self.Y_stop_mean[str(ch)], self.Y_stop_sem[str(ch)], self.X
+
     def calc_psth(self, ch):
         data = self.parent.model.nwb.modules['ecephys'].data_interfaces['high_gamma'].data
         fs = 400.#self.parent.model.fs_signal
@@ -697,7 +723,6 @@ class ERPDialog(QtGui.QDialog):
         start_bins = ref_bins - nBinsTr
         stop_bins = ref_bins + nBinsTr
         nTrials = len(ref_times)
-
         Y = np.zeros((nTrials,2*nBinsTr))+np.nan
         for tr in np.arange(nTrials):
             Y[tr,:] = data[start_bins[tr]:stop_bins[tr], ch]
@@ -710,22 +735,33 @@ class ERPDialog(QtGui.QDialog):
         # Start populating with plots
         cmap = get_lut()
         for j in np.arange(256):
-            Y_mean, Y_sem, X = self.calc_psth(ch=j)
+            Y_mean, Y_sem, X = self.get_psth(ch=j)
             row = np.floor(j/self.nCols)
             col = j%self.nCols
             p = self.win.getItem(row=row, col=col)
             if p == None:
-                vb = CustomViewBox(self)
+                vb = CustomViewBox(self, j)
                 p = self.win.addPlot(row=row, col=col, viewBox = vb)
             p.clear()
             p.setMouseEnabled(x=False, y=False)
-            p.plot(x=X, y=Y_mean, pen=(0,0,0))
+            #Background
+            loc = 'ctx-lh-'+self.parent.model.nwb.electrodes['location'][j]
+            vb = p.getViewBox()
+            color = tuple(cmap[loc])
+            vb.setBackgroundColor((*color,70))  # append alpha to color tuple
+            vb.border = pg.mkPen(color = 'w')
+            #Main plots
+            mean = p.plot(x=X, y=Y_mean, pen=(60,60,60))
+            semp = p.plot(x=X, y=Y_mean+Y_sem, pen=pg.mkPen((100,100,100,100), width=.1))
+            semm = p.plot(x=X, y=Y_mean-Y_sem, pen=pg.mkPen((100,100,100,100), width=.1))
+            fill = pg.FillBetweenItem(semm, semp, pg.mkBrush(100,100,100,100))
+            p.addItem(fill)
             p.hideButtons()
             p.setXRange(X[0], X[-1])
             p.setYRange(min(Y_mean), max(Y_mean))
             xref = [X[int(len(X)/2)], X[int(len(X)/2)]]
-            yref = [min(Y_mean), max(Y_mean)]
-            p.plot(x=xref, y=yref, pen=(100,100,100))
+            yref = [-1000, 1000]
+            p.plot(x=xref, y=yref, pen=(0,0,0))    #reference mark
             #Axis control
             left = p.getAxis('left')
             left.setStyle(showValues=False)
@@ -733,16 +769,21 @@ class ERPDialog(QtGui.QDialog):
             bottom = p.getAxis('bottom')
             bottom.setStyle(showValues=False)
             bottom.setTicks([])
-            loc = 'ctx-lh-'+self.parent.model.nwb.electrodes['location'][j]
-            vb = p.getViewBox()
-            color = tuple(cmap[loc])
-            vb.setBackgroundColor((*color,100))  # append alpha to color tuple
-            #vb.setFrameStyle(QtGui.QFrame.Box)
-            vb.border = pg.mkPen(color = 'w')
+
             #txt = pg.TextItem(text="Ch #"+str(j), color='k')
             #txt = pg.TextItem(html='<div style="text-align: center"><span style="color: #FFF; font-size: 6pt;">Ch #</span></div>')
             #p.addItem(txt)
             #txt.setPos(0, max(Y_mean))
+        #store scale limits
+        #self.Yscale['global max'] = [glmin, glmax]
+        #self.Yscale['global max'] = [glmin, glmax]
+
+    ## Channel functions -------------------------------------------------------
+    def channel_select(self):
+        # Dialog to choose channels from specific brain regions
+        w = SelectChannelsDialog(self.parent.model.all_regions, self.parent.model.regions_mask)
+
+
 
 class QHLine(QtGui.QFrame):
     def __init__(self):
@@ -752,12 +793,145 @@ class QHLine(QtGui.QFrame):
 
 ## Viewbox for ERP plots -------------------------------------------------------
 class CustomViewBox(pg.ViewBox):
-    def __init__(self, parent):
+    def __init__(self, parent, ch):
         pg.ViewBox.__init__(self)
         self.parent = parent
+        self.ch = ch
 
-    def mouseClickEvent(self, ev):
-        mousePoint = self.mapSceneToView(ev.scenePos())
-        x = mousePoint.x()
-        print('Clicked!!')
-        print(x)
+    def mouseDoubleClickEvent(self, ev):
+        row = np.floor(self.ch/self.parent.nCols)
+        col = self.ch%self.parent.nCols
+        p = self.parent.win.getItem(row=row, col=col)
+        #vb = p.getViewBox()
+        #vb.border = pg.mkPen(color = 'k')
+        IndividualERPDialog(self)
+
+    #def hoverEvent(self, ev):
+        #print('hover')
+        #print(self.ch)
+
+# Individual Event-Related Potential dialog ---------------------------------------
+class IndividualERPDialog(QtGui.QDialog):
+    def __init__(self, parent):
+        super().__init__()
+        # Enable antialiasing for prettier plots
+        pg.setConfigOptions(antialias=True)
+
+        self.parent = parent
+        self.ch = parent.ch
+        self.reference = 'start_time'
+        self.Yscale = {}
+
+        #Left panel
+        label1 = QLabel('Reference:')
+        self.push1_0 = QPushButton('Start')
+        self.push1_0.setCheckable(True)
+        self.push1_0.setChecked(True)
+        #self.push1_0.clicked.connect(self.set_start)
+        self.push1_1 = QPushButton('Stop')
+        self.push1_1.setCheckable(True)
+        self.push1_1.setChecked(False)
+        #self.push1_1.clicked.connect(self.set_stop)
+        label2 = QLabel('Width (sec):')
+        self.qline2 = QLineEdit('2')
+        #self.qline2.returnPressed.connect(self.set_width)
+        label3 = QLabel('Y scale:')
+        self.combo1 = QComboBox()
+        self.combo1.addItem('individual')
+        self.combo1.addItem('global max')
+        self.combo1.addItem('global std')
+        #self.combo1.activated.connect(self.scale_plots)
+        self.push2_0 = QPushButton('Significant')
+        self.push2_0.setCheckable(True)
+        self.push2_0.setChecked(False)
+        self.push3_0 = QPushButton('Channels')
+        #self.push3_0.clicked.connect(self.channel_select)
+
+        grid0 = QGridLayout()
+        grid0.addWidget(label1, 0, 0, 1, 2)
+        grid0.addWidget(self.push1_0, 1, 0, 1, 1)
+        grid0.addWidget(self.push1_1, 1, 1, 1, 1)
+        grid0.addWidget(QHLine(), 2, 0, 1, 2)
+        grid0.addWidget(label2, 3, 0, 1, 2)
+        grid0.addWidget(self.qline2, 4, 0, 1, 2)
+        grid0.addWidget(QHLine(), 5, 0, 1, 2)
+        grid0.addWidget(label3, 6, 0, 1, 2)
+        grid0.addWidget(self.combo1, 7, 0, 1, 2)
+        grid0.addWidget(QHLine(), 8, 0, 1, 2)
+        grid0.addWidget(self.push2_0, 9, 0, 1, 2)
+        grid0.addWidget(self.push3_0, 10, 0, 1, 2)
+        grid0.setAlignment(QtCore.Qt.AlignTop)
+
+        panel0 = QGroupBox('Controls:')
+        panel0.setFixedWidth(120)
+        panel0.setLayout(grid0)
+
+        self.leftbox = QVBoxLayout()
+        self.leftbox.addWidget(panel0)
+
+        # Right panel
+        self.win = pg.GraphicsLayoutWidget()
+        self.win.resize(900,600)
+        self.win.setBackground('w')
+
+        self.hbox = QHBoxLayout()
+        #self.hbox.addWidget(panel0)
+        self.hbox.addLayout(self.leftbox)
+        self.hbox.addWidget(self.win)
+        self.setLayout(self.hbox)
+        self.setWindowTitle('Individual Event-Related Potential')
+        self.resize(900, 600)
+
+        self.draw_erp()
+        self.exec_()
+
+    def calc_psth(self, ch):
+        data = self.parent.parent.parent.model.nwb.modules['ecephys'].data_interfaces['high_gamma'].data
+        fs = 400.#self.parent.model.fs_signal
+        ref_times = self.parent.parent.parent.model.nwb.trials[self.reference][:]
+        ref_bins = (ref_times*fs).astype('int')
+        nBinsTr = int(float(self.qline2.text())*fs/2)
+        start_bins = ref_bins - nBinsTr
+        stop_bins = ref_bins + nBinsTr
+        nTrials = len(ref_times)
+        Y = np.zeros((nTrials,2*nBinsTr))+np.nan
+        for tr in np.arange(nTrials):
+            Y[tr,:] = data[start_bins[tr]:stop_bins[tr], ch]
+        Y_mean = np.nanmean(Y, 0)
+        Y_sem = np.nanstd(Y, 0)/np.sqrt(Y.shape[0])
+        X = np.arange(0, 2*nBinsTr)/fs
+        return Y_mean, Y_sem, X
+
+    def draw_erp(self):
+        cmap = get_lut()
+        Y_mean, Y_sem, X = self.calc_psth(ch=self.ch)
+        p = self.win.getItem(row=0, col=0)
+        if p == None:
+            p = self.win.addPlot(row=0, col=0)
+        p.clear()
+        p.setMouseEnabled(x=False, y=True)
+        #Background color
+        loc = 'ctx-lh-'+self.parent.parent.parent.model.nwb.electrodes['location'][self.ch]
+        vb = p.getViewBox()
+        color = tuple(cmap[loc])
+        vb.setBackgroundColor((*color,70))  # append alpha to color tuple
+        vb.border = pg.mkPen(color = 'w')
+        #Main plots
+        mean = p.plot(x=X, y=Y_mean, pen=pg.mkPen((60,60,60), width=2.))
+        semp = p.plot(x=X, y=Y_mean+Y_sem, pen=pg.mkPen((100,100,100,100), width=.1))
+        semm = p.plot(x=X, y=Y_mean-Y_sem, pen=pg.mkPen((100,100,100,100), width=.1))
+        fill = pg.FillBetweenItem(semm, semp, pg.mkBrush(100,100,100,100))
+        p.addItem(fill)
+        p.hideButtons()
+        p.setXRange(X[0], X[-1])
+        p.setYRange(min(Y_mean), max(Y_mean))
+        xref = [X[int(len(X)/2)], X[int(len(X)/2)]]
+        yref = [-1000, 1000]
+        p.plot(x=xref, y=yref, pen=(0,0,0))    #reference mark
+        #Axis control
+        left = p.getAxis('left')
+        left.setStyle(showValues=False)
+        left.setTicks([])
+        bottom = p.getAxis('bottom')
+        bottom.setStyle(showValues=False)
+        bottom.setTicks([])

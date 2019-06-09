@@ -213,12 +213,12 @@ class ecogVIS:
         nrows, ncols = np.shape(plotData)
         for i in range(nrows):
             if self.selectedChannels[i] in self.badChannels:
-                plt2.plot(timebaseGuiUnits, plotData[i], pen='r', width=.8, alpha=.3)
+                plt2.plot(timebaseGuiUnits, plotData[i], pen=pg.mkPen('r', width=.8))
             else:
                 c = 'g'
                 if i%2 == 0:
                     c = 'b'
-                plt2.plot(timebaseGuiUnits, plotData[i], pen = c, width = 1)
+                plt2.plot(timebaseGuiUnits, plotData[i], pen=c)
         plt2.setXRange(timebaseGuiUnits[0], timebaseGuiUnits[-1], padding = 0.003)
         plt2.setYRange(y[0, 0], y[-1, 0], padding = 0.06)
         plt2.getAxis('left').setWidth(w=53)
