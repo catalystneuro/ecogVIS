@@ -841,11 +841,6 @@ class IndividualERPDialog(QtGui.QDialog):
         self.combo1.addItem('global max')
         self.combo1.addItem('global std')
         #self.combo1.activated.connect(self.scale_plots)
-        self.push2_0 = QPushButton('Significant')
-        self.push2_0.setCheckable(True)
-        self.push2_0.setChecked(False)
-        self.push3_0 = QPushButton('Channels')
-        #self.push3_0.clicked.connect(self.channel_select)
 
         grid0 = QGridLayout()
         grid0.addWidget(label1, 0, 0, 1, 2)
@@ -857,9 +852,6 @@ class IndividualERPDialog(QtGui.QDialog):
         grid0.addWidget(QHLine(), 5, 0, 1, 2)
         grid0.addWidget(label3, 6, 0, 1, 2)
         grid0.addWidget(self.combo1, 7, 0, 1, 2)
-        grid0.addWidget(QHLine(), 8, 0, 1, 2)
-        grid0.addWidget(self.push2_0, 9, 0, 1, 2)
-        grid0.addWidget(self.push3_0, 10, 0, 1, 2)
         grid0.setAlignment(QtCore.Qt.AlignTop)
 
         panel0 = QGroupBox('Controls:')
