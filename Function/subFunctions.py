@@ -99,9 +99,6 @@ class ecogVIS:
         else:
             self.disp_audio = 0
 
-        total_dur = np.shape(self.ecog.data)[0]/self.fs_signal
-        self.axesParams['pars']['Figure'][1].plot([0, total_dur], [0.5, 0.5], pen = 'k', width = 0.5)
-
         # Plot interval rectangles at upper, middle and bottom pannels
         self.IntRects1 = np.array([], dtype = 'object')
         self.IntRects2 = np.array([], dtype = 'object')
@@ -109,7 +106,7 @@ class ecogVIS:
             start = obj.start
             stop = obj.stop
             # on timeline
-            c = pg.QtGui.QGraphicsRectItem(start, 0, max(stop-start, 0.01), 1)
+            c = pg.QtGui.QGraphicsRectItem(start, -1, max(stop-start, 0.01), 2)
             self.IntRects1 = np.append(self.IntRects1, c)
             c.setPen(pg.mkPen(color = 'r'))
             c.setBrush(QtGui.QColor(255, 0, 0, 250))
@@ -169,22 +166,33 @@ class ecogVIS:
             means = np.reshape(np.mean(data, 1),(-1,1))  #to align each trace around its reference trace
             plotData = data + np.tile(scaleV-means, (1, endSamp - startSamp + 1)) # data + offset
 
-        ## Rectangle Plot
-        x = float(self.axesParams['editLine']['qLine2'].text())
-        w = float(self.axesParams['editLine']['qLine3'].text())
 
         # Upper horizontal bar
         plt1 = self.axesParams['pars']['Figure'][1]
+        plt1.clear()
+        max_dur = self.nBins * self.tbin_signal
+        plt1.plot([0, max_dur], [0, 0], pen=pg.mkPen('k', width=2))
+        plt1.setXRange(0, max_dur)
+        plt1.setYRange(-1, 1)
+
         if self.current_rect != []:
             plt1.removeItem(self.current_rect)
-
-        self.current_rect = pg.QtGui.QGraphicsRectItem(x, 0, w, 1)
-        self.current_rect.setPen(pg.mkPen(color = 'k'))
-        self.current_rect.setBrush(QtGui.QColor(0, 0, 0, 20))
-        plt1.addItem(self.current_rect)
+        self.current_rect = pg.LinearRegionItem()
+        #region.setZValue(10)
+        # Add the LinearRegionItem to the ViewBox, but tell the ViewBox to exclude this
+        # item when doing auto-range calculations.
+        plt1.addItem(self.current_rect)#, ignoreBounds=True)
+        ## Rectangle Plot
+        #x = float(self.axesParams['editLine']['qLine2'].text())
+        #w = float(self.axesParams['editLine']['qLine3'].text())
+        #self.current_rect = pg.QtGui.QGraphicsRectItem(x, 0, w, 1)
+        #self.current_rect.setPen(pg.mkPen(color = 'k'))
+        #self.current_rect.setBrush(QtGui.QColor(0, 0, 0, 20))
+        #plt1.addItem(self.current_rect)
+        plt1.setLabel('left', 'Span')
         plt1.getAxis('left').setWidth(w=53)
         plt1.getAxis('left').setStyle(showValues=False)
-        plt1.setLabel('left', 'Span')
+        plt1.getAxis('left').setTicks([])
 
         # Show Intervals
         for i in range(len(self.IntRects1)):

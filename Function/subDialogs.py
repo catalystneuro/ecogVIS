@@ -51,7 +51,7 @@ class NoHighGammaDialog(QtGui.QDialog):
         self.accept()
 
 
-# Warning of no High gamma data in the NWB file ------------ -------------------
+# Warning of no High gamma data in the NWB file --------------------------------
 class NoPreprocessedDialog(QtGui.QDialog):
     def __init__(self):
         super().__init__()
@@ -70,6 +70,24 @@ class NoPreprocessedDialog(QtGui.QDialog):
     def onAccepted(self):
         self.accept()
 
+
+# Warning of no Trials data in the NWB file ------------------------------------
+class NoTrialsDialog(QtGui.QDialog):
+    def __init__(self):
+        super().__init__()
+        self.text = QLabel("There is no trials data in the current NWB file.\n"+
+                           "Trial times are needed to generate ERP.")
+        self.okButton = QtGui.QPushButton("OK")
+        self.okButton.clicked.connect(self.onAccepted)
+        vbox = QtGui.QVBoxLayout()
+        vbox.addWidget(self.text)
+        vbox.addWidget(self.okButton)
+        self.setLayout(vbox)
+        self.setWindowTitle('No trial data')
+        self.exec_()
+
+    def onAccepted(self):
+        self.accept()
 
 # Calculates High gamma from data in the NWB file ------------------------------
 class CalcHighGammaDialog(QtGui.QDialog):

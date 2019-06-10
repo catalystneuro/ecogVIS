@@ -15,7 +15,7 @@ from pyqtgraph.widgets.MatplotlibWidget import MatplotlibWidget
 from Function.subFunctions import ecogVIS
 from Function.subDialogs import (CustomIntervalDialog, SelectChannelsDialog,
     SpectralChoiceDialog, PeriodogramDialog, NoHighGammaDialog, NoPreprocessedDialog,
-    ExitDialog, ERPDialog, CalcHighGammaDialog, GroupPeriodogramDialog)
+    NoTrialsDialog, ExitDialog, ERPDialog, CalcHighGammaDialog, GroupPeriodogramDialog)
 
 
 intervalAdd_ = False
@@ -325,7 +325,7 @@ class Application(QMainWindow):
         '''
         vb = CustomViewBox(self)
         self.win1 = pg.PlotWidget(viewBox = vb)   #middle signals plot
-        self.win2 = pg.PlotWidget(border = 'k')   #upper horizontal bar
+        self.win2 = pg.PlotWidget()               #upper horizontal bar
         self.win3 = pg.PlotWidget()               #lower audio plot
         self.win1.setBackground('w')
         self.win2.setBackground('w')
@@ -433,7 +433,9 @@ class Application(QMainWindow):
 
     def event_related_potential(self):
         # If file contains trials information
-        if self.model.nwb.trials is not None:
+        if self.model.nwb.trials is None:
+            NoTrialsDialog()
+        else:
             w = ERPDialog(parent=self)
 
 
