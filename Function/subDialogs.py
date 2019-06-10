@@ -615,6 +615,13 @@ class ERPDialog(QtGui.QDialog):
         self.push3_0 = QPushButton('Channels')
         self.push3_0.clicked.connect(self.channel_select)
 
+        self.push1_0.setEnabled(False)
+        self.push1_1.setEnabled(False)
+        self.qline2.setEnabled(False)
+        self.combo1.setEnabled(False)
+        self.push2_0.setEnabled(False)
+        self.push3_0.setEnabled(False)
+
         grid0 = QGridLayout()
         grid0.addWidget(label1, 0, 0, 1, 2)
         grid0.addWidget(self.push1_0, 1, 0, 1, 1)
@@ -682,17 +689,22 @@ class ERPDialog(QtGui.QDialog):
         self.draw_erp()
 
     def scale_plots(self):
-        for j in np.arange(256):
-            row = np.floor(j/self.nCols)
-            col = j%self.nCols
+        for ch in np.arange(256):
+            row = np.floor(ch/self.nCols)
+            col = ch%self.nCols
             p = self.win.getItem(row=row, col=col)
             if p == None:
                 return
             else:
                 curr_txt = self.combo1.currentText()
-                #if curr_txt!='individual'
-                #    p.setYRange(self.Yscale[curr_txt][0], self.Yscale[curr_txt][1])
-
+                if curr_txt!='individual':
+                    p.setYRange(self.Yscale[curr_txt][0], self.Yscale[curr_txt][1])
+                else:
+                    if self.reference == 'start_time':
+                        yrng = max(abs(self.Y_start_mean[str(ch)]))
+                    else:
+                        yrng = max(abs(self.Y_stop_mean[str(ch)]))
+                    p.setYRange(-yrng, yrng)
 
     def get_psth(self, ch):
         if self.reference == 'start_time':
@@ -732,10 +744,23 @@ class ERPDialog(QtGui.QDialog):
         return Y_mean, Y_sem, X
 
     def draw_erp(self):
-        # Start populating with plots
+        self.push1_0.setEnabled(True)
+        self.push1_1.setEnabled(True)
+        self.qline2.setEnabled(True)
+        self.combo1.setEnabled(True)
+        self.push2_0.setEnabled(True)
+        self.push3_0.setEnabled(True)
+        self.combo1.setCurrentIndex(self.combo1.findText('individual'))
         cmap = get_lut()
+        ymin, ymax = 0, 0
+        ystd = 0
         for j in np.arange(256):
             Y_mean, Y_sem, X = self.get_psth(ch=j)
+            dc = np.mean(Y_mean)
+            Y_mean -= dc
+            ymax = max(max(Y_mean), ymax)
+            ymin = min(min(Y_mean), ymin)
+            ystd = max(np.std(Y_mean), ystd)
             row = np.floor(j/self.nCols)
             col = j%self.nCols
             p = self.win.getItem(row=row, col=col)
@@ -744,6 +769,7 @@ class ERPDialog(QtGui.QDialog):
                 p = self.win.addPlot(row=row, col=col, viewBox = vb)
             p.clear()
             p.setMouseEnabled(x=False, y=False)
+            p.setToolTip('Ch '+str(j+1)+'\n'+str(self.parent.model.nwb.electrodes['location'][j]))
             #Background
             loc = 'ctx-lh-'+self.parent.model.nwb.electrodes['location'][j]
             vb = p.getViewBox()
@@ -758,10 +784,12 @@ class ERPDialog(QtGui.QDialog):
             p.addItem(fill)
             p.hideButtons()
             p.setXRange(X[0], X[-1])
-            p.setYRange(min(Y_mean), max(Y_mean))
+            yrng = max(abs(Y_mean))
+            p.setYRange(-yrng, yrng)
             xref = [X[int(len(X)/2)], X[int(len(X)/2)]]
             yref = [-1000, 1000]
             p.plot(x=xref, y=yref, pen=(0,0,0))    #reference mark
+            p.plot(x=X, y=np.zeros(len(X)), pen=(0,0,0))  #Zero line
             #Axis control
             left = p.getAxis('left')
             left.setStyle(showValues=False)
@@ -769,14 +797,13 @@ class ERPDialog(QtGui.QDialog):
             bottom = p.getAxis('bottom')
             bottom.setStyle(showValues=False)
             bottom.setTicks([])
-
             #txt = pg.TextItem(text="Ch #"+str(j), color='k')
             #txt = pg.TextItem(html='<div style="text-align: center"><span style="color: #FFF; font-size: 6pt;">Ch #</span></div>')
             #p.addItem(txt)
             #txt.setPos(0, max(Y_mean))
         #store scale limits
-        #self.Yscale['global max'] = [glmin, glmax]
-        #self.Yscale['global max'] = [glmin, glmax]
+        self.Yscale['global max'] = [ymin, ymax]
+        self.Yscale['global std'] = [-ystd, ystd]
 
     ## Channel functions -------------------------------------------------------
     def channel_select(self):
@@ -871,7 +898,7 @@ class IndividualERPDialog(QtGui.QDialog):
         self.hbox.addLayout(self.leftbox)
         self.hbox.addWidget(self.win)
         self.setLayout(self.hbox)
-        self.setWindowTitle('Individual Event-Related Potential')
+        self.setWindowTitle('Individual Event-Related Potential - Ch '+str(self.ch+1))
         self.resize(900, 600)
 
         self.draw_erp()
@@ -897,6 +924,8 @@ class IndividualERPDialog(QtGui.QDialog):
     def draw_erp(self):
         cmap = get_lut()
         Y_mean, Y_sem, X = self.calc_psth(ch=self.ch)
+        dc = np.mean(Y_mean)
+        Y_mean -= dc
         p = self.win.getItem(row=0, col=0)
         if p == None:
             p = self.win.addPlot(row=0, col=0)
@@ -920,6 +949,7 @@ class IndividualERPDialog(QtGui.QDialog):
         xref = [X[int(len(X)/2)], X[int(len(X)/2)]]
         yref = [-1000, 1000]
         p.plot(x=xref, y=yref, pen=(0,0,0))    #reference mark
+        p.plot(x=X, y=np.zeros(len(X)), pen=(0,0,0))  #Zero line
         #Axis control
         left = p.getAxis('left')
         left.setStyle(showValues=False)
