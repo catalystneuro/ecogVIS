@@ -666,7 +666,9 @@ class ERPDialog(QtGui.QDialog):
         # Right panel
         self.win = pg.GraphicsLayoutWidget()
         self.win.resize(1020,1020)
-        self.win.setBackground('w')
+        #self.win.setBackground('w')
+        background_color = self.palette().color(QtGui.QPalette.Background)
+        self.win.setBackground(background_color)
         for j in range(16):
             self.win.ci.layout.setRowFixedHeight(j, 60)
             self.win.ci.layout.setColumnFixedWidth(j, 60)
@@ -685,7 +687,7 @@ class ERPDialog(QtGui.QDialog):
         self.hbox.addWidget(scroll)
         self.setLayout(self.hbox)
         self.setWindowTitle('Event-Related Potentials')
-        self.resize(1000, 600)
+        self.resize(1200,600)
         self.exec_()
 
     def set_start(self):
@@ -793,7 +795,7 @@ class ERPDialog(QtGui.QDialog):
             vb = p.getViewBox()
             color = tuple(cmap[loc])
             vb.setBackgroundColor((*color,70))  # append alpha to color tuple
-            vb.border = pg.mkPen(color = 'w')
+            #vb.border = pg.mkPen(color = 'w')
             #Main plots
             mean = p.plot(x=X, y=Y_mean, pen=(60,60,60))
             semp = p.plot(x=X, y=Y_mean+Y_sem, pen=pg.mkPen((100,100,100,100), width=.1))

@@ -177,18 +177,18 @@ class ecogVIS:
 
         if self.current_rect != []:
             plt1.removeItem(self.current_rect)
-        self.current_rect = pg.LinearRegionItem()
-        #region.setZValue(10)
-        # Add the LinearRegionItem to the ViewBox, but tell the ViewBox to exclude this
-        # item when doing auto-range calculations.
-        plt1.addItem(self.current_rect)#, ignoreBounds=True)
-        ## Rectangle Plot
-        #x = float(self.axesParams['editLine']['qLine2'].text())
-        #w = float(self.axesParams['editLine']['qLine3'].text())
-        #self.current_rect = pg.QtGui.QGraphicsRectItem(x, 0, w, 1)
-        #self.current_rect.setPen(pg.mkPen(color = 'k'))
-        #self.current_rect.setBrush(QtGui.QColor(0, 0, 0, 20))
+
+        #self.current_rect = pg.LinearRegionItem()
+        #self.current_rect.setMovable(False)
         #plt1.addItem(self.current_rect)
+        ## Rectangle Plot
+        x = float(self.axesParams['editLine']['qLine2'].text())
+        w = float(self.axesParams['editLine']['qLine3'].text())
+        self.current_rect = pg.QtGui.QGraphicsRectItem(x, -1000, w, 2000)
+        self.current_rect.setPen(pg.mkPen(color=(0,0,0,50)))
+        self.current_rect.setBrush(QtGui.QColor(0,0,0,50))
+        self.current_rect.setFlags(QtGui.QGraphicsItem.ItemIsMovable)
+        plt1.addItem(self.current_rect)
         plt1.setLabel('left', 'Span')
         plt1.getAxis('left').setWidth(w=53)
         plt1.getAxis('left').setStyle(showValues=False)
@@ -221,11 +221,11 @@ class ecogVIS:
         nrows, ncols = np.shape(plotData)
         for i in range(nrows):
             if self.selectedChannels[i] in self.badChannels:
-                plt2.plot(timebaseGuiUnits, plotData[i], pen=pg.mkPen('r', width=.8))
+                plt2.plot(timebaseGuiUnits, plotData[i], pen=pg.mkPen((200,0,0), width=.8))
             else:
-                c = 'g'
+                c = pg.mkPen((0,200,0), width=1.)
                 if i%2 == 0:
-                    c = 'b'
+                    c = pg.mkPen((0,0,200), width=1.)
                 plt2.plot(timebaseGuiUnits, plotData[i], pen=c)
         plt2.setXRange(timebaseGuiUnits[0], timebaseGuiUnits[-1], padding = 0.003)
         plt2.setYRange(y[0, 0], y[-1, 0], padding = 0.06)
@@ -261,7 +261,13 @@ class ecogVIS:
         plt3.setLabel('left', 'Stim')
         plt3.getAxis('left').setWidth(w=53)
         plt3.getAxis('left').setStyle(showValues=False)
+        plt3.getAxis('left').setTicks([])
 
+        #set colors
+        plt1.getAxis('left').setPen(pg.mkPen(color=(50,50,50)))
+        plt2.getAxis('left').setPen(pg.mkPen(color=(50,50,50)))
+        plt2.getAxis('bottom').setPen(pg.mkPen(color=(50,50,50)))
+        plt3.getAxis('left').setPen(pg.mkPen(color=(50,50,50)))
 
 
     def getCurAxisParameters(self):

@@ -327,16 +327,18 @@ class Application(QMainWindow):
         self.win1 = pg.PlotWidget(viewBox = vb)   #middle signals plot
         self.win2 = pg.PlotWidget()               #upper horizontal bar
         self.win3 = pg.PlotWidget()               #lower audio plot
-        self.win1.setBackground('w')
-        self.win2.setBackground('w')
-        self.win3.setBackground('w')
+        #self.win1.setBackground('w')
+        #self.win2.setBackground('w')
+        #self.win3.setBackground('w')
+        self.win1.setBackground(self.palette().color(QtGui.QPalette.Background))
+        self.win2.setBackground(self.palette().color(QtGui.QPalette.Background))
+        self.win3.setBackground(self.palette().color(QtGui.QPalette.Background))
         self.win1.setMouseEnabled(x = False, y = False)
         self.win2.setMouseEnabled(x = False, y = False)
         self.win3.setMouseEnabled(x = False, y = False)
         self.win1.hideButtons()
         self.win2.hideButtons()
         self.win3.hideButtons()
-
         #self.win2.hideAxis('left')
         self.win2.hideAxis('bottom')
         #self.win3.hideAxis('left')
