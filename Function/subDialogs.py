@@ -3,6 +3,7 @@ from PyQt5.QtWidgets import (QTableWidgetItem, QGridLayout, QGroupBox, QLineEdit
     QWidget, QLabel, QPushButton, QVBoxLayout, QHBoxLayout, QComboBox, QScrollArea)
 import pyqtgraph as pg
 import pyqtgraph.opengl as gl
+import pyqtgraph.exporters as pgexp
 from ecog.utils import bands as default_bands
 from ecog.signal_processing.preprocess_data import preprocess_data
 from .FS_colorLUT import get_lut
@@ -632,6 +633,8 @@ class ERPDialog(QtGui.QDialog):
         self.push2_0.setChecked(False)
         self.push3_0 = QPushButton('Channels')
         self.push3_0.clicked.connect(self.channel_select)
+        self.push4_0 = QPushButton('Save image')
+        self.push4_0.clicked.connect(self.save_image)
 
         self.push1_0.setEnabled(False)
         self.push1_1.setEnabled(False)
@@ -639,6 +642,7 @@ class ERPDialog(QtGui.QDialog):
         self.combo1.setEnabled(False)
         self.push2_0.setEnabled(False)
         self.push3_0.setEnabled(False)
+        self.push4_0.setEnabled(False)
 
         grid0 = QGridLayout()
         grid0.addWidget(label1, 0, 0, 1, 2)
@@ -653,6 +657,7 @@ class ERPDialog(QtGui.QDialog):
         grid0.addWidget(QHLine(), 8, 0, 1, 2)
         grid0.addWidget(self.push2_0, 9, 0, 1, 2)
         grid0.addWidget(self.push3_0, 10, 0, 1, 2)
+        grid0.addWidget(self.push4_0, 14, 0, 1, 2)
         grid0.setAlignment(QtCore.Qt.AlignTop)
 
         panel0 = QGroupBox('Controls:')
@@ -707,6 +712,11 @@ class ERPDialog(QtGui.QDialog):
         self.Y_stop_sem = {}
         self.X = []
         self.draw_erp()
+
+    def save_image(self):
+        #self.win.exporter =
+        pgexp.ImageExporter(self.win.ci)
+        #return
 
     def scale_plots(self):
         for ch in np.arange(256):
@@ -770,6 +780,7 @@ class ERPDialog(QtGui.QDialog):
         self.combo1.setEnabled(True)
         self.push2_0.setEnabled(True)
         self.push3_0.setEnabled(True)
+        self.push4_0.setEnabled(True)
         self.combo1.setCurrentIndex(self.combo1.findText('individual'))
         cmap = get_lut()
         ymin, ymax = 0, 0
