@@ -13,7 +13,7 @@ import pandas as pd
 import h5py
 from ast import literal_eval as make_tuple
 from PyQt5.QtWidgets import QInputDialog, QLineEdit, QFileDialog, QMessageBox
-from PyQt5 import QtGui
+from PyQt5 import QtGui, QtCore
 import pyqtgraph as pg
 import datetime
 import pynwb
@@ -184,7 +184,7 @@ class ecogVIS:
         ## Rectangle Plot
         x = float(self.axesParams['editLine']['qLine2'].text())
         w = float(self.axesParams['editLine']['qLine3'].text())
-        self.current_rect = pg.QtGui.QGraphicsRectItem(x, -1000, w, 2000)
+        self.current_rect = CustomBox(self, x, -1000, w, 2000)
         self.current_rect.setPen(pg.mkPen(color=(0,0,0,50)))
         self.current_rect.setBrush(QtGui.QColor(0,0,0,50))
         self.current_rect.setFlags(QtGui.QGraphicsItem.ItemIsMovable)
@@ -268,6 +268,12 @@ class ecogVIS:
         plt2.getAxis('left').setPen(pg.mkPen(color=(50,50,50)))
         plt2.getAxis('bottom').setPen(pg.mkPen(color=(50,50,50)))
         plt3.getAxis('left').setPen(pg.mkPen(color=(50,50,50)))
+
+
+
+    def drag_window(self, dt):
+        self.axesParams['editLine']['qLine2'].setText(str(self.intervalStartGuiUnits + dt))
+        self.updateCurXAxisPosition()
 
 
     def getCurAxisParameters(self):
@@ -712,3 +718,12 @@ class CustomInterval:
         self.type = ''
         self.color = ''
         self.channels = []
+
+
+class CustomBox(pg.QtGui.QGraphicsRectItem):
+    def __init__(self, parent, x, y, w, h):
+        pg.QtGui.QGraphicsRectItem.__init__(self, x, y, w, h)
+        self.parent = parent
+    def mouseReleaseEvent(self, event):
+        dt = self.x()
+        self.parent.drag_window(dt)
