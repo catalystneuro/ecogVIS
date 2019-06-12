@@ -21,7 +21,8 @@ from Function.subDialogs import (CustomIntervalDialog, SelectChannelsDialog,
 intervalAdd_ = False
 intervalDel_ = False
 intervalType_ = 'invalid'
-intervalsDict_ = {'invalid':{'name':'invalid',
+intervalsDict_ = {'invalid':{'type':'invalid',
+                             'user':'',
                              'color':'red',
                              'counts':0}}
 annotationAdd_ = False
@@ -526,13 +527,14 @@ class Application(QMainWindow):
         item = str(self.combo2.currentText())
         if item == 'add custom':
             w = CustomIntervalDialog()
-            text, color = w.getResults()
-            if len(text)>0:    # If user chose a valid name for the new interval type
+            int_type, user_name, color = w.getResults()
+            if len(int_type)>0:    # If user chose a valid name for the new interval type
                 curr_ind = self.combo2.currentIndex()
-                self.combo2.setItemText(curr_ind, text)
+                self.combo2.setItemText(curr_ind, int_type)
                 self.combo2.addItem('add custom')
-                intervalType_ = text
-                intervalsDict_[intervalType_] = {'name':intervalType_,
+                intervalType_ = int_type
+                intervalsDict_[intervalType_] = {'type':intervalType_,
+                                                 'user':user_name,
                                                  'color':color,
                                                  'counts':0}
                 self.combo2.setCurrentIndex(curr_ind)
@@ -799,8 +801,9 @@ class CustomViewBox(pg.ViewBox):
                         else:               #marking from left to right
                             interval = [round(self.pos1, 3), round(self.pos2, 3)]
                         color = intervalsDict_[intervalType_]['color']
+                        user = intervalsDict_[intervalType_]['user']
                         intervalsDict_[intervalType_]['counts'] += 1
-                        self.parent.model.IntervalAdd(interval, intervalType_, color)
+                        self.parent.model.IntervalAdd(interval, intervalType_, color, user)
                         self.parent.model.refreshScreen()
 
 

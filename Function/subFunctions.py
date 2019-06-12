@@ -74,7 +74,30 @@ class ecogVIS:
                 obj.stop = self.nwb.invalid_times.columns[1][ii]
                 obj.type = 'invalid'
                 obj.color = 'red'
+                obj.user = ''
                 self.allIntervals.append(obj)
+
+        # Plot interval rectangles at upper and middle pannels
+        self.IntRects1 = np.array([], dtype = 'object')
+        self.IntRects2 = np.array([], dtype = 'object')
+        for i, obj in enumerate(self.allIntervals):
+            start = obj.start
+            stop = obj.stop
+            # on timeline
+            c = pg.QtGui.QGraphicsRectItem(start, -1, max(stop-start, 0.01), 2)
+            self.IntRects1 = np.append(self.IntRects1, c)
+            c.setPen(pg.mkPen(color = 'r'))
+            c.setBrush(QtGui.QColor(255, 0, 0, 250))
+            a = self.axesParams['pars']['Figure'][1]
+            a.addItem(c)
+            # on signals plot
+            c = pg.QtGui.QGraphicsRectItem(start, -1, max(stop-start, 0.01), 2)
+            self.IntRects2 = np.append(self.IntRects2, c)
+            c.setPen(pg.mkPen(color = 'r'))
+            c.setBrush(QtGui.QColor(255, 0, 0, 120))
+            a = self.axesParams['pars']['Figure'][0]
+            a.addItem(c)
+
 
         # Load stimulus signal (audio)
         self.nStim = len(self.nwb.stimulus)
@@ -98,27 +121,6 @@ class ecogVIS:
             #self.taudio = np.arange(1, np.shape(self.downsampled)[0])/self.fs_audio
         else:
             self.disp_audio = 0
-
-        # Plot interval rectangles at upper, middle and bottom pannels
-        self.IntRects1 = np.array([], dtype = 'object')
-        self.IntRects2 = np.array([], dtype = 'object')
-        for i, obj in enumerate(self.allIntervals):
-            start = obj.start
-            stop = obj.stop
-            # on timeline
-            c = pg.QtGui.QGraphicsRectItem(start, -1, max(stop-start, 0.01), 2)
-            self.IntRects1 = np.append(self.IntRects1, c)
-            c.setPen(pg.mkPen(color = 'r'))
-            c.setBrush(QtGui.QColor(255, 0, 0, 250))
-            a = self.axesParams['pars']['Figure'][1]
-            a.addItem(c)
-            # on signals plot
-            c = pg.QtGui.QGraphicsRectItem(start, -1, max(stop-start, 0.01), 2)
-            self.IntRects2 = np.append(self.IntRects2, c)
-            c.setPen(pg.mkPen(color = 'r'))
-            c.setBrush(QtGui.QColor(255, 0, 0, 120))
-            a = self.axesParams['pars']['Figure'][0]
-            a.addItem(c)
 
 
         # Initiate plots
@@ -552,7 +554,7 @@ class ecogVIS:
 
 
     ## Interval functions ------------------------------------------------------
-    def IntervalAdd(self, interval, int_type, color):
+    def IntervalAdd(self, interval, int_type, color, user):
         if color=='yellow':
             bc = [250, 250, 150, 180]
         elif color=='red':
@@ -579,6 +581,7 @@ class ecogVIS:
         obj.stop = interval[1]
         obj.type = int_type
         obj.color = color
+        obj.user = user
         self.allIntervals.append(obj)
         self.nBI = len(self.allIntervals)
         self.unsaved_changes_interval = True
@@ -601,13 +604,14 @@ class ecogVIS:
         buttonReply = QMessageBox.question(None, ' ', 'Save intervals on external file?',
                                            QMessageBox.No | QMessageBox.Yes)
         if buttonReply == QMessageBox.Yes:
-            c0, c1, c2, c3 = [], [], [], []
+            c0, c1, c2, c3, c4 = [], [], [], [], []
             for i, obj in enumerate(self.allIntervals):
                 c0.append(obj.start)     # start
                 c1.append(obj.stop)      # stop
                 c2.append(obj.type)      # type
                 c3.append(obj.color)     # color
-            d = {'start':c0, 'stop':c1, 'type':c2, 'color':c3}
+                c4.append(obj.user)      # user
+            d = {'start':c0, 'stop':c1, 'type':c2, 'color':c3, 'user':c4}
             df = pd.DataFrame(data=d)
             fullfile = os.path.join(self.pathName, self.fileName[:-4] + '_intervals_' +
                                     datetime.datetime.today().strftime('%Y-%m-%d')+
@@ -622,7 +626,8 @@ class ecogVIS:
             interval = [row.start, row.stop]
             int_type = row.type
             color = row.color
-            self.IntervalAdd(interval, int_type, color)
+            user = row.user
+            self.IntervalAdd(interval, int_type, color, user)
             #Update dictionary of interval types
             # TO-DO
         self.refreshScreen()
@@ -717,6 +722,7 @@ class CustomInterval:
         self.stop = -999
         self.type = ''
         self.color = ''
+        self.user = ''
         self.channels = []
 
 
