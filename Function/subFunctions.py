@@ -209,26 +209,26 @@ class ecogVIS:
         x = np.tile([timebaseGuiUnits[0], timebaseGuiUnits[-1]], (len(self.scaleVec), 1))
         y = np.hstack((scaleV, scaleV))
         plt2 = self.axesParams['pars']['Figure'][0]   #middle signal plot
-        # Clear plot
         plt2.clear()
+        #Channels reference lines
         for l in range(np.shape(x)[0]):
             plt2.plot(x[l], y[l], pen = 'k')
-        plt2.setLabel('bottom', 'Time', units = 'sec')
-        plt2.setLabel('left', 'Channel #')
-        labels = [str(ch+1) for ch in self.selectedChannels]
-        ticks = list(zip(y[:, 0], labels))
-        plt2.getAxis('left').setTicks([ticks])
 
         # Iterate over chosen channels, plot one at a time
         nrows, ncols = np.shape(plotData)
         for i in range(nrows):
             if self.selectedChannels[i] in self.badChannels:
-                plt2.plot(timebaseGuiUnits, plotData[i], pen=pg.mkPen((200,0,0), width=.8))
+                plt2.plot(timebaseGuiUnits, plotData[i], pen=pg.mkPen((200,0,0,100), width=.8))
             else:
                 c = pg.mkPen((0,200,0), width=1.)
                 if i%2 == 0:
                     c = pg.mkPen((0,0,200), width=1.)
                 plt2.plot(timebaseGuiUnits, plotData[i], pen=c)
+        plt2.setLabel('bottom', 'Time', units = 'sec')
+        plt2.setLabel('left', 'Channel #')
+        labels = [str(ch+1) for ch in self.selectedChannels]
+        ticks = list(zip(y[:, 0], labels))
+        plt2.getAxis('left').setTicks([ticks])
         plt2.setXRange(timebaseGuiUnits[0], timebaseGuiUnits[-1], padding = 0.003)
         plt2.setYRange(y[0, 0], y[-1, 0], padding = 0.06)
         plt2.getAxis('left').setWidth(w=53)

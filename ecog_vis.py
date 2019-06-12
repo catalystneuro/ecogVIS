@@ -126,7 +126,7 @@ class Application(QMainWindow):
         action_load_intervals = QAction('Load Intervals', self)
         toolsMenu.addAction(action_load_intervals)
         action_load_intervals.triggered.connect(self.load_intervals)
-        channels_tools_menu = toolsMenu.addMenu('Channels')
+        channels_tools_menu = toolsMenu.addMenu('Bad Channels')
         action_add_badchannel = QAction('Add Bad Channel', self)
         channels_tools_menu.addAction(action_add_badchannel)
         action_add_badchannel.triggered.connect(self.add_badchannel)
@@ -189,18 +189,26 @@ class Application(QMainWindow):
         self.push2_3 = QPushButton('Save')
         self.push2_3.clicked.connect(self.IntervalSave)
 
-        # Get channel buttons
-        qlabelChannels = QLabel('Channels:')
-        self.push3_0 = QPushButton('Select')
-        self.push3_0.clicked.connect(self.ChannelSelect)
+        #Bad channels buttons
+        qlabelBadChannels = QLabel('Bad channels:')
+        self.push3_1 = QPushButton('Add')
+        self.push3_1.clicked.connect(self.add_badchannel)
+        self.push3_2 = QPushButton('Del')
+        self.push3_2.clicked.connect(self.del_badchannel)
+        self.push3_3 = QPushButton('Save')
+        self.push3_3.clicked.connect(self.save_badchannel)
+
+        # Get channel by brain region
+        self.push4_0 = QPushButton('Select regions')
+        self.push4_0.clicked.connect(self.ChannelSelect)
         # One-click Periodogram
-        self.push4_0 = QPushButton('Periodogram')
-        self.push4_0.setCheckable(True)
-        self.push4_0.clicked.connect(self.PeriodogramSelect)
+        self.push5_0 = QPushButton('Periodogram')
+        self.push5_0.setCheckable(True)
+        self.push5_0.clicked.connect(self.PeriodogramSelect)
         # One-click calculate High Gamma
-        self.push5_0 = QPushButton('Calc High Gamma')
-        self.push5_0.setCheckable(False)
-        self.push5_0.clicked.connect(self.CalcHighGamma)
+        self.push6_0 = QPushButton('Calc High Gamma')
+        self.push6_0.setCheckable(False)
+        self.push6_0.clicked.connect(self.CalcHighGamma)
 
         # Buttons layout
         grid1 = QGridLayout()
@@ -214,10 +222,13 @@ class Application(QMainWindow):
         grid1.addWidget(self.push2_1, 3, 0, 1, 2)
         grid1.addWidget(self.push2_2, 3, 2, 1, 2)
         grid1.addWidget(self.push2_3, 3, 4, 1, 2)
-        grid1.addWidget(qlabelChannels, 4, 0, 1, 3)
-        grid1.addWidget(self.push3_0, 4, 3, 1, 3)
-        grid1.addWidget(self.push4_0, 5, 0, 1, 6)
-        grid1.addWidget(self.push5_0, 6, 0, 1, 6)
+        grid1.addWidget(qlabelBadChannels, 4, 0, 1, 6)
+        grid1.addWidget(self.push3_1, 5, 0, 1, 2)
+        grid1.addWidget(self.push3_2, 5, 2, 1, 2)
+        grid1.addWidget(self.push3_3, 5, 4, 1, 2)
+        grid1.addWidget(self.push4_0, 6, 0, 1, 6)
+        grid1.addWidget(self.push5_0, 7, 0, 1, 6)
+        grid1.addWidget(self.push6_0, 8, 0, 1, 6)
         panel1.setLayout(grid1)
 
 
