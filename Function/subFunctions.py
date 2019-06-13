@@ -220,9 +220,9 @@ class ecogVIS:
             if self.selectedChannels[i] in self.badChannels:
                 plt2.plot(timebaseGuiUnits, plotData[i], pen=pg.mkPen((200,0,0,100), width=.8))
             else:
-                c = pg.mkPen((0,200,0), width=1.)
+                c = pg.mkPen((0,120,0), width=1.2)
                 if i%2 == 0:
-                    c = pg.mkPen((0,0,200), width=1.)
+                    c = pg.mkPen((0,0,200), width=1.2)
                 plt2.plot(timebaseGuiUnits, plotData[i], pen=c)
         plt2.setLabel('bottom', 'Time', units = 'sec')
         plt2.setLabel('left', 'Channel #')

@@ -600,7 +600,8 @@ class ERPDialog(QtGui.QDialog):
 
         self.parent = parent
         self.nCols = 16
-        self.reference = 'start_time'
+        self.alignment = 'start_time'
+        self.grid_order = np.arange(256)
         self.Y_start_mean = {}
         self.Y_start_sem = {}
         self.Y_stop_mean = {}
@@ -611,15 +612,15 @@ class ERPDialog(QtGui.QDialog):
         #Left panel
         self.push0_0 = QPushButton('Calc ERP')
         self.push0_0.clicked.connect(self.draw_erp)
-        label1 = QLabel('Reference:')
-        self.push1_0 = QPushButton('Start')
+        label1 = QLabel('Alignment:')
+        self.push1_0 = QPushButton('Onset')
         self.push1_0.setCheckable(True)
         self.push1_0.setChecked(True)
-        self.push1_0.clicked.connect(self.set_start)
-        self.push1_1 = QPushButton('Stop')
+        self.push1_0.clicked.connect(self.set_onset)
+        self.push1_1 = QPushButton('Offset')
         self.push1_1.setCheckable(True)
         self.push1_1.setChecked(False)
-        self.push1_1.clicked.connect(self.set_stop)
+        self.push1_1.clicked.connect(self.set_offset)
         label2 = QLabel('Width (sec):')
         self.qline2 = QLineEdit('2')
         self.qline2.returnPressed.connect(self.set_width)
@@ -636,6 +637,13 @@ class ERPDialog(QtGui.QDialog):
         self.push3_0.clicked.connect(self.channel_select)
         self.push4_0 = QPushButton('Save image')
         self.push4_0.clicked.connect(self.save_image)
+        label4 = QLabel('Rotate grid:')
+        self.push5_0 = QPushButton('90°')
+        self.push5_0.clicked.connect(lambda: self.rearrange_grid(90))
+        self.push5_1 = QPushButton('-90°')
+        self.push5_1.clicked.connect(lambda: self.rearrange_grid(-90))
+        self.push5_2 = QPushButton('T')
+        self.push5_2.clicked.connect(lambda: self.rearrange_grid('T'))
 
         self.push1_0.setEnabled(False)
         self.push1_1.setEnabled(False)
@@ -644,21 +652,29 @@ class ERPDialog(QtGui.QDialog):
         self.push2_0.setEnabled(False)
         self.push3_0.setEnabled(False)
         self.push4_0.setEnabled(False)
+        self.push5_0.setEnabled(False)
+        self.push5_1.setEnabled(False)
+        self.push5_2.setEnabled(False)
 
         grid0 = QGridLayout()
-        grid0.addWidget(label1, 0, 0, 1, 2)
-        grid0.addWidget(self.push1_0, 1, 0, 1, 1)
-        grid0.addWidget(self.push1_1, 1, 1, 1, 1)
-        grid0.addWidget(QHLine(), 2, 0, 1, 2)
-        grid0.addWidget(label2, 3, 0, 1, 2)
-        grid0.addWidget(self.qline2, 4, 0, 1, 2)
-        grid0.addWidget(QHLine(), 5, 0, 1, 2)
-        grid0.addWidget(label3, 6, 0, 1, 2)
-        grid0.addWidget(self.combo1, 7, 0, 1, 2)
-        grid0.addWidget(QHLine(), 8, 0, 1, 2)
-        grid0.addWidget(self.push2_0, 9, 0, 1, 2)
-        grid0.addWidget(self.push3_0, 10, 0, 1, 2)
-        grid0.addWidget(self.push4_0, 14, 0, 1, 2)
+        grid0.addWidget(label1, 0, 0, 1, 6)
+        grid0.addWidget(self.push1_0, 1, 0, 1, 3)
+        grid0.addWidget(self.push1_1, 1, 3, 1, 3)
+        grid0.addWidget(QHLine(), 2, 0, 1, 6)
+        grid0.addWidget(label2, 3, 0, 1, 6)
+        grid0.addWidget(self.qline2, 4, 0, 1, 6)
+        grid0.addWidget(QHLine(), 5, 0, 1, 6)
+        grid0.addWidget(label3, 6, 0, 1, 6)
+        grid0.addWidget(self.combo1, 7, 0, 1, 6)
+        grid0.addWidget(QHLine(), 8, 0, 1, 6)
+        grid0.addWidget(self.push2_0, 9, 0, 1, 6)
+        grid0.addWidget(self.push3_0, 10, 0, 1, 6)
+        grid0.addWidget(self.push4_0, 11, 0, 1, 6)
+        grid0.addWidget(QHLine(), 12, 0, 1, 6)
+        grid0.addWidget(label4, 13, 0, 1, 6)
+        grid0.addWidget(self.push5_0, 14, 0, 1, 2)
+        grid0.addWidget(self.push5_1, 14, 2, 1, 2)
+        grid0.addWidget(self.push5_2, 14, 4, 1, 2)
         grid0.setAlignment(QtCore.Qt.AlignTop)
 
         panel0 = QGroupBox('Controls:')
@@ -688,7 +704,6 @@ class ERPDialog(QtGui.QDialog):
         scroll.setWidget(self.win)
 
         self.hbox = QHBoxLayout()
-        #self.hbox.addWidget(panel0)
         self.hbox.addLayout(self.leftbox)
         self.hbox.addWidget(scroll)
         self.setLayout(self.hbox)
@@ -696,13 +711,13 @@ class ERPDialog(QtGui.QDialog):
         self.resize(1200,600)
         self.exec_()
 
-    def set_start(self):
-        self.reference = 'start_time'
+    def set_onset(self):
+        self.alignment = 'start_time'
         self.push1_1.setChecked(False)
         self.draw_erp()
 
-    def set_stop(self):
-        self.reference = 'stop_time'
+    def set_offset(self):
+        self.alignment = 'stop_time'
         self.push1_0.setChecked(False)
         self.draw_erp()
 
@@ -714,15 +729,28 @@ class ERPDialog(QtGui.QDialog):
         self.X = []
         self.draw_erp()
 
+    def rearrange_grid(self, angle):
+        grid = self.grid_order.reshape(16,16)  #re-arranges as 2D array
+        if angle == 90:     #90 degrees clockwise
+            grid = np.rot90(grid, axes=(1,0))
+        elif angle == -90:  #90 degrees counterclockwise
+            grid = np.rot90(grid, axes=(0,1))
+        else:       #transpose
+            grid = grid.T
+        self.grid_order = grid.flatten()    #re-arranges as 1D array
+        self.draw_erp()
+
     def save_image(self):
-        #self.win.exporter =
-        pgexp.ImageExporter(self.win.ci)
-        #return
+        #pgexp.ImageExporter(self.win.ci)
+        #print(self.win)
+        #print(self.win.sceneObj)
+        #self.win.sceneObj.showExportDialog()
+        return
 
     def scale_plots(self):
-        for ch in np.arange(256):
-            row = np.floor(ch/self.nCols)
-            col = ch%self.nCols
+        for ind, ch in enumerate(self.grid_order):
+            row = np.floor(ind/self.nCols)
+            col = ind%self.nCols
             p = self.win.getItem(row=row, col=col)
             if p == None:
                 return
@@ -731,36 +759,36 @@ class ERPDialog(QtGui.QDialog):
                 if curr_txt!='individual':
                     p.setYRange(self.Yscale[curr_txt][0], self.Yscale[curr_txt][1])
                 else:
-                    if self.reference == 'start_time':
+                    if self.alignment == 'start_time':
                         yrng = max(abs(self.Y_start_mean[str(ch)]))
                     else:
                         yrng = max(abs(self.Y_stop_mean[str(ch)]))
                     p.setYRange(-yrng, yrng)
 
-    def get_psth(self, ch):
-        if self.reference == 'start_time':
+    def get_erp(self, ch):
+        if self.alignment == 'start_time':
             if str(ch) in self.Y_start_mean:   #If it was calculated already
                 return self.Y_start_mean[str(ch)], self.Y_start_sem[str(ch)], self.X
             else:                              #If it isn't calculated yet
-                Y_mean, Y_sem, X = self.calc_psth(ch=ch)
+                Y_mean, Y_sem, X = self.calc_erp(ch=ch)
                 self.Y_start_mean[str(ch)] = Y_mean
                 self.Y_start_sem[str(ch)] = Y_sem
                 self.X = X
                 return self.Y_start_mean[str(ch)], self.Y_start_sem[str(ch)], self.X
-        if self.reference == 'stop_time':
+        if self.alignment == 'stop_time':
             if str(ch) in self.Y_stop_mean:
                 return self.Y_stop_mean[str(ch)], self.Y_stop_sem[str(ch)], self.X
             else:
-                Y_mean, Y_sem, X = self.calc_psth(ch=ch)
+                Y_mean, Y_sem, X = self.calc_erp(ch=ch)
                 self.Y_stop_mean[str(ch)] = Y_mean
                 self.Y_stop_sem[str(ch)] = Y_sem
                 self.X = X
                 return self.Y_stop_mean[str(ch)], self.Y_stop_sem[str(ch)], self.X
 
-    def calc_psth(self, ch):
+    def calc_erp(self, ch):
         data = self.parent.model.nwb.modules['ecephys'].data_interfaces['high_gamma'].data
         fs = 400.#self.parent.model.fs_signal
-        ref_times = self.parent.model.nwb.trials[self.reference][:]
+        ref_times = self.parent.model.nwb.trials[self.alignment][:]
         ref_bins = (ref_times*fs).astype('int')
         nBinsTr = int(float(self.qline2.text())*fs/2)
         start_bins = ref_bins - nBinsTr
@@ -782,28 +810,31 @@ class ERPDialog(QtGui.QDialog):
         self.push2_0.setEnabled(True)
         self.push3_0.setEnabled(True)
         self.push4_0.setEnabled(True)
+        self.push5_0.setEnabled(True)
+        self.push5_1.setEnabled(True)
+        self.push5_2.setEnabled(True)
         self.combo1.setCurrentIndex(self.combo1.findText('individual'))
         cmap = get_lut()
         ymin, ymax = 0, 0
         ystd = 0
-        for j in np.arange(256):
-            Y_mean, Y_sem, X = self.get_psth(ch=j)
+        for ind, ch in enumerate(self.grid_order):
+            Y_mean, Y_sem, X = self.get_erp(ch=ch)
             dc = np.mean(Y_mean)
             Y_mean -= dc
             ymax = max(max(Y_mean), ymax)
             ymin = min(min(Y_mean), ymin)
             ystd = max(np.std(Y_mean), ystd)
-            row = np.floor(j/self.nCols)
-            col = j%self.nCols
+            row = np.floor(ind/self.nCols)
+            col = ind%self.nCols
             p = self.win.getItem(row=row, col=col)
             if p == None:
-                vb = CustomViewBox(self, j)
+                vb = CustomViewBox(self, ch)
                 p = self.win.addPlot(row=row, col=col, viewBox = vb)
             p.clear()
             p.setMouseEnabled(x=False, y=False)
-            p.setToolTip('Ch '+str(j+1)+'\n'+str(self.parent.model.nwb.electrodes['location'][j]))
+            p.setToolTip('Ch '+str(ch+1)+'\n'+str(self.parent.model.nwb.electrodes['location'][ch]))
             #Background
-            loc = 'ctx-lh-'+self.parent.model.nwb.electrodes['location'][j]
+            loc = 'ctx-lh-'+self.parent.model.nwb.electrodes['location'][ch]
             vb = p.getViewBox()
             color = tuple(cmap[loc])
             vb.setBackgroundColor((*color,70))  # append alpha to color tuple
@@ -829,10 +860,6 @@ class ERPDialog(QtGui.QDialog):
             bottom = p.getAxis('bottom')
             bottom.setStyle(showValues=False)
             bottom.setTicks([])
-            #txt = pg.TextItem(text="Ch #"+str(j), color='k')
-            #txt = pg.TextItem(html='<div style="text-align: center"><span style="color: #FFF; font-size: 6pt;">Ch #</span></div>')
-            #p.addItem(txt)
-            #txt.setPos(0, max(Y_mean))
         #store scale limits
         self.Yscale['global max'] = [ymin, ymax]
         self.Yscale['global std'] = [-ystd, ystd]
@@ -858,16 +885,13 @@ class CustomViewBox(pg.ViewBox):
         self.ch = ch
 
     def mouseDoubleClickEvent(self, ev):
-        row = np.floor(self.ch/self.parent.nCols)
-        col = self.ch%self.parent.nCols
-        p = self.parent.win.getItem(row=row, col=col)
+        #row = np.floor(self.ind/self.parent.nCols)
+        #col = self.ind%self.parent.nCols
+        #p = self.parent.win.getItem(row=row, col=col)
         #vb = p.getViewBox()
         #vb.border = pg.mkPen(color = 'k')
         IndividualERPDialog(self)
 
-    #def hoverEvent(self, ev):
-        #print('hover')
-        #print(self.ch)
 
 # Individual Event-Related Potential dialog ---------------------------------------
 class IndividualERPDialog(QtGui.QDialog):
@@ -878,19 +902,19 @@ class IndividualERPDialog(QtGui.QDialog):
 
         self.parent = parent
         self.ch = parent.ch
-        self.reference = 'start_time'
+        self.alignment = 'start_time'
         self.Yscale = {}
 
         #Left panel
-        label1 = QLabel('Reference:')
-        self.push1_0 = QPushButton('Start')
+        label1 = QLabel('Alignment:')
+        self.push1_0 = QPushButton('Onset')
         self.push1_0.setCheckable(True)
         self.push1_0.setChecked(True)
-        #self.push1_0.clicked.connect(self.set_start)
-        self.push1_1 = QPushButton('Stop')
+        #self.push1_0.clicked.connect(self.set_onset)
+        self.push1_1 = QPushButton('Offset')
         self.push1_1.setCheckable(True)
         self.push1_1.setChecked(False)
-        #self.push1_1.clicked.connect(self.set_stop)
+        #self.push1_1.clicked.connect(self.set_offset)
         label2 = QLabel('Width (sec):')
         self.qline2 = QLineEdit('2')
         #self.qline2.returnPressed.connect(self.set_width)
@@ -936,10 +960,10 @@ class IndividualERPDialog(QtGui.QDialog):
         self.draw_erp()
         self.exec_()
 
-    def calc_psth(self, ch):
+    def calc_erp(self, ch):
         data = self.parent.parent.parent.model.nwb.modules['ecephys'].data_interfaces['high_gamma'].data
         fs = 400.#self.parent.model.fs_signal
-        ref_times = self.parent.parent.parent.model.nwb.trials[self.reference][:]
+        ref_times = self.parent.parent.parent.model.nwb.trials[self.alignment][:]
         ref_bins = (ref_times*fs).astype('int')
         nBinsTr = int(float(self.qline2.text())*fs/2)
         start_bins = ref_bins - nBinsTr
@@ -955,7 +979,7 @@ class IndividualERPDialog(QtGui.QDialog):
 
     def draw_erp(self):
         cmap = get_lut()
-        Y_mean, Y_sem, X = self.calc_psth(ch=self.ch)
+        Y_mean, Y_sem, X = self.calc_erp(ch=self.ch)
         dc = np.mean(Y_mean)
         Y_mean -= dc
         p = self.win.getItem(row=0, col=0)
