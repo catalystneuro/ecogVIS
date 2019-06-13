@@ -423,17 +423,27 @@ class Application(QMainWindow):
 
     def add_badchannel(self):
         # opens dialog for user input
-        text, ok = QInputDialog.getText(None, 'Add as bad channel', 'Channel number:')
+        text = 'Channel number: \n(e.g.: 3, 8, 12)'
+        uinp, ok = QInputDialog.getText(None, 'Add as bad channel', text)
         if ok:
-            ch = int(text)-1
-            self.model.BadChannelAdd(ch=ch)
+            ch_str = uinp.split(',')
+            try:
+                ch_list = [int(ch)-1 for ch in ch_str]  #list of integers
+                self.model.BadChannelAdd(ch_list=ch_list)
+            except Exception as ex:
+                print(str(ex))
 
     def del_badchannel(self):
         # opens dialog for user input
-        text, ok = QInputDialog.getText(None, 'Delete bad channel', 'Channel number:')
+        text = 'Channel number: \n(e.g.: 3, 8, 12)'
+        uinp, ok = QInputDialog.getText(None, 'Delete bad channel', text)
         if ok:
-            ch = int(text)-1
-            self.model.BadChannelDel(ch=ch)
+            ch_str = uinp.split(',')
+            try:
+                ch_list = [int(ch)-1 for ch in ch_str]  #list of integers
+                self.model.BadChannelDel(ch_list=ch_list)
+            except Exception as ex:
+                print(str(ex))
 
     def save_badchannel(self):
         self.model.BadChannelSave()

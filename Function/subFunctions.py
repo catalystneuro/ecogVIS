@@ -634,15 +634,17 @@ class ecogVIS:
 
 
     # Channels functions -------------------------------------------------------
-    def BadChannelAdd(self, ch):
-        if ch not in self.badChannels:
-            self.badChannels.append(ch)
-            self.refreshScreen()
+    def BadChannelAdd(self, ch_list):  #ch is list of integers
+        for ch in ch_list:
+            if ch not in self.badChannels:
+                self.badChannels.append(ch)
+        self.refreshScreen()
 
-    def BadChannelDel(self, ch):
-        if ch in self.badChannels:
-            self.badChannels.remove(ch)
-            self.refreshScreen()
+    def BadChannelDel(self, ch_list):  #ch is list of integers
+        for ch in ch_list:
+            if ch in self.badChannels:
+                self.badChannels.remove(ch)
+        self.refreshScreen()
 
     def BadChannelSave(self):
         # opens dialog for user confirmation
