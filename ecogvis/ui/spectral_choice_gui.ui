@@ -30,12 +30,12 @@
     <rect>
      <x>10</x>
      <y>20</y>
-     <width>151</width>
+     <width>171</width>
      <height>121</height>
     </rect>
    </property>
    <property name="title">
-    <string>Spectral Decoposition</string>
+    <string>Spectral Decomposition</string>
    </property>
    <property name="flat">
     <bool>false</bool>

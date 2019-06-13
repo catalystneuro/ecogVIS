@@ -12,8 +12,8 @@ from PyQt5.QtWidgets import (QWidget, QLabel, QLineEdit, QMessageBox, QHBoxLayou
     QAction, QStackedLayout)
 import pyqtgraph as pg
 from pyqtgraph.widgets.MatplotlibWidget import MatplotlibWidget
-from Function.subFunctions import ecogVIS
-from Function.subDialogs import (CustomIntervalDialog, SelectChannelsDialog,
+from ecogvis.functions.subFunctions import ecogVIS
+from ecogvis.functions.subDialogs import (CustomIntervalDialog, SelectChannelsDialog,
     SpectralChoiceDialog, PeriodogramDialog, NoHighGammaDialog, NoPreprocessedDialog,
     NoTrialsDialog, ExitDialog, ERPDialog, CalcHighGammaDialog, GroupPeriodogramDialog)
 
@@ -839,11 +839,12 @@ def main(filename):
     sys.exit(app.exec_())
 
 # If called from a command line, e.g.: $ python ecog_ts_gui.py
-if __name__ == '__main__':
-    app = QApplication(sys.argv)  #instantiate a QtGui (holder for the app)
-    if len(sys.argv)==1:
-        fname = ''
-    else:
-        fname = sys.argv[1]
-    ex = Application(filename=fname)
-    sys.exit(app.exec_())
+# NOT WORKING ANYMORE
+# if __name__ == '__main__':
+#     app = QApplication(sys.argv)  #instantiate a QtGui (holder for the app)
+#     if len(sys.argv)==1:
+#         fname = ''
+#     else:
+#         fname = sys.argv[1]
+#     ex = Application(filename=fname)
+#     sys.exit(app.exec_())
