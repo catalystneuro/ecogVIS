@@ -1,16 +1,10 @@
 from __future__ import division
 import numpy as np
 from scipy.signal import firwin2, filtfilt
-
 from .fft import rfftfreq, rfft, irfft
 
-
-
 __all__ = ['linenoise_notch']
-
-
 __authors__ = "Alex Bujan"
-
 
 def apply_notches(X, notches, rate, fft=True):
     if fft:
@@ -38,9 +32,9 @@ def apply_notches(X, notches, rate, fft=True):
     return X
 
 
-def linenoise_notch(X, rate):
+def linenoise_notch(X, rate, notch_freq=None):
     """
-    Apply Notch filter at 60 Hz and its harmonics
+    Apply Notch filter at 60 Hz (or user chosen notch_freq) and its harmonics
 
     Parameters
     ----------
@@ -48,6 +42,8 @@ def linenoise_notch(X, rate):
         Input data, dimensions (n_channels, n_timePoints)
     rate : float
         Number of samples per second
+    notch_freq : float
+        Main frequency of notch filter
 
     Returns
     -------
@@ -56,7 +52,9 @@ def linenoise_notch(X, rate):
     """
 
     nyquist = rate / 2
-    noise_hz = 60.
+    if notch_freq is None:
+        noise_hz = 60.
+    else: noise_hz = notch_freq
     notches = np.arange(noise_hz, nyquist, noise_hz)
 
     return apply_notches(X, notches, rate)

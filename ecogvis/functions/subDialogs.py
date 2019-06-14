@@ -1,11 +1,12 @@
 from PyQt5 import QtGui, QtCore, uic
 from PyQt5.QtWidgets import (QTableWidgetItem, QGridLayout, QGroupBox, QLineEdit,
-    QWidget, QLabel, QPushButton, QVBoxLayout, QHBoxLayout, QComboBox, QScrollArea)
+    QWidget, QLabel, QPushButton, QVBoxLayout, QHBoxLayout, QComboBox, QScrollArea,
+    QFileDialog)
 import pyqtgraph as pg
 import pyqtgraph.opengl as gl
 import pyqtgraph.exporters as pgexp
 from ecogvis.signal_processing import bands as default_bands
-from ecogvis.signal_processing.preprocess_data import preprocess_data
+from ecogvis.signal_processing.processing_data import processing_data
 from .FS_colorLUT import get_lut
 from threading import Event, Thread
 import numpy as np
@@ -89,56 +90,6 @@ class NoTrialsDialog(QtGui.QDialog):
         self.exec_()
 
     def onAccepted(self):
-        self.accept()
-
-# Calculates High gamma from data in the NWB file ------------------------------
-class CalcHighGammaDialog(QtGui.QDialog):
-    def __init__(self, parent):
-        super().__init__()
-        self.fpath = parent.model.pathName
-        self.fname = parent.model.fileName
-        self.value = -1
-
-        self.okButton = QtGui.QPushButton("OK")
-        self.okButton.setEnabled(True)
-        self.okButton.clicked.connect(self.ok)
-        self.cancelButton = QtGui.QPushButton("Cancel")
-        self.cancelButton.clicked.connect(self.cancel)
-        try:
-            hg = parent.model.nwb.modules['ecephys'].data_interfaces['high_gamma'].data
-            self.text = QLabel("High gamma data already exists in the current NWB file.")
-            self.okButton.setEnabled(False)
-        except:
-            self.text = QLabel("Calculate high gamma power?\n"+
-                                "The results will be saved in the current NWB file.")
-        hbox = QtGui.QHBoxLayout()
-        hbox.addWidget(self.okButton)
-        hbox.addWidget(self.cancelButton)
-        vbox = QtGui.QVBoxLayout()
-        vbox.addWidget(self.text)
-        vbox.addLayout(hbox)
-        self.setLayout(vbox)
-        self.setWindowTitle('Calculate high gama power')
-        self.exec_()
-
-    def ok(self):
-        self.text.setText('Processing spectral decomposition. Please wait...')
-        self.okButton.setEnabled(False)
-        self.cancelButton.setEnabled(False)
-        subj, aux = self.fname.split('_')
-        block = [ aux.split('.')[0][1:] ]
-        self.thread = ChildProgram(path=self.fpath, subject=subj,
-                                   blocks=block, filter='high_gamma',
-                                   bands_vals=None)
-        self.thread.finished.connect(self.out_close)
-        self.thread.start()
-
-    def out_close(self):
-        self.value = 1
-        self.accept()
-
-    def cancel(self):
-        self.value = -1
         self.accept()
 
 
@@ -243,65 +194,209 @@ class SelectChannelsDialog(QtGui.QDialog):
 # Creates Spectral Analysis choice dialog --------------------------------------
 Ui_SpectralChoice, _ = uic.loadUiType(os.path.join(ui_path,"spectral_choice_gui.ui"))
 class SpectralChoiceDialog(QtGui.QDialog, Ui_SpectralChoice):
-    def __init__(self, nwb, fpath, fname):
+    def __init__(self, parent):
         super().__init__()
         self.setupUi(self)
-        self.nwb = nwb
-        self.fpath = fpath
-        self.fname = fname
-
-        self.data_exists = False    #Indicates if data already exists or will be created
-        self.decomp_type = None     #Indicates the chosen decomposition type
+        self.nwb = parent.model.nwb
+        self.fpath = parent.model.pathName
+        self.fname = parent.model.fileName
         self.chosen_bands = None    #Values for custom filter bands (user input)
         self.value = -1             #Reference value for user pressed exit button
-
         self.radioButton_1.clicked.connect(self.choice_default)
-        self.radioButton_2.clicked.connect(self.choice_highgamma)
-        self.radioButton_3.clicked.connect(self.choice_custom)
+        self.radioButton_2.clicked.connect(self.choice_custom)
         self.pushButton_1.clicked.connect(self.add_band)
         self.pushButton_2.clicked.connect(self.del_band)
-
         self.runButton.clicked.connect(self.run_decomposition)
-        self.runButton.setEnabled(False)
-        self.cancelButton.clicked.connect(self.out_cancel)
+        self.cancelButton.clicked.connect(lambda: self.out_close(val=-1))
+
+        if 'ecephys' in parent.model.nwb.modules:
+            # If there's no preprocessed data in NWB file
+            if 'LFP' not in parent.model.nwb.modules['ecephys'].data_interfaces:
+                self.disable_all()
+                text = "There's no preprocessed data in the current file.\n" \
+                       "Run 'Preprocess' to generate it."
+                self.label_1.setText(text)
+                self.cancelButton.setEnabled(True)
+            # If there's already Bandpower data in NWB file
+            if 'Bandpower' in self.nwb.modules['ecephys'].data_interfaces:
+                self.disable_all()
+                text = "Frequency decomposition data already exists in current file."
+                self.label_1.setText(text)
+                self.cancelButton.setEnabled(True)
+        else:
+            self.disable_all()
+            text = "There's no preprocessed data in the current file.\n" \
+                   "Run 'Preprocess' to generate it."
+            self.label_1.setText(text)
+            self.cancelButton.setEnabled(True)
+
         self.setWindowTitle('Spectral decomposition')
         self.exec_()
 
     def choice_default(self):  # default chosen
-        self.decomp_type = 'default'
         self.pushButton_1.setEnabled(False)
         self.pushButton_2.setEnabled(False)
         self.tableWidget.setEditTriggers(QtGui.QAbstractItemView.NoEditTriggers)
-        try:    # if data already exists in file
-            decomp = self.nwb.modules['ecephys'].data_interfaces['Bandpower_default']
-            text = "'Default' frequency decomposition data already exists in current file.\n" \
-                   "The bands are shown in the table."
+        text = "Spectral decomposition data does not exist in current file.\n" \
+               "It can be created from the bands shown in the table. "\
+               "The results will be saved in the current NWB file.\nDo you want to create it?"
+        self.label_1.setText(text)
+        self.runButton.setEnabled(True)
+        # Populate table with values
+        self.tableWidget.setHorizontalHeaderLabels(['center [Hz]','sigma [Hz]'])
+        p0 = default_bands.chang_lab['cfs']
+        p1 = default_bands.chang_lab['sds']
+        self.tableWidget.setRowCount(len(p0))
+        for i in np.arange(len(p0)):
+            self.tableWidget.setItem(i, 0, QTableWidgetItem(str(round(p0[i],1))))
+            self.tableWidget.setItem(i, 1, QTableWidgetItem(str(round(p1[i],1))))
+
+    def choice_custom(self):  # default chosen
+        text = "Spectral decomposition data does not exist in current file.\n" \
+               "To create it, add the bands of interest to the table. "\
+               "The results will be saved in the current NWB file.\nDo you want to create it?"
+        self.label_1.setText(text)
+        self.runButton.setEnabled(True)
+        # Allows user to populate table with values
+        self.tableWidget.setRowCount(1)
+        self.tableWidget.setHorizontalHeaderLabels(['center [Hz]','sigma [Hz]'])
+        self.tableWidget.setItem(0, 0, QTableWidgetItem(str(0)))
+        self.tableWidget.setItem(0, 1, QTableWidgetItem(str(0)))
+        self.tableWidget.setEditTriggers(QtGui.QAbstractItemView.DoubleClicked)
+        self.pushButton_1.setEnabled(True)
+        self.pushButton_2.setEnabled(True)
+
+    def add_band(self):
+        nRows = self.tableWidget.rowCount()
+        self.tableWidget.insertRow(nRows)
+        self.tableWidget.setItem(nRows, 0, QTableWidgetItem(str(0)))
+        self.tableWidget.setItem(nRows, 1, QTableWidgetItem(str(0)))
+
+    def del_band(self):
+        nRows = self.tableWidget.rowCount()
+        self.tableWidget.removeRow(nRows-1)
+
+    def run_decomposition(self):
+        self.disable_all()
+        nRows = self.tableWidget.rowCount()
+        self.chosen_bands = np.zeros((2,nRows))
+        for i in np.arange(nRows):   #read bands from table
+            self.chosen_bands[0,i] = float(self.tableWidget.item(i, 0).text())
+            self.chosen_bands[1,i] = float(self.tableWidget.item(i, 1).text())
+        self.label_1.setText('Processing spectral decomposition.\nPlease wait...')
+        subj, aux = self.fname.split('_')
+        block = [ aux.split('.')[0][1:] ]
+        self.thread = ChildProgram(path=self.fpath, subject=subj,
+                                   blocks=block, mode='decomposition',
+                                   config=self.chosen_bands)
+        self.thread.finished.connect(lambda: self.out_close(val=1))
+        self.thread.start()
+
+    def disable_all(self):
+        self.pushButton_1.setEnabled(False)
+        self.pushButton_2.setEnabled(False)
+        self.tableWidget.setEnabled(False)
+        self.groupBox.setEnabled(False)
+        self.runButton.setEnabled(False)
+        self.cancelButton.setEnabled(False)
+
+    def out_close(self, val):
+        self.value = val
+        self.accept()
+
+
+
+# Runs 'processing_data' function, useful to wait for thread -------------------
+class ChildProgram(QtCore.QThread):
+    def __init__(self, path, subject, blocks, mode, config):
+        super().__init__()
+        self.fpath = path
+        self.subject = subject
+        self.blocks = blocks
+        self.mode = mode
+        self.config = config
+
+    def run(self):
+        processing_data(path=self.fpath,
+                        subject=self.subject,
+                        blocks=self.blocks,
+                        mode=self.mode,
+                        config=self.config)
+
+
+# Creates High Gamma dialog ----------------------------------------------------
+Ui_HighGamma, _ = uic.loadUiType(os.path.join(ui_path,"high_gamma_gui.ui"))
+class HighGammaDialog(QtGui.QDialog, Ui_HighGamma):
+    def __init__(self, parent):
+        super().__init__()
+        self.setupUi(self)
+        self.parent = parent
+        self.nwb = parent.model.nwb
+        self.fpath = parent.model.pathName
+        self.fname = parent.model.fileName
+        self.chosen_bands = None    #Values for custom filter bands (user input)
+        self.value = -1             #Reference value for user pressed exit button
+
+        self.radioButton_3.setChecked(True)
+        self.radioButton_1.clicked.connect(self.choice_default)
+        self.radioButton_2.clicked.connect(self.choice_custom)
+        self.radioButton_3.clicked.connect(lambda: self.choose_file(0))
+        self.radioButton_4.clicked.connect(lambda: self.choose_file(1))
+        self.pushButton_1.clicked.connect(self.add_band)
+        self.pushButton_2.clicked.connect(self.del_band)
+        self.runButton.clicked.connect(self.run)
+        self.cancelButton.clicked.connect(lambda: self.out_close(val=-1))
+
+        if 'ecephys' in parent.model.nwb.modules:
+            # If there's no preprocessed data in NWB file
+            if 'LFP' not in parent.model.nwb.modules['ecephys'].data_interfaces:
+                self.disable_all()
+                text = "There's no preprocessed data in the current file.\n" \
+                       "Run 'Preprocess' to generate it."
+                self.label_1.setText(text)
+                self.cancelButton.setEnabled(True)
+            # If there's already Bandpower data in NWB file
+            if 'high_gamma' in self.nwb.modules['ecephys'].data_interfaces:
+                self.disable_all()
+                text = "High Gamma data already exists in current file."
+                self.label_1.setText(text)
+                self.cancelButton.setEnabled(True)
+        else:
+            self.disable_all()
+            text = "There's no preprocessed data in the current file.\n" \
+                   "Run 'Preprocess' to generate it."
             self.label_1.setText(text)
-            self.runButton.setEnabled(False)
-            self.data_exists = True
-            # Populate table with values
-            self.tableWidget.setHorizontalHeaderLabels(['center','sigma'])
-            p0 = decomp.bands['filter_param_0']
-            p1 = decomp.bands['filter_param_1']
-            self.tableWidget.setRowCount(len(p0))
-            for i in np.arange(len(p0)):
-                self.tableWidget.setItem(i, 0, QTableWidgetItem(str(round(p0[i],1))))
-                self.tableWidget.setItem(i, 1, QTableWidgetItem(str(round(p1[i],1))))
-        except:   # if data does not exist in file
-            text = "'Default' frequency decomposition data does not exist in current file.\n" \
-                   "It can be created from the bands shown in the table. "\
-                   "The results will be saved in the current NWB file.\nDo you want to create it?"
-            self.label_1.setText(text)
-            self.data_exists = False
-            self.runButton.setEnabled(True)
-            # Populate table with values
-            self.tableWidget.setHorizontalHeaderLabels(['center [Hz]','sigma [Hz]'])
-            p0 = default_bands.chang_lab['cfs']
-            p1 = default_bands.chang_lab['sds']
-            self.tableWidget.setRowCount(len(p0))
-            for i in np.arange(len(p0)):
-                self.tableWidget.setItem(i, 0, QTableWidgetItem(str(round(p0[i],1))))
-                self.tableWidget.setItem(i, 1, QTableWidgetItem(str(round(p1[i],1))))
+            self.cancelButton.setEnabled(True)
+
+        self.setWindowTitle('High Gamma power estimation')
+        self.exec_()
+
+    def choose_file(self, flag):
+        if flag==0:  #save in current NWB file
+            self.nwb = self.parent.model.nwb
+            self.lineEdit.setEnabled(False)
+        elif flag==1:  #save in new NWB file
+            filename, _ = QFileDialog.getSaveFileName(self, 'New file', self.fpath, "(*.nwb)")
+            self.lineEdit.setText(filename)
+
+
+    def choice_default(self):  # default chosen
+        self.pushButton_1.setEnabled(False)
+        self.pushButton_2.setEnabled(False)
+        self.tableWidget.setEditTriggers(QtGui.QAbstractItemView.NoEditTriggers)
+        text = "High Gamma data does not exist in current file."+ \
+               "It can be created from the bands shown in the table.\n"\
+               "Do you want to create it?"
+        self.label_1.setText(text)
+        self.runButton.setEnabled(True)
+        # Populate table with values
+        self.tableWidget.setHorizontalHeaderLabels(['center [Hz]','sigma [Hz]'])
+        p0 = default_bands.chang_lab['cfs']
+        p1 = default_bands.chang_lab['sds']
+        self.tableWidget.setRowCount(len(p0))
+        for i in np.arange(len(p0)):
+            self.tableWidget.setItem(i, 0, QTableWidgetItem(str(round(p0[i],1))))
+            self.tableWidget.setItem(i, 1, QTableWidgetItem(str(round(p1[i],1))))
 
     def choice_highgamma(self):  # default chosen
         self.decomp_type = 'high_gamma'
@@ -378,7 +473,7 @@ class SpectralChoiceDialog(QtGui.QDialog, Ui_SpectralChoice):
         nRows = self.tableWidget.rowCount()
         self.tableWidget.removeRow(nRows-1)
 
-    def run_decomposition(self):
+    def run(self):
         if self.decomp_type!='default':
             nRows = self.tableWidget.rowCount()
             self.chosen_bands = np.zeros((2,nRows))
@@ -399,33 +494,75 @@ class SpectralChoiceDialog(QtGui.QDialog, Ui_SpectralChoice):
             self.thread = ChildProgram(path=self.fpath, subject=subj,
                                        blocks=block, filter=self.decomp_type,
                                        bands_vals=self.chosen_bands)
-            self.thread.finished.connect(self.out_close)
+            self.thread.finished.connect(lambda: self.out_close(1))
             self.thread.start()
 
-    def out_close(self):
-        self.value = 1
-        self.accept()
-
-    def out_cancel(self):
-        self.value = -1
+    def out_close(self, val):
+        self.value = val
         self.accept()
 
 
-class ChildProgram(QtCore.QThread):
-    def __init__(self, path, subject, blocks, filter, bands_vals):
+
+# Creates preprocessing dialog -------------------------------------------------
+Ui_Preprocessing, _ = uic.loadUiType(os.path.join(ui_path,"preprocessing_gui.ui"))
+class PreprocessingDialog(QtGui.QDialog, Ui_Preprocessing):
+    def __init__(self, parent):
         super().__init__()
-        self.fpath = path
-        self.subject = subject
-        self.blocks = blocks
-        self.filter = filter
-        self.bands_vals = bands_vals
+        self.setupUi(self)
 
-    def run(self):
-        preprocess_data(path=self.fpath,
-                        subject=self.subject,
-                        blocks=self.blocks,
-                        filter=self.filter,
-                        bands_vals=self.bands_vals)
+        self.checkBox_1.setChecked(True)
+        self.checkBox_2.setChecked(True)
+        self.checkBox_3.setChecked(True)
+        self.lineEdit_1.setText('60')
+        self.lineEdit_2.setText('400')
+        self.pushButton_1.clicked.connect(lambda: self.out_close(-1))
+        self.pushButton_2.clicked.connect(self.ok)
+        self.fname = parent.model.fileName
+        self.fpath = parent.model.pathName
+        #if preprocessed signals already exist on NWB file
+        if 'ecephys' in parent.model.nwb.modules:
+            if 'LFP' in parent.model.nwb.modules['ecephys'].data_interfaces:
+                self.disable_all()
+                self.pushButton_1.setEnabled(True)
+                self.label_2.setText('Preprocessed data already exists in file.')
+
+        self.setWindowTitle('Preprocessing ')
+        self.exec_()
+
+    def ok(self):
+        self.disable_all()
+        self.label_2.setText('Preprocessing ECoG signals. Please wait...')
+        config = {}
+        if self.checkBox_1.isChecked():
+            config['CAR'] = True
+        else: config['CAR'] = False
+        if self.checkBox_2.isChecked():
+            config['Notch'] = float(self.lineEdit_1.text())
+        else: config['Notch'] = None
+        if self.checkBox_3.isChecked():
+            config['Downsample'] = float(self.lineEdit_2.text())
+        else: config['Downsample'] = None
+        subj, aux = self.fname.split('_')
+        block = [ aux.split('.')[0][1:] ]
+        self.thread = ChildProgram(path=self.fpath, subject=subj,
+                                   blocks=block, mode='preprocess',
+                                   config=config)
+        self.thread.finished.connect(lambda: self.out_close(1))
+        self.thread.start()
+
+    def out_close(self, val):
+        self.value = val
+        self.accept()
+
+    def disable_all(self):
+        self.label_1.setEnabled(False)
+        self.checkBox_1.setEnabled(False)
+        self.checkBox_2.setEnabled(False)
+        self.checkBox_3.setEnabled(False)
+        self.lineEdit_1.setEnabled(False)
+        self.lineEdit_2.setEnabled(False)
+        self.pushButton_1.setEnabled(False)
+        self.pushButton_2.setEnabled(False)
 
 
 

@@ -12,8 +12,6 @@ except ImportError:
 
 
 __authors__ = "Alex Bujan, Jesse Livezey"
-
-
 __all__ = ['gaussian', 'hamming', 'hilbert_transform']
 
 

@@ -15,7 +15,8 @@ from pyqtgraph.widgets.MatplotlibWidget import MatplotlibWidget
 from ecogvis.functions.subFunctions import ecogVIS
 from ecogvis.functions.subDialogs import (CustomIntervalDialog, SelectChannelsDialog,
     SpectralChoiceDialog, PeriodogramDialog, NoHighGammaDialog, NoPreprocessedDialog,
-    NoTrialsDialog, ExitDialog, ERPDialog, CalcHighGammaDialog, GroupPeriodogramDialog)
+    NoTrialsDialog, ExitDialog, ERPDialog, HighGammaDialog, GroupPeriodogramDialog,
+    PreprocessingDialog)
 
 
 intervalAdd_ = False
@@ -37,7 +38,7 @@ class Application(QMainWindow):
 
         self.centralwidget = QWidget()
         self.setCentralWidget(self.centralwidget)
-        self.resize(900, 600)
+        self.resize(1000, 600)
         self.setWindowTitle('ecogVIS')
 
         # e.g.: /home/User/freesurfer_subjects/Subject_XX.nwb
@@ -154,7 +155,7 @@ class Application(QMainWindow):
         Buttons and controls vertical box layout
         '''
         panel1 = QGroupBox('Panel')
-        panel1.setFixedWidth(200)
+        panel1.setFixedWidth(250)
         #panel1.setFixedHeight(200)
 
         # Annotation buttons
@@ -205,10 +206,14 @@ class Application(QMainWindow):
         self.push5_0 = QPushButton('Periodogram')
         self.push5_0.setCheckable(True)
         self.push5_0.clicked.connect(self.PeriodogramSelect)
-        # One-click calculate High Gamma
-        self.push6_0 = QPushButton('Calc High Gamma')
+        # One-click preprocess signals
+        self.push6_0 = QPushButton('Preprocess')
         self.push6_0.setCheckable(False)
-        self.push6_0.clicked.connect(self.CalcHighGamma)
+        self.push6_0.clicked.connect(self.Preprocess)
+        # One-click calculate High Gamma
+        self.push7_0 = QPushButton('High Gamma')
+        self.push7_0.setCheckable(False)
+        self.push7_0.clicked.connect(self.CalcHighGamma)
 
         # Buttons layout
         grid1 = QGridLayout()
@@ -226,15 +231,16 @@ class Application(QMainWindow):
         grid1.addWidget(self.push3_1, 5, 0, 1, 2)
         grid1.addWidget(self.push3_2, 5, 2, 1, 2)
         grid1.addWidget(self.push3_3, 5, 4, 1, 2)
-        grid1.addWidget(self.push4_0, 6, 0, 1, 6)
-        grid1.addWidget(self.push5_0, 7, 0, 1, 6)
-        grid1.addWidget(self.push6_0, 8, 0, 1, 6)
+        grid1.addWidget(self.push4_0, 6, 0, 1, 3)
+        grid1.addWidget(self.push5_0, 6, 3, 1, 3)
+        grid1.addWidget(self.push6_0, 7, 0, 1, 3)
+        grid1.addWidget(self.push7_0, 7, 3, 1, 3)
         panel1.setLayout(grid1)
 
 
         # Traces panel ---------------------------------------------------------
         panel2 = QGroupBox('Traces')
-        panel2.setFixedWidth(200)
+        panel2.setFixedWidth(250)
         qlabelSignal = QLabel('Signal:')
         self.combo3 = QComboBox()
         self.combo3.addItem('raw')
@@ -323,7 +329,7 @@ class Application(QMainWindow):
         form_2.addWidget(self.pushbtn10, 5, 3)
 
         panel3 = QGroupBox('Plot Controls')
-        panel3.setFixedWidth(200)
+        panel3.setFixedWidth(250)
         panel3.setLayout(form_2)
 
         self.vbox1 = QVBoxLayout()
@@ -450,8 +456,7 @@ class Application(QMainWindow):
 
 
     def spectral_analysis(self):
-        w = SpectralChoiceDialog(nwb=self.model.nwb, fpath=self.model.pathName,
-                                 fname=self.model.fileName)
+        w = SpectralChoiceDialog(self)
         if w.value==1:       # If new data was created
             self.model.refresh_file()        # re-opens the file, now with new data
 
@@ -633,9 +638,15 @@ class Application(QMainWindow):
             self.active_mode = 'default'
             self.reset_buttons()
 
+    # One-click Preprocessing of raw signals -----------------------------------
+    def Preprocess(self):
+        w = PreprocessingDialog(self)
+        if w.value==1:       # If new data was created
+            self.model.refresh_file()        # re-opens the file, now with new data
+
     # One-click calculate High Gamma -------------------------------------------
     def CalcHighGamma(self):
-        w = CalcHighGammaDialog(self)
+        w = HighGammaDialog(self)
         if w.value==1:       # If new data was created
             self.model.refresh_file()        # re-opens the file, now with new data
 
