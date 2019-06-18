@@ -17,18 +17,97 @@ from ecogvis.signal_processing.common_referencing import *
 from ecogvis.signal_processing.bands import *
 
 
-def processing_data(path, subject, blocks, mode=None , config=None):
+def processing_data(path, subject, blocks, mode=None , config=None, new_file=''):
     for block in blocks:
         block_path = os.path.join(path, '{}_B{}.nwb'.format(subject, block))
+        if new_file!='':
+            make_new_nwb(old_file=block_path, new_file=new_file)
+
         if mode=='preprocess':
             preprocess_raw_data(block_path, config=config)
         elif mode=='decomposition':
             spectral_decomposition(block_path, bands_vals=config)
         elif mode=='high_gamma':
-            high_gamma_estimation(block_path, bands_vals=config)
+            high_gamma_estimation(block_path, bands_vals=config, new_file=new_file)
 
 
-def preprocess_raw_data(block_path, config=None):
+def make_new_nwb(old_file, new_file):
+    from datetime import datetime
+    from dateutil.tz import tzlocal
+    from pynwb import NWBFile, NWBHDF5IO, get_manager
+    from pynwb.device import Device
+    from nwbext_ecog import CorticalSurfaces, ECoGSubject
+
+    manager = get_manager()
+
+    # Open original signal file
+    with NWBHDF5IO(old_file, 'r', manager=manager) as io1:
+        nwb = io1.read()
+        # Creates new file
+        nwb_new = NWBFile(session_description=str(nwb.session_description),
+                          identifier='high gamma data',
+                          session_start_time=datetime.now(tzlocal()))
+        with NWBHDF5IO(new_file, mode='w', manager=manager) as io2:
+            # Copy relevant fields, except Acquisition and DecompositionSeries
+            #Devices
+            for aux in list(nwb.devices.keys()):
+                dev = Device(nwb.devices[aux].name)
+                nwb_new.add_device(dev)
+            #Electrode groups
+            for aux in list(nwb.electrode_groups.keys()):
+                nwb_new.create_electrode_group(name=nwb.electrode_groups[aux].name,
+                                               description=nwb.electrode_groups[aux].description,
+                                               location=nwb.electrode_groups[aux].location,
+                                               device=nwb_new.get_device(nwb.electrode_groups[aux].description))
+            #Electrodes
+            nElec = len(nwb.electrodes['x'].data[:])
+            for aux in np.arange(nElec):
+                nwb_new.add_electrode(x=nwb.electrodes['x'][aux],
+                                      y=nwb.electrodes['y'][aux],
+                                      z=nwb.electrodes['z'][aux],
+                                      imp=nwb.electrodes['imp'][aux],
+                                      location=nwb.electrodes['location'][aux],
+                                      filtering=nwb.electrodes['filtering'][aux],
+                                      group=nwb_new.get_electrode_group(nwb.electrodes['group'][aux].name),
+                                      group_name=nwb.electrodes['group_name'][aux])
+            for new_field in ['bad', 'x_warped', 'y_warped', 'z_warped']:
+                nwb_new.add_electrode_column(name=new_field,
+                                             description=nwb.electrodes[new_field].description,
+                                             data=nwb.electrodes[new_field].data[:])
+            #Institution and Lab names
+            nwb_new.institution = str(nwb.institution)
+            nwb_new.lab = str(nwb.lab)
+            #Invalid times
+            nInvalid = len(nwb.invalid_times['start_time'][:])
+            for aux in np.arange(nInvalid):
+                nwb_new.add_invalid_time_interval(start_time=nwb.invalid_times['start_time'][aux],
+                                                  stop_time=nwb.invalid_times['stop_time'][aux])
+            #Subject
+            cortical_surfaces = CorticalSurfaces()
+            surfaces = nwb.subject.cortical_surfaces.surfaces
+            for sfc in list(surfaces.keys()):
+                cortical_surfaces.create_surface(name=surfaces[sfc].name,
+                                                 faces=surfaces[sfc].faces,
+                                                 vertices=surfaces[sfc].vertices)
+            nwb_new.subject = ECoGSubject(cortical_surfaces=cortical_surfaces,
+                                          subject_id=nwb.subject.subject_id,
+                                          age=nwb.subject.age,
+                                          description=nwb.subject.description,
+                                          genotype=nwb.subject.genotype,
+                                          sex=nwb.subject.sex,
+                                          species=nwb.subject.species,
+                                          weight=nwb.subject.weight,
+                                          date_of_birth=nwb.subject.date_of_birth)
+            #Trials
+            nTrials = len(nwb.trials['start_time'])
+            for aux in np.arange(nTrials):
+                nwb_new.add_trial(start_time=nwb.trials['start_time'][aux],
+                                  stop_time=nwb.trials['stop_time'][aux])
+            #Write new file with copied fields
+            io2.write(nwb_new, link_data=False)
+
+
+def preprocess_raw_data(block_path, config):
     """
     Takes raw data and runs:
     1) CAR
@@ -122,6 +201,7 @@ def preprocess_raw_data(block_path, config=None):
 
             # Write LFP to NWB file
             io.write(nwb)
+            print('LFP saved in '+block_path)
 
 
 def spectral_decomposition(block_path, bands_vals):
@@ -194,9 +274,10 @@ def spectral_decomposition(block_path, bands_vals):
         ecephys_module = nwb.modules['ecephys']
         ecephys_module.add_data_interface(decs)
         io.write(nwb)
+        print('Spectral decomposition saved in '+block_path)
 
 
-def high_gamma_estimation(block_path, config=None):
+def high_gamma_estimation(block_path, bands_vals, new_file=''):
     """
     Takes preprocessed LFP data and calculates High-Gamma power from the
     averaged power of standard Hilbert transform on 70~150 Hz bands.
@@ -205,150 +286,67 @@ def high_gamma_estimation(block_path, config=None):
     ----------
     block_path : str
         subject file path
-    config : dictionary
-        'filter': str
-            'default' for Chang lab default bands (70~150 Hz)
-            'custom' for user defined bands
-        'bands_vals': [2,nBands] numpy array with Gaussian filter parameters
-            bands_vals[0,:] = filter centers [Hz]
-            bands_vals[1,:] = filter sigmas [Hz]
+    bands_vals : [2,nBands] numpy array with Gaussian filter parameters, where:
+        bands_vals[0,:] = filter centers [Hz]
+        bands_vals[1,:] = filter sigmas [Hz]
+    new_file : str
+        if this argument is of form 'path/to/new_file.nwb', High Gamma power
+        will be saved in a new file. If it is an empty string, '', High Gamma
+        power will be saved in the current NWB file.
 
     Returns
     -------
-    Saves spectral power (DecompositionSeries) in the current NWB file.
+    Saves High Gamma power (TimeSeries) in the current or new NWB file.
     Only if container for this data do not exist in the file.
     """
-    write_file = 1
 
-    # Define filter parameters
-    if filter=='default':
-        band_param_0 = bands.chang_lab['cfs']
-        band_param_1 = bands.chang_lab['sds']
-    elif filter=='high_gamma':
-        #band_param_0 = [ bands.neuro['min_freqs'][-1] ]  #for hamming window filter
-        #band_param_1 = [ bands.neuro['max_freqs'][-1] ]
-        #band_param_0 = bands.chang_lab['cfs'][29:37]      #for average of gaussian filters
-        #band_param_1 = bands.chang_lab['sds'][29:37]
-        band_param_0 = bands_vals[0,:]
-        band_param_1 = bands_vals[1,:]
-    elif filter=='custom':
-        band_param_0 = bands_vals[0,:]
-        band_param_1 = bands_vals[1,:]
-
-    subj_path, block_name = os.path.split(block_path)
-    block_name = os.path.splitext(block_path)[0]
-    start = time.time()
+    # Get filter parameters
+    band_param_0 = bands_vals[0,:]
+    band_param_1 = bands_vals[1,:]
 
     with NWBHDF5IO(block_path, 'r+') as io:
         nwb = io.read()
+        lfp = nwb.modules['ecephys'].data_interfaces['LFP'].electrical_series['preprocessed']
+        rate = lfp.rate
 
-        fs = nwb.acquisition['ECoG'].rate
-        if config['Downsample'] is not None:
-            rate = config['Downsample']
-        else: rate = fs
-
-        #X = nwb.acquisition['ECoG'].data[:].T * 1e6
-        nChannels = nwb.acquisition['ECoG'].data.shape[1]
-        for ch in np.arange(nChannels):     #One channel at a time, to improve memory usage for large files
-            Xch = nwb.acquisition['ECoG'].data[:,ch]*1e6  # 1e6 scaling helps with numerical accuracy
-            if config['Downsample'] is not None:  # Downsample
-                if not np.allclose(rate, fs):
-                    assert rate < fs
-                    Xch = resample(Xch, rate, fs)
-                if ch==0:
-                    X = Xch.reshape(1,-1)
-                else:
-                    X = np.append(X, Xch.reshape(1,-1), axis=0)
-
+        nBands = len(band_param_0)
+        nSamples = lfp.data.shape[0]
+        nChannels = lfp.data.shape[1]
+        Xp = np.zeros((nBands, nChannels, nSamples))  #power (nBands,nChannels,nSamples)
 
         # Apply Hilbert transform
-        X = X.astype('float32')   #signal (nChannels,nSamples)
-        nChannels = X.shape[0]
-        nSamples = X.shape[1]
-        nBands = len(band_param_0)
-        Xp = np.zeros((nBands, nChannels, nSamples))  #power (nBands,nChannels,nSamples)
+        X = lfp.data[:].T*1e6       # 1e6 scaling helps with numerical accuracy
+        X = X.astype('float32')     # signal (nChannels,nSamples)
         X_fft_h = None
         for ii, (bp0, bp1) in enumerate(zip(band_param_0, band_param_1)):
-            #if filter=='high_gamma':
-            #    kernel = hamming(X, rate, bp0, bp1)
-            #else:
             kernel = gaussian(X, rate, bp0, bp1)
             X_analytic, X_fft_h = hilbert_transform(X, rate, kernel, phase=None, X_fft_h=X_fft_h)
             Xp[ii] = abs(X_analytic).astype('float32')
 
-        # Scales signals back to Volt
-        X /= 1e6
         # data: (ndarray) dims: num_times * num_channels * num_bands
         Xp = np.swapaxes(Xp,0,2)
+        HG = np.nanmean(Xp, 2)   #average of bands 70~150 Hz
 
-        # Storage of processed signals on NWB file -----------------------------
-        try:      # if ecephys module already exists
+        hg = TimeSeries(name='high_gamma',
+                        data=HG,
+                        rate=rate,
+                        unit='V**2/Hz',
+                        description='')
+
+        # Storage of High Gamma on NWB file -----------------------------
+        if new_file=='':  #on current file
             ecephys_module = nwb.modules['ecephys']
-        except:   # creates ecephys ProcessingModule
-            ecephys_module = ProcessingModule(name='ecephys',
-                                              description='Extracellular electrophysiology data.')
-            # Add module to NWB file
-            nwb.add_processing_module(ecephys_module)
-
-
-        # LFP: Downsampled and power line signal removed
-        if 'LFP' in nwb.modules['ecephys'].data_interfaces:
-            lfp_ts = nwb.modules['ecephys'].data_interfaces['LFP'].electrical_series['preprocessed']
-            X = lfp_ts.data[:].T
-            rate = lfp_ts.rate
-
-        try:    # if LFP already exists
-            lfp = nwb.modules['ecephys'].data_interfaces['LFP']
-            lfp_ts = nwb.modules['ecephys'].data_interfaces['LFP'].electrical_series['preprocessed']
-        except: # creates LFP data interface container
-            lfp = LFP()
-            # Add preprocessed downsampled signals as an electrical_series
-            elecs_region = nwb.electrodes.create_region(name='electrodes',
-                                                        region=np.arange(nChannels).tolist(),
-                                                        description='')
-            lfp_ts = lfp.create_electrical_series(name='preprocessed',
-                                                  data=X.T,
-                                                  electrodes=elecs_region,
-                                                  rate=rate,
-                                                  description='')
-            ecephys_module.add_data_interface(lfp)
-
-
-        # Spectral band power
-        try:     # if decomposition already exists
-            dec = nwb.modules['ecephys'].data_interfaces['Bandpower_'+filter]
-            write_file = 0
-        except:  # creates DecompositionSeries
-            if filter=='high_gamma':    # High gamma bands averaged: 70~150 Hz
-                HG = np.nanmean(Xp, 2)   #average of bands 70~150 Hz
-                hg = TimeSeries(name='high_gamma',
-                                data=HG,
-                                rate=rate,
-                                unit='V**2/Hz',
-                                description='')
-                ecephys_module.add_data_interface(hg)
-            else:   #Default or custom sequence of bands
-                # bands: (DynamicTable) frequency bands that signal was decomposed into
-                band_param_0V = VectorData(name='filter_param_0',
-                                  description='frequencies for bandpass filters',
-                                  data=band_param_0)
-                band_param_1V = VectorData(name='filter_param_1',
-                                  description='frequencies for bandpass filters',
-                                  data=band_param_1)
-                bandsTable = DynamicTable(name='bands',
-                                          description='Series of filters used for Hilbert transform.',
-                                          columns=[band_param_0V,band_param_1V],
-                                          colnames=['filter_param_0','filter_param_1'])
-                decs = DecompositionSeries(name='Bandpower_'+filter,
-                                            data=Xp,
-                                            description='Band power estimated with Hilbert transform.',
-                                            metric='power',
-                                            unit='V**2/Hz',
-                                            bands=bandsTable,
-                                            rate=rate,
-                                            source_timeseries=lfp_ts)
-                ecephys_module.add_data_interface(decs)
-
-
-        if write_file==1: # if new fields are created
+            ecephys_module.add_data_interface(hg)
             io.write(nwb)
+            print('High Gamma power saved in '+block_path)
+        else:           #on new file
+            with NWBHDF5IO(new_file, 'r+') as io_new:
+                nwb_new = io_new.read()
+                # creates ecephys ProcessingModule
+                ecephys_module = ProcessingModule(name='ecephys',
+                                                  description='Extracellular electrophysiology data.')
+                # Add module to NWB file
+                nwb_new.add_processing_module(ecephys_module)
+                ecephys_module.add_data_interface(hg)
+                io_new.write(nwb_new)
+                print('High Gamma power saved in '+new_file)

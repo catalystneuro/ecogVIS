@@ -35,6 +35,8 @@ class Application(QMainWindow):
     keyPressed = QtCore.pyqtSignal(QtCore.QEvent)
     def __init__(self, filename, parent = None):
         super().__init__()
+        # Enable antialiasing for prettier plots
+        pg.setConfigOptions(antialias=True)
 
         self.centralwidget = QWidget()
         self.setCentralWidget(self.centralwidget)
@@ -52,7 +54,6 @@ class Application(QMainWindow):
 
         self.init_gui()
         self.show()
-        #self.showMaximized()
 
         # Run the main function
         parameters = {}
@@ -504,7 +505,7 @@ class Application(QMainWindow):
             annotationDel_ = False
 
         if self.active_mode != 'periodogram':
-            self.push4_0.setChecked(False)
+            self.push5_0.setChecked(False)
             periodogram_ = False
 
 
@@ -630,7 +631,7 @@ class Application(QMainWindow):
     # Select channel for Periodogram display -----------------------------------
     def PeriodogramSelect(self):
         global periodogram_
-        if self.push4_0.isChecked():  #if button is pressed down
+        if self.push5_0.isChecked():  #if button is pressed down
             self.active_mode = 'periodogram'
             self.reset_buttons()
             periodogram_ = True
@@ -643,25 +644,29 @@ class Application(QMainWindow):
         w = PreprocessingDialog(self)
         if w.value==1:       # If new data was created
             self.model.refresh_file()        # re-opens the file, now with new data
+            self.combo3.setCurrentIndex(self.combo3.findText('preprocessed'))
+            self.voltage_time_series()
 
     # One-click calculate High Gamma -------------------------------------------
     def CalcHighGamma(self):
         w = HighGammaDialog(self)
         if w.value==1:       # If new data was created
             self.model.refresh_file()        # re-opens the file, now with new data
+            self.combo3.setCurrentIndex(self.combo3.findText('preprocessed'))
+            self.voltage_time_series()
 
 
     ## Change Signals plot panel -----------------------------------------------
     def voltage_time_series(self):
         if self.combo3.currentText()=='raw':
-            self.push4_0.setEnabled(True)
+            self.push5_0.setEnabled(True)
             self.model.plot_panel = 'voltage_raw'
             self.model.plotData = self.model.ecog.data
             self.model.nBins = self.model.plotData.shape[0]     #total number of bins
             self.model.fs_signal = self.model.ecog.rate     #sampling frequency [Hz]
             self.model.tbin_signal = 1/self.model.fs_signal #time bin duration [seconds]
         elif self.combo3.currentText()=='preprocessed':
-            self.push4_0.setEnabled(True)
+            self.push5_0.setEnabled(True)
             try:   #if preprocessed signals already exist on NWB file
                 self.model.plotData = self.model.nwb.modules['ecephys'].data_interfaces['LFP'].electrical_series['preprocessed'].data
                 self.model.plot_panel = 'voltage_preprocessed'
@@ -673,6 +678,7 @@ class Application(QMainWindow):
                 self.model.tbin_signal = 1/self.model.fs_signal
             except:
                 self.combo3.setCurrentIndex(self.combo3.findText('raw'))
+                self.voltage_time_series()
                 NoPreprocessedDialog()
         elif self.combo3.currentText()=='high gamma':
             try:     #if decomposition already exists on NWB file
@@ -686,9 +692,10 @@ class Application(QMainWindow):
                 self.model.tbin_signal = 1/self.model.fs_signal
                 self.model.getCurAxisParameters()    #updates time points
                 self.model.refreshScreen()
-                self.push4_0.setEnabled(False)
+                self.push5_0.setEnabled(False)
             except:  #if not, opens warning dialog
                 self.combo3.setCurrentIndex(self.combo3.findText('raw'))
+                self.voltage_time_series()
                 NoHighGammaDialog()
         self.model.getCurAxisParameters()    #updates time points
         self.model.refreshScreen()

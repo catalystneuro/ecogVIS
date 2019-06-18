@@ -28,8 +28,8 @@ class ecogVIS:
         self.axesParams = parameters
         self.parent.setWindowTitle('ecogVIS - ' + self.fileName)
 
-        self.file = pynwb.NWBHDF5IO(self.fullpath,'r+')
-        self.nwb = self.file.read()      #reads NWB file
+        self.io = pynwb.NWBHDF5IO(self.fullpath,'r+')
+        self.nwb = self.io.read()      #reads NWB file
         self.ecog = self.nwb.acquisition['ECoG']              #ecog
         self.plotData = self.ecog.data
         # Get Brain regions present in current file
@@ -41,13 +41,14 @@ class ecogVIS:
         self.channels_mask_ind = np.where(self.channels_mask)[0]
 
         self.h = []
-        self.plot_panel = 'time_series'
         self.text = []
         self.AnnotationsList = []
         self.AnnotationsPosAV = np.array([])    #(x, y_va, y_off)
         self.unsaved_changes_annotation = False
         self.unsaved_changes_interval = False
 
+        self.fs_signal = self.ecog.rate     #sampling frequency [Hz]
+        self.tbin_signal = 1/self.fs_signal #time bin duration [seconds]
         self.nBins = self.ecog.data.shape[0]     #total number of bins
         self.nChTotal = self.ecog.data.shape[1]     #total number of channels
         self.allChannels = np.arange(0, self.nChTotal)  #array with all channels
@@ -56,9 +57,6 @@ class ecogVIS:
         self.lastCh = int(self.axesParams['editLine']['qLine0'].text())
         self.nChToShow = self.lastCh - self.firstCh + 1
         self.selectedChannels = np.arange(self.firstCh-1, self.lastCh)
-
-        self.fs_signal = self.ecog.rate     #sampling frequency [Hz]
-        self.tbin_signal = 1/self.fs_signal #time bin duration [seconds]
 
         self.current_rect = []
         self.badChannels = np.where( self.nwb.electrodes['bad'][:] )[0].tolist()
@@ -130,10 +128,15 @@ class ecogVIS:
 
     # Re-opens the file, for when new data is included
     def refresh_file(self):
-        self.file.close()   #closes current NWB file
-        self.file= pynwb.NWBHDF5IO(self.fullpath,'r+')
-        self.nwb = self.file.read()      #reads NWB file
-        self.ecog = self.nwb.acquisition['ECoG']                   #ecog
+        self.io.close()   #closes current NWB file
+        self.io = pynwb.NWBHDF5IO(self.fullpath,'r+')
+        self.nwb = self.io.read()      #reads NWB file
+        self.ecog = self.nwb.acquisition['ECoG']    #ecog
+        self.plotData = self.ecog.data
+        self.fs_signal = self.ecog.rate     #sampling frequency [Hz]
+        self.tbin_signal = 1/self.fs_signal #time bin duration [seconds]
+        self.nBins = self.ecog.data.shape[0]     #total number of bins
+        self.updateCurXAxisPosition()
 
 
     # Re-draws all plots
