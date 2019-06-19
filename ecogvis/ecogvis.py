@@ -398,6 +398,7 @@ class Application(QMainWindow):
         # Opens new file dialog
         filename, _ = QFileDialog.getOpenFileName(None, 'Open file', '', "(*.nwb)")
         if os.path.isfile(filename):
+            self.file = filename
             # Reset file specific variables on GUI
             self.combo3.setCurrentIndex(self.combo3.findText('raw'))
             self.combo4.clear()
@@ -410,7 +411,7 @@ class Application(QMainWindow):
                                       'qLine2': self.qline2, 'qLine3': self.qline3,
                                       'qLine4': self.qline4}
             # Rebuild the model
-            self.model = ecogVIS(self, filename, parameters)
+            self.model = ecogVIS(self, parameters)
 
 
     def save_file(self):
