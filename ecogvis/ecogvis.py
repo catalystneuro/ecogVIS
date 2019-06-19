@@ -16,7 +16,7 @@ from ecogvis.functions.subFunctions import ecogVIS
 from ecogvis.functions.subDialogs import (CustomIntervalDialog, SelectChannelsDialog,
     SpectralChoiceDialog, PeriodogramDialog, NoHighGammaDialog, NoPreprocessedDialog,
     NoTrialsDialog, ExitDialog, ERPDialog, HighGammaDialog, GroupPeriodogramDialog,
-    PreprocessingDialog)
+    PreprocessingDialog, NoRawDialog)
 
 
 intervalAdd_ = False
@@ -609,7 +609,7 @@ class Application(QMainWindow):
         self.reset_buttons()
         # Dialog to choose channels from specific brain regions
         w = SelectChannelsDialog(self.model.all_regions, self.model.regions_mask)
-        all_locs = self.model.ecog.electrodes.table['location'][:]
+        all_locs = self.model.nwb.electrodes['location'][:]
         self.model.channels_mask = np.zeros(len(all_locs))
         for loc in w.choices:
             self.model.channels_mask += all_locs==loc
@@ -659,39 +659,39 @@ class Application(QMainWindow):
     ## Change Signals plot panel -----------------------------------------------
     def voltage_time_series(self):
         if self.combo3.currentText()=='raw':
-            self.push5_0.setEnabled(True)
-            self.model.plot_panel = 'voltage_raw'
-            self.model.plotData = self.model.ecog.data
-            self.model.nBins = self.model.plotData.shape[0]     #total number of bins
-            self.model.fs_signal = self.model.ecog.rate     #sampling frequency [Hz]
-            self.model.tbin_signal = 1/self.model.fs_signal #time bin duration [seconds]
+            try:
+                self.model.source = self.model.nwb.acquisition['ECoG']
+                self.model.plot_panel = 'voltage_raw'
+                self.model.plotData = self.model.source.data
+                self.model.nBins = self.model.plotData.shape[0]     #total number of bins
+                self.model.fs_signal = self.model.source.rate     #sampling frequency [Hz]
+                self.model.tbin_signal = 1/self.model.fs_signal #time bin duration [seconds]
+                self.push5_0.setEnabled(True)
+            except:
+                self.combo3.setCurrentIndex(self.combo3.findText('high gamma'))
+                self.voltage_time_series()
+                NoRawDialog()
         elif self.combo3.currentText()=='preprocessed':
-            self.push5_0.setEnabled(True)
             try:   #if preprocessed signals already exist on NWB file
-                self.model.plotData = self.model.nwb.modules['ecephys'].data_interfaces['LFP'].electrical_series['preprocessed'].data
+                self.model.source = self.model.nwb.modules['ecephys'].data_interfaces['LFP'].electrical_series['preprocessed']
+                self.model.plotData = self.model.source.data
                 self.model.plot_panel = 'voltage_preprocessed'
-                #total number of bins
-                self.model.nBins = self.model.nwb.modules['ecephys'].data_interfaces['LFP'].electrical_series['preprocessed'].data.shape[0]
-                #sampling frequency [Hz]
-                self.model.fs_signal = self.model.nwb.modules['ecephys'].data_interfaces['LFP'].electrical_series['preprocessed'].rate
-                #time bin duration [seconds]
+                self.model.nBins = self.model.source.data.shape[0]
+                self.model.fs_signal = self.model.source.rate
                 self.model.tbin_signal = 1/self.model.fs_signal
+                self.push5_0.setEnabled(True)
             except:
                 self.combo3.setCurrentIndex(self.combo3.findText('raw'))
                 self.voltage_time_series()
                 NoPreprocessedDialog()
         elif self.combo3.currentText()=='high gamma':
             try:     #if decomposition already exists on NWB file
-                self.model.plotData = self.model.nwb.modules['ecephys'].data_interfaces['high_gamma'].data
+                self.model.source = self.model.nwb.modules['ecephys'].data_interfaces['high_gamma']
+                self.model.plotData = self.model.source.data
                 self.model.plot_panel = 'spectral_power'
-                #total number of bins
-                self.model.nBins = self.model.plotData.shape[0]
-                #sampling frequency [Hz]
-                self.model.fs_signal = self.model.nwb.modules['ecephys'].data_interfaces['high_gamma'].rate
-                #time bin duration [seconds]
+                self.model.nBins = self.model.source.data.shape[0]
+                self.model.fs_signal = self.model.source.rate
                 self.model.tbin_signal = 1/self.model.fs_signal
-                self.model.getCurAxisParameters()    #updates time points
-                self.model.refreshScreen()
                 self.push5_0.setEnabled(False)
             except:  #if not, opens warning dialog
                 self.combo3.setCurrentIndex(self.combo3.findText('raw'))

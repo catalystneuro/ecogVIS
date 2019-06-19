@@ -30,8 +30,33 @@ class ecogVIS:
 
         self.io = pynwb.NWBHDF5IO(self.fullpath,'r+')
         self.nwb = self.io.read()      #reads NWB file
-        self.ecog = self.nwb.acquisition['ECoG']              #ecog
-        self.plotData = self.ecog.data
+
+        if (len(self.nwb.acquisition)>0) and ('ECoG' in self.nwb.acquisition):
+            self.source = self.nwb.acquisition['ECoG']              #ecog
+            self.parent.combo3.setCurrentIndex(self.parent.combo3.findText('raw'))
+            self.parent.push5_0.setEnabled(True)
+            self.parent.push6_0.setEnabled(True)
+            self.parent.push7_0.setEnabled(True)
+        elif len(self.nwb.modules)>0:
+            if 'LFP' in self.nwb.modules['ecephys'].data_interfaces:
+                self.source = self.nwb.modules['ecephys'].data_interfaces['LFP'].electrical_series['preprocessed']
+                self.parent.combo3.setCurrentIndex(self.parent.combo3.findText('preprocessed'))
+                self.parent.push5_0.setEnabled(True)
+                self.parent.push6_0.setEnabled(False)
+                self.parent.push7_0.setEnabled(True)
+            elif 'high_gamma' in self.nwb.modules['ecephys'].data_interfaces:
+                self.source = self.nwb.modules['ecephys'].data_interfaces['high_gamma']
+                self.parent.combo3.setCurrentIndex(self.parent.combo3.findText('high gamma'))
+                self.parent.push5_0.setEnabled(False)
+                self.parent.push6_0.setEnabled(False)
+                self.parent.push7_0.setEnabled(False)
+        self.plotData = self.source.data
+        self.fs_signal = self.source.rate     #sampling frequency [Hz]
+        self.tbin_signal = 1/self.fs_signal #time bin duration [seconds]
+        self.nBins = self.source.data.shape[0]     #total number of bins
+        self.nChTotal = self.source.data.shape[1]     #total number of channels
+        self.allChannels = np.arange(0, self.nChTotal)  #array with all channels
+
         # Get Brain regions present in current file
         self.all_regions = list(set(self.nwb.electrodes['location'][:].tolist()))
         self.all_regions.sort()
@@ -47,11 +72,6 @@ class ecogVIS:
         self.unsaved_changes_annotation = False
         self.unsaved_changes_interval = False
 
-        self.fs_signal = self.ecog.rate     #sampling frequency [Hz]
-        self.tbin_signal = 1/self.fs_signal #time bin duration [seconds]
-        self.nBins = self.ecog.data.shape[0]     #total number of bins
-        self.nChTotal = self.ecog.data.shape[1]     #total number of channels
-        self.allChannels = np.arange(0, self.nChTotal)  #array with all channels
         # Channels to show
         self.firstCh = int(self.axesParams['editLine']['qLine1'].text())
         self.lastCh = int(self.axesParams['editLine']['qLine0'].text())
@@ -85,7 +105,7 @@ class ecogVIS:
             c = pg.QtGui.QGraphicsRectItem(start, -1, max(stop-start, 0.01), 2)
             self.IntRects1 = np.append(self.IntRects1, c)
             c.setPen(pg.mkPen(color = 'r'))
-            c.setBrush(QtGui.QColor(255, 0, 0, 250))
+            c.setBrush(QtGui.QColor(255, 0, 0, 120))
             a = self.axesParams['pars']['Figure'][1]
             a.addItem(c)
             # on signals plot
@@ -131,11 +151,17 @@ class ecogVIS:
         self.io.close()   #closes current NWB file
         self.io = pynwb.NWBHDF5IO(self.fullpath,'r+')
         self.nwb = self.io.read()      #reads NWB file
-        self.ecog = self.nwb.acquisition['ECoG']    #ecog
-        self.plotData = self.ecog.data
-        self.fs_signal = self.ecog.rate     #sampling frequency [Hz]
+        if (len(self.nwb.acquisition)>0) and ('ECoG' in self.nwb.acquisition):
+            self.source = self.nwb.acquisition['ECoG']              #ecog
+        elif len(self.nwb.modules)>0:
+            if 'LFP' in self.nwb.modules['ecephys'].data_interfaces:
+                self.source = self.nwb.modules['ecephys'].data_interfaces['LFP'].electrical_series['preprocessed']
+            elif 'high_gamma' in self.model.nwb.modules['ecephys'].data_interfaces:
+                self.source = self.model.nwb.modules['ecephys'].data_interfaces['high_gamma']
+        self.plotData = self.source.data
+        self.fs_signal = self.source.rate     #sampling frequency [Hz]
         self.tbin_signal = 1/self.fs_signal #time bin duration [seconds]
-        self.nBins = self.ecog.data.shape[0]     #total number of bins
+        self.nBins = self.source.data.shape[0]     #total number of bins
         self.updateCurXAxisPosition()
 
 
@@ -569,9 +595,9 @@ class ecogVIS:
         x = interval[0]
         w = np.diff(np.array(interval))[0]
         # add rectangle to upper plot
-        c = pg.QtGui.QGraphicsRectItem(x, 0, w, 1)
+        c = pg.QtGui.QGraphicsRectItem(x, -1, w, 2)
         c.setPen(pg.mkPen(color=QtGui.QColor(bc[0], bc[1], bc[2], 255)))
-        c.setBrush(QtGui.QColor(bc[0], bc[1], bc[2], 255))
+        c.setBrush(QtGui.QColor(bc[0], bc[1], bc[2], bc[3]))
         self.IntRects1 = np.append(self.IntRects1, [c])
         # add rectangle to middle signal plot
         c = pg.QtGui.QGraphicsRectItem(x, -1, w, 2)

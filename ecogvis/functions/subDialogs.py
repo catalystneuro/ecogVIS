@@ -74,6 +74,24 @@ class NoPreprocessedDialog(QtGui.QDialog):
         self.accept()
 
 
+# Warning of no Raw data in the NWB file --------------------------------
+class NoRawDialog(QtGui.QDialog):
+    def __init__(self):
+        super().__init__()
+        self.text = QLabel("There is no raw data in the current NWB file.")
+        self.okButton = QtGui.QPushButton("OK")
+        self.okButton.clicked.connect(self.onAccepted)
+        vbox = QtGui.QVBoxLayout()
+        vbox.addWidget(self.text)
+        vbox.addWidget(self.okButton)
+        self.setLayout(vbox)
+        self.setWindowTitle('No raw data')
+        self.exec_()
+
+    def onAccepted(self):
+        self.accept()
+
+
 # Warning of no Trials data in the NWB file ------------------------------------
 class NoTrialsDialog(QtGui.QDialog):
     def __init__(self):
