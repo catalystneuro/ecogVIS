@@ -737,6 +737,7 @@ class ERPDialog(QtGui.QDialog):
         self.nCols = 16
         self.alignment = 'start_time'
         self.grid_order = np.arange(256)
+        self.transparent = []
         self.Y_start_mean = {}
         self.Y_start_sem = {}
         self.Y_stop_mean = {}
@@ -953,6 +954,10 @@ class ERPDialog(QtGui.QDialog):
         ymin, ymax = 0, 0
         ystd = 0
         for ind, ch in enumerate(self.grid_order):
+            if ch in self.transparent: #if it should be made transparent
+                elem_alpha = 10
+            else:
+                elem_alpha = 255
             Y_mean, Y_sem, X = self.get_erp(ch=ch)
             dc = np.mean(Y_mean)
             Y_mean -= dc
@@ -972,13 +977,13 @@ class ERPDialog(QtGui.QDialog):
             loc = 'ctx-lh-'+self.parent.model.nwb.electrodes['location'][ch]
             vb = p.getViewBox()
             color = tuple(cmap[loc])
-            vb.setBackgroundColor((*color,70))  # append alpha to color tuple
+            vb.setBackgroundColor((*color,min(elem_alpha,70)))  # append alpha to color tuple
             #vb.border = pg.mkPen(color = 'w')
             #Main plots
-            mean = p.plot(x=X, y=Y_mean, pen=(60,60,60))
-            semp = p.plot(x=X, y=Y_mean+Y_sem, pen=pg.mkPen((100,100,100,100), width=.1))
-            semm = p.plot(x=X, y=Y_mean-Y_sem, pen=pg.mkPen((100,100,100,100), width=.1))
-            fill = pg.FillBetweenItem(semm, semp, pg.mkBrush(100,100,100,100))
+            mean = p.plot(x=X, y=Y_mean, pen=pg.mkPen((50,50,50,min(elem_alpha,255)), width=1.))
+            semp = p.plot(x=X, y=Y_mean+Y_sem, pen=pg.mkPen((100,100,100,min(elem_alpha,100)), width=.1))
+            semm = p.plot(x=X, y=Y_mean-Y_sem, pen=pg.mkPen((100,100,100,min(elem_alpha,100)), width=.1))
+            fill = pg.FillBetweenItem(semm, semp, pg.mkBrush(100,100,100,min(elem_alpha,100)))
             p.addItem(fill)
             p.hideButtons()
             p.setXRange(X[0], X[-1])
@@ -986,8 +991,8 @@ class ERPDialog(QtGui.QDialog):
             p.setYRange(-yrng, yrng)
             xref = [X[int(len(X)/2)], X[int(len(X)/2)]]
             yref = [-1000, 1000]
-            p.plot(x=xref, y=yref, pen=(0,0,0))    #reference mark
-            p.plot(x=X, y=np.zeros(len(X)), pen=(0,0,0))  #Zero line
+            p.plot(x=xref, y=yref, pen=(0,0,0,min(elem_alpha,255)))    #reference mark
+            p.plot(x=X, y=np.zeros(len(X)), pen=(0,0,0,min(elem_alpha,255)))  #Zero line
             #Axis control
             left = p.getAxis('left')
             left.setStyle(showValues=False)
@@ -1002,6 +1007,13 @@ class ERPDialog(QtGui.QDialog):
     def channel_select(self):
         # Dialog to choose channels from specific brain regions
         w = SelectChannelsDialog(self.parent.model.all_regions, self.parent.model.regions_mask)
+        self.transparent = []
+        for ind, ch in enumerate(self.grid_order):
+            loc = self.parent.model.nwb.electrodes['location'][ch]
+            if loc not in w.choices:
+                self.transparent.append(ch)
+        self.draw_erp()
+
 
 
 
