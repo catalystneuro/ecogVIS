@@ -9,19 +9,12 @@ $ conda env create -f ecogVIS/make_env.yml
 $ source activate ecog_vis
 ```
 
-Alternatively, to install **ecogvis** directly in an existing environment:
+Alternatively, to install **ecogVIS** directly in an existing environment:
 ```
 $ pip install git+https://github.com/bendichter/ecogVIS.git
 ```
 
-After activating the correct environment, there are two ways of starting the application. You can do it from the command line prompt:
-```
-$ cd ~/path_to/ecogVIS
-$ python ecogvis.py                       <--- if left undefined, you'll be prompted to choose a file 
-$ python ecogvis.py '/path_to/file.nwb'   <--- you can include the file path directly, as a string
-```
-
-You can also import ecog_vis and run it from a python instance. If the file does not exist (or if you provide an empty string ''), you'll be prompted to choose a file from a dialog.
+After activating the correct environment, **ecogVIS** can be imported and run from python. If the file does not exist (or if you provide an empty string ''), you'll be prompted to choose a file from a dialog.
 ```python
 from ecogvis.ecogvis import main
 import os
@@ -31,10 +24,15 @@ main(fpath)
 ```
 
 ## Features
-**ecogVIS** makes it intuitive and simple to viualize ECoG signals. It currently features:
+**ecogVIS** makes it intuitive and simple to viualize and process ECoG signals. It currently features:
+- Seamless visual navigation through long signals from large arrays of electrodes 
 - Select electrodes from specific brain areas
-- Annotation tool
-- Intervals marking
+- Signal preprocessing: resampling and filtering
+- Spectral Decomposition
+- High Gamma power estimation
+- Annotations and Intervals creation tool
+- Event-Related Potential analysis
+- Periodogram analysis
 
 ![screenshot1](media/screenshot_1.png)
 
