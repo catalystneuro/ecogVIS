@@ -520,12 +520,14 @@ class PreprocessingDialog(QtGui.QDialog, Ui_Preprocessing):
     def __init__(self, parent):
         super().__init__()
         self.setupUi(self)
+        self.value = -1
 
         self.checkBox_1.setChecked(True)
         self.checkBox_2.setChecked(True)
         self.checkBox_3.setChecked(True)
-        self.lineEdit_1.setText('60')
-        self.lineEdit_2.setText('400')
+        self.lineEdit_1.setText('16')
+        self.lineEdit_2.setText('60')
+        self.lineEdit_3.setText('400')
         self.pushButton_1.clicked.connect(lambda: self.out_close(-1))
         self.pushButton_2.clicked.connect(self.ok)
         self.fname = parent.model.fileName
@@ -534,24 +536,39 @@ class PreprocessingDialog(QtGui.QDialog, Ui_Preprocessing):
         if 'ecephys' in parent.model.nwb.modules:
             if 'LFP' in parent.model.nwb.modules['ecephys'].data_interfaces:
                 self.disable_all()
+                aux = parent.model.nwb.modules['ecephys'].data_interfaces['LFP'].electrical_series['preprocessed']
+                car, notch, downs = aux.comments.split(',')
+                _, car = car.split(':')
+                _, notch = notch.split(':')
+                _, downs = downs.split(':')
+                if car=='None':
+                    self.checkBox_1.setChecked(False)
+                self.lineEdit_1.setText(car)
+                if notch=='None':
+                    self.checkBox_2.setChecked(False)
+                self.lineEdit_2.setText(notch)
+                if downs=='No':
+                    self.checkBox_3.setChecked(False)
+                self.lineEdit_3.setText(str(aux.rate))
                 self.pushButton_1.setEnabled(True)
-                self.label_2.setText('Preprocessed data already exists in file.')
+                self.label_2.setText('Preprocessed data already exists in file,'\
+                                     ' with the parameters shown above.')
 
         self.setWindowTitle('Preprocessing ')
         self.exec_()
 
     def ok(self):
         self.disable_all()
-        self.label_2.setText('Preprocessing ECoG signals. Please wait...')
+        self.label_2.setText('Preprocessing ECoG signals.\nPlease wait...')
         config = {}
         if self.checkBox_1.isChecked():
-            config['CAR'] = True
-        else: config['CAR'] = False
+            config['CAR'] = int(self.lineEdit_1.text())
+        else: config['CAR'] = None
         if self.checkBox_2.isChecked():
-            config['Notch'] = float(self.lineEdit_1.text())
+            config['Notch'] = float(self.lineEdit_2.text())
         else: config['Notch'] = None
         if self.checkBox_3.isChecked():
-            config['Downsample'] = float(self.lineEdit_2.text())
+            config['Downsample'] = float(self.lineEdit_3.text())
         else: config['Downsample'] = None
         subj, aux = self.fname.split('_')
         block = [ aux.split('.')[0][1:] ]
@@ -572,6 +589,7 @@ class PreprocessingDialog(QtGui.QDialog, Ui_Preprocessing):
         self.checkBox_3.setEnabled(False)
         self.lineEdit_1.setEnabled(False)
         self.lineEdit_2.setEnabled(False)
+        self.lineEdit_3.setEnabled(False)
         self.pushButton_1.setEnabled(False)
         self.pushButton_2.setEnabled(False)
 

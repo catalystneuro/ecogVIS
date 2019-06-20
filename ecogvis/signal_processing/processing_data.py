@@ -119,7 +119,7 @@ def preprocess_raw_data(block_path, config):
     block_path : str
         subject file path
     config : dictionary
-        'CAR' - boolean, whether to run CAR or not (default=True)
+        'CAR' - Number of channels to use in CAR (default=16)
         'Notch' - Main frequency (Hz) for notch filters (default=60)
         'Downsample' - Downsampling frequency (Hz, default= 400)
 
@@ -168,12 +168,14 @@ def preprocess_raw_data(block_path, config):
                         X = Xch.reshape(1,-1)
                     else:
                         X = np.append(X, Xch.reshape(1,-1), axis=0)
+                else:  # No downsample
+                    X = nwb.acquisition['ECoG'].data[:,:].T*1e6
 
             # Subtract CAR
-            if config['CAR']:
-                print("Computing and subtracting Common Average Reference in 16 channel blocks.")
+            if config['CAR'] is not None:
+                print("Computing and subtracting Common Average Reference in "+str(config['CAR'])+" channel blocks.")
                 start = time.time()
-                X = subtract_CAR(X)
+                X = subtract_CAR(X, b_size=config['CAR'])
                 print('CAR subtract time for {}: {} seconds'.format(block_name,
                                                                     time.time()-start))
 
@@ -192,11 +194,22 @@ def preprocess_raw_data(block_path, config):
             elecs_region = nwb.electrodes.create_region(name='electrodes',
                                                         region=np.arange(nChannels).tolist(),
                                                         description='')
+            if config['CAR'] is None:
+                car = 'None'
+            else: car = str(config['CAR'])
+            if config['Notch'] is None:
+                notch = 'None'
+            else: notch = str(config['Notch'])
+            if config['Downsample'] is None:
+                downs = 'No'
+            else: downs = 'Yes'
+            config_comment = 'CAR:'+car+', Notch:'+notch+', Downsampled:'+downs
             lfp_ts = lfp.create_electrical_series(name='preprocessed',
                                                   data=X.T,
                                                   electrodes=elecs_region,
                                                   rate=rate,
-                                                  description='')
+                                                  description='',
+                                                  comments=config_comment)
             ecephys_module.add_data_interface(lfp)
 
             # Write LFP to NWB file

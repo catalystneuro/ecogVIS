@@ -195,6 +195,9 @@ class ecogVIS:
         except:  #if time segment shorter than window.
             data = self.plotData[:, self.selectedChannels-1].T
             means = np.reshape(np.mean(data, 1),(-1,1))  #to align each trace around its reference trace
+            print(data.shape)
+            print(scaleV.shape)
+            print(means.shape)
             plotData = data + np.tile(scaleV-means, (1, endSamp - startSamp + 1)) # data + offset
 
 
