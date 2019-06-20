@@ -813,7 +813,7 @@ class ERPDialog(QtGui.QDialog):
         grid0.setAlignment(QtCore.Qt.AlignTop)
 
         panel0 = QGroupBox('Controls:')
-        panel0.setFixedWidth(120)
+        panel0.setFixedWidth(180)
         panel0.setLayout(grid0)
 
         self.leftbox = QVBoxLayout()
