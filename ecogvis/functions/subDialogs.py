@@ -999,7 +999,6 @@ class ERPDialog(QtGui.QDialog):
         self.Yscale['global max'] = [ymin, ymax]
         self.Yscale['global std'] = [-ystd, ystd]
 
-    ## Channel functions -------------------------------------------------------
     def channel_select(self):
         # Dialog to choose channels from specific brain regions
         w = SelectChannelsDialog(self.parent.model.all_regions, self.parent.model.regions_mask)
@@ -1020,11 +1019,6 @@ class CustomViewBox(pg.ViewBox):
         self.ch = ch
 
     def mouseDoubleClickEvent(self, ev):
-        #row = np.floor(self.ind/self.parent.nCols)
-        #col = self.ind%self.parent.nCols
-        #p = self.parent.win.getItem(row=row, col=col)
-        #vb = p.getViewBox()
-        #vb.border = pg.mkPen(color = 'k')
         IndividualERPDialog(self)
 
 
@@ -1148,3 +1142,166 @@ class IndividualERPDialog(QtGui.QDialog):
         bottom = p.getAxis('bottom')
         bottom.setStyle(showValues=False)
         bottom.setTicks([])
+
+
+
+# Creates Periodogram Grid dialog ---------------------------------------
+class PeriodogramGridDialog(QtGui.QDialog):
+    def __init__(self, parent):
+        super().__init__()
+
+        self.parent = parent
+        self.nCols = 16
+        self.grid_order = np.arange(256)
+        self.Y = {}
+        self.X = []
+
+        #Left panel
+        self.push0_0 = QPushButton('Calc Periodogram')
+        self.push0_0.clicked.connect(self.draw_grid)
+        self.push3_0 = QPushButton('Channels')
+        self.push3_0.clicked.connect(self.channel_select)
+        self.push4_0 = QPushButton('Save image')
+        self.push4_0.clicked.connect(self.save_image)
+        label4 = QLabel('Rotate grid:')
+        self.push5_0 = QPushButton('90°')
+        self.push5_0.clicked.connect(lambda: self.rearrange_grid(90))
+        self.push5_1 = QPushButton('-90°')
+        self.push5_1.clicked.connect(lambda: self.rearrange_grid(-90))
+        self.push5_2 = QPushButton('T')
+        self.push5_2.clicked.connect(lambda: self.rearrange_grid('T'))
+
+        self.push4_0.setEnabled(False)
+        self.push5_0.setEnabled(False)
+        self.push5_1.setEnabled(False)
+        self.push5_2.setEnabled(False)
+
+        grid0 = QGridLayout()
+        grid0.addWidget(self.push3_0, 10, 0, 1, 6)
+        grid0.addWidget(self.push4_0, 11, 0, 1, 6)
+        grid0.addWidget(QHLine(), 12, 0, 1, 6)
+        grid0.addWidget(label4, 13, 0, 1, 6)
+        grid0.addWidget(self.push5_0, 14, 0, 1, 2)
+        grid0.addWidget(self.push5_1, 14, 2, 1, 2)
+        grid0.addWidget(self.push5_2, 14, 4, 1, 2)
+        grid0.setAlignment(QtCore.Qt.AlignTop)
+
+        panel0 = QGroupBox('Controls:')
+        panel0.setFixedWidth(120)
+        panel0.setLayout(grid0)
+
+        self.leftbox = QVBoxLayout()
+        self.leftbox.addWidget(self.push0_0)
+        self.leftbox.addWidget(panel0)
+
+        # Right panel
+        self.win = pg.GraphicsLayoutWidget()
+        self.win.resize(1020,1020)
+        #self.win.setBackground('w')
+        background_color = self.palette().color(QtGui.QPalette.Background)
+        self.win.setBackground(background_color)
+        for j in range(16):
+            self.win.ci.layout.setRowFixedHeight(j, 60)
+            self.win.ci.layout.setColumnFixedWidth(j, 60)
+            self.win.ci.layout.setColumnSpacing(j, 3)
+            self.win.ci.layout.setRowSpacing(j, 3)
+        #Scroll Area Properties
+        scroll = QScrollArea()
+        scroll.setVerticalScrollBarPolicy(QtCore.Qt.ScrollBarAsNeeded)
+        scroll.setHorizontalScrollBarPolicy(QtCore.Qt.ScrollBarAsNeeded)
+        scroll.setWidgetResizable(False)
+        scroll.setWidget(self.win)
+
+        self.hbox = QHBoxLayout()
+        self.hbox.addLayout(self.leftbox)
+        self.hbox.addWidget(scroll)
+        self.setLayout(self.hbox)
+        self.setWindowTitle('Periodograms')
+        self.resize(1200,600)
+        self.exec_()
+
+    def rearrange_grid(self, angle):
+        grid = self.grid_order.reshape(16,16)  #re-arranges as 2D array
+        if angle == 90:     #90 degrees clockwise
+            grid = np.rot90(grid, axes=(1,0))
+        elif angle == -90:  #90 degrees counterclockwise
+            grid = np.rot90(grid, axes=(0,1))
+        else:       #transpose
+            grid = grid.T
+        self.grid_order = grid.flatten()    #re-arranges as 1D array
+        self.draw_periodogram()
+
+    def save_image(self):
+        #pgexp.ImageExporter(self.win.ci)
+        #print(self.win)
+        #print(self.win.sceneObj)
+        #self.win.sceneObj.showExportDialog()
+        return
+
+    def get_periodogram(self, ch):
+        if str(ch) in self.Y:   #If it was calculated already
+            return self.Y[str(ch)], self.X
+        else:                              #If it isn't calculated yet
+            Y, X = self.calc_periodogram(ch=ch)
+            self.Y[str(ch)] = Y
+            self.X = X
+            return self.Y[str(ch)], self.X
+
+    def calc_periodogram(self, ch):
+        nBins = int(self.parent.model.source.data.shape[0]/3)
+        trace = self.parent.model.source.data[0:1000, ch]
+        fs = self.parent.model.fs_signal
+        dF = 0.1       #Frequency bin size
+        nfft = fs/dF   #dF = fs/nfft
+        print('calc '+str(ch))
+        print(sum(np.isnan(trace)))
+        print(trace.shape)
+        X, Y = signal.periodogram(trace, fs=fs, nfft=nfft)
+        return Y, X
+
+    def draw_grid(self):
+        self.push3_0.setEnabled(True)
+        self.push4_0.setEnabled(True)
+        self.push5_0.setEnabled(True)
+        self.push5_1.setEnabled(True)
+        self.push5_2.setEnabled(True)
+        cmap = get_lut()
+        ymin, ymax = 0, 0
+        ystd = 0
+        for ind, ch in enumerate(self.grid_order):
+            Y, X = self.get_periodogram(ch=ch)
+            ymax = max(max(Y), ymax)
+            ymin = min(min(Y), ymin)
+            ystd = max(np.std(Y), ystd)
+            row = np.floor(ind/self.nCols)
+            col = ind%self.nCols
+            p = self.win.getItem(row=row, col=col)
+            if p == None:
+                vb = CustomViewBox(self, ch)
+                p = self.win.addPlot(row=row, col=col, viewBox = vb)
+            p.clear()
+            p.setMouseEnabled(x=False, y=False)
+            p.setToolTip('Ch '+str(ch+1)+'\n'+str(self.parent.model.nwb.electrodes['location'][ch]))
+            #Background
+            loc = 'ctx-lh-'+self.parent.model.nwb.electrodes['location'][ch]
+            vb = p.getViewBox()
+            color = tuple(cmap[loc])
+            vb.setBackgroundColor((*color,70))  # append alpha to color tuple
+            #vb.border = pg.mkPen(color = 'w')
+            #Main plots
+            psd = p.plot(x=X, y=Y, pen=pg.mkPen((60,60,60,255), width=1))
+            p.hideButtons()
+            p.setXRange(0, 200)
+            yrng = max(abs(Y))
+            p.setYRange(0, yrng)
+            #Axis control
+            left = p.getAxis('left')
+            left.setStyle(showValues=False)
+            left.setTicks([])
+            bottom = p.getAxis('bottom')
+            bottom.setStyle(showValues=False)
+            bottom.setTicks([])
+
+    def channel_select(self):
+        # Dialog to choose channels from specific brain regions
+        w = SelectChannelsDialog(self.parent.model.all_regions, self.parent.model.regions_mask)

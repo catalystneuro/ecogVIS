@@ -247,7 +247,7 @@ class ecogVIS:
         nrows, ncols = np.shape(plotData)
         for i in range(nrows):
             if self.selectedChannels[i] in self.badChannels:
-                plt2.plot(timebaseGuiUnits, plotData[i], pen=pg.mkPen((200,0,0,100), width=.8))
+                plt2.plot(timebaseGuiUnits, plotData[i], pen=pg.mkPen((220,0,0), width=1.2))
             else:
                 c = pg.mkPen((0,120,0), width=1.2)
                 if i%2 == 0:

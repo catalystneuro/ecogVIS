@@ -14,7 +14,7 @@ import pyqtgraph as pg
 from pyqtgraph.widgets.MatplotlibWidget import MatplotlibWidget
 from ecogvis.functions.subFunctions import ecogVIS
 from ecogvis.functions.subDialogs import (CustomIntervalDialog, SelectChannelsDialog,
-    SpectralChoiceDialog, PeriodogramDialog, NoHighGammaDialog, NoPreprocessedDialog,
+    SpectralChoiceDialog, PeriodogramGridDialog, NoHighGammaDialog, NoPreprocessedDialog,
     NoTrialsDialog, ExitDialog, ERPDialog, HighGammaDialog, GroupPeriodogramDialog,
     PreprocessingDialog, NoRawDialog)
 
@@ -431,24 +431,40 @@ class Application(QMainWindow):
 
     def add_badchannel(self):
         # opens dialog for user input
-        text = 'Channel number: \n(e.g.: 3, 8, 12)'
+        text = 'Channel number: \n(e.g.: 3, 5, 8-12)'
         uinp, ok = QInputDialog.getText(None, 'Add as bad channel', text)
         if ok:
-            ch_str = uinp.split(',')
+            uinp = uinp.replace(' ','')  #removes blank spaces
+            ch_str = uinp.split(',')     #splits csv
             try:
-                ch_list = [int(ch)-1 for ch in ch_str]  #list of integers
+                ch_list = []
+                for elem in ch_str:
+                    if '-' in elem:   #if given a range e.g. 7-12
+                        elem_lims = elem.split('-')
+                        seq = range(int(elem_lims[0])-1,int(elem_lims[1]))
+                        ch_list.extend(seq)
+                    else:             #if given a single value
+                        ch_list.append(int(elem)-1)
                 self.model.BadChannelAdd(ch_list=ch_list)
             except Exception as ex:
                 print(str(ex))
 
     def del_badchannel(self):
         # opens dialog for user input
-        text = 'Channel number: \n(e.g.: 3, 8, 12)'
+        text = 'Channel number: \n(e.g.: 3, 5, 8-12)'
         uinp, ok = QInputDialog.getText(None, 'Delete bad channel', text)
         if ok:
-            ch_str = uinp.split(',')
+            uinp = uinp.replace(' ','')  #removes blank spaces
+            ch_str = uinp.split(',')     #splits csv
             try:
-                ch_list = [int(ch)-1 for ch in ch_str]  #list of integers
+                ch_list = []
+                for elem in ch_str:
+                    if '-' in elem:   #if given a range e.g. 7-12
+                        elem_lims = elem.split('-')
+                        seq = range(int(elem_lims[0])-1,int(elem_lims[1]))
+                        ch_list.extend(seq)
+                    else:             #if given a single value
+                        ch_list.append(int(elem)-1)
                 self.model.BadChannelDel(ch_list=ch_list)
             except Exception as ex:
                 print(str(ex))
@@ -631,14 +647,15 @@ class Application(QMainWindow):
 
     # Select channel for Periodogram display -----------------------------------
     def PeriodogramSelect(self):
-        global periodogram_
-        if self.push5_0.isChecked():  #if button is pressed down
-            self.active_mode = 'periodogram'
-            self.reset_buttons()
-            periodogram_ = True
-        else:
-            self.active_mode = 'default'
-            self.reset_buttons()
+        w = PeriodogramGridDialog(self)
+        #global periodogram_
+        #if self.push5_0.isChecked():  #if button is pressed down
+    #        self.active_mode = 'periodogram'
+    #        self.reset_buttons()
+    #        periodogram_ = True
+    #    else:
+    #        self.active_mode = 'default'
+    #        self.reset_buttons()
 
     # One-click Preprocessing of raw signals -----------------------------------
     def Preprocess(self):
@@ -806,15 +823,15 @@ class CustomViewBox(pg.ViewBox):
             except Exception as ex:
                 print(str(ex))
 
-        if periodogram_:
-            mousePoint = self.mapSceneToView(ev.scenePos())
-            x = mousePoint.x()
-            y = mousePoint.y()
-            try:
-                PeriodogramDialog(model=self.parent.model, x=x, y=y)
-                #GroupPeriodogramDialog(model=self.parent.model, x=x, y=y)
-            except Exception as ex:
-                print(str(ex))
+        #if periodogram_:
+        #    mousePoint = self.mapSceneToView(ev.scenePos())
+        #    x = mousePoint.x()
+        #    y = mousePoint.y()
+        #    try:
+        #        PeriodogramDialog(model=self.parent.model, x=x, y=y)
+        #        #GroupPeriodogramDialog(model=self.parent.model, x=x, y=y)
+        #    except Exception as ex:
+        #        print(str(ex))
 
 
     def mouseDragEvent(self, ev):
