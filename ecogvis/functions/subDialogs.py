@@ -408,7 +408,10 @@ class HighGammaDialog(QtGui.QDialog, Ui_HighGamma):
             self.new_fname = ''
             self.check_hg_exists()
         elif flag==1:  #save in new NWB file
-            filename, _ = QFileDialog.getSaveFileName(self, 'New file', self.fpath, "(*.nwb)")
+            part0, part1 = self.fname.split('.')
+            default_path_name = os.path.join(self.fpath,part0+'_hg.'+part1)
+            filename, _ = QFileDialog.getSaveFileName(self, 'New file',
+                default_path_name, "(*.nwb)")
             self.lineEdit.setEnabled(True)
             self.lineEdit.setText(filename)
             self.new_fname = filename
@@ -443,8 +446,8 @@ class HighGammaDialog(QtGui.QDialog, Ui_HighGamma):
         self.runButton.setEnabled(True)
         # Populate table with values
         self.tableWidget.setHorizontalHeaderLabels(['center [Hz]','sigma [Hz]'])
-        p0 = default_bands.chang_lab['cfs'][29:37]
-        p1 = default_bands.chang_lab['sds'][29:37]
+        p0 = default_bands.chang_lab['cfs'][29:]
+        p1 = default_bands.chang_lab['sds'][29:]
         self.tableWidget.setRowCount(len(p0))
         for i in np.arange(len(p0)):
             self.tableWidget.setItem(i, 0, QTableWidgetItem(str(round(p0[i],1))))
@@ -461,8 +464,8 @@ class HighGammaDialog(QtGui.QDialog, Ui_HighGamma):
         self.runButton.setEnabled(True)
         # Populate table with values
         self.tableWidget.setHorizontalHeaderLabels(['center [Hz]','sigma [Hz]'])
-        p0 = default_bands.chang_lab['cfs'][29:37]
-        p1 = default_bands.chang_lab['sds'][29:37]
+        p0 = default_bands.chang_lab['cfs'][29:]
+        p1 = default_bands.chang_lab['sds'][29:]
         self.tableWidget.setRowCount(len(p0))
         for i in np.arange(len(p0)):
             self.tableWidget.setItem(i, 0, QTableWidgetItem(str(round(p0[i],1))))
@@ -973,7 +976,7 @@ class ERPDialog(QtGui.QDialog):
         ystd = 0
         for ind, ch in enumerate(self.grid_order):
             if ch in self.transparent: #if it should be made transparent
-                elem_alpha = 10
+                elem_alpha = 30
             else:
                 elem_alpha = 255
             Y_mean, Y_sem, X = self.get_erp(ch=ch)
