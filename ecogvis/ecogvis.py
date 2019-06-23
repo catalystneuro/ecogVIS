@@ -3,6 +3,7 @@ import sys
 import os
 import time
 import numpy as np
+import datetime
 
 from PyQt5 import QtCore, QtGui, Qt
 from PyQt5.QtCore import QCoreApplication
@@ -23,7 +24,7 @@ intervalAdd_ = False
 intervalDel_ = False
 intervalType_ = 'invalid'
 intervalsDict_ = {'invalid':{'type':'invalid',
-                             'user':'',
+                             'session':'',
                              'color':'red',
                              'counts':0}}
 annotationAdd_ = False
@@ -54,6 +55,14 @@ class Application(QMainWindow):
 
         self.init_gui()
         self.show()
+
+        # opens dialog for session name
+        text = 'Enter session name:\n(e.g. your_name)'
+        uinp, ok = QInputDialog.getText(None, 'Choose session', text)
+        if ok:
+            self.current_session = uinp
+        else:
+            self.current_session = 'default'
 
         # Run the main function
         parameters = {}
@@ -112,6 +121,9 @@ class Application(QMainWindow):
         # File menu
         fileMenu = mainMenu.addMenu('File')
         # Adding actions to file menu
+        change_session_file = QAction('Change Session', self)
+        fileMenu.addAction(change_session_file)
+        change_session_file.triggered.connect(self.change_session)
         action_open_file = QAction('Open Another File', self)
         fileMenu.addAction(action_open_file)
         action_open_file.triggered.connect(self.open_another_file)
@@ -417,6 +429,16 @@ class Application(QMainWindow):
     def save_file(self):
         print('Save file to NWB - to be implemented')
 
+    def change_session(self):
+        # opens dialog for user input
+        text = 'Current session is: '+self.current_session+'\nEnter new session name:'
+        uinp, ok = QInputDialog.getText(None, 'Change session', text)
+        if ok:
+            self.current_session = uinp
+            fname = os.path.split(os.path.abspath(self.file))[1] #file
+            self.setWindowTitle('ecogVIS - '+fname+' - '+self.current_session)
+
+
     def load_annotations(self):
         # opens annotations file dialog, calls function to paint them
         fname, aux = QFileDialog.getOpenFileName(self, 'Open file', '', "(*.csv)")
@@ -571,14 +593,14 @@ class Application(QMainWindow):
         item = str(self.combo2.currentText())
         if item == 'add custom':
             w = CustomIntervalDialog()
-            int_type, user_name, color = w.getResults()
+            int_type, color = w.getResults()
             if len(int_type)>0:    # If user chose a valid name for the new interval type
                 curr_ind = self.combo2.currentIndex()
                 self.combo2.setItemText(curr_ind, int_type)
                 self.combo2.addItem('add custom')
                 intervalType_ = int_type
                 intervalsDict_[intervalType_] = {'type':intervalType_,
-                                                 'user':user_name,
+                                                 'session':self.current_session,
                                                  'color':color,
                                                  'counts':0}
                 self.combo2.setCurrentIndex(curr_ind)
@@ -858,9 +880,9 @@ class CustomViewBox(pg.ViewBox):
                         else:               #marking from left to right
                             interval = [round(self.pos1, 3), round(self.pos2, 3)]
                         color = intervalsDict_[intervalType_]['color']
-                        user = intervalsDict_[intervalType_]['user']
+                        session = self.parent.current_session
                         intervalsDict_[intervalType_]['counts'] += 1
-                        self.parent.model.IntervalAdd(interval, intervalType_, color, user)
+                        self.parent.model.IntervalAdd(interval, intervalType_, color, session)
                         self.parent.model.refreshScreen()
 
 

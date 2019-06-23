@@ -26,7 +26,7 @@ class ecogVIS:
         self.pathName = os.path.split(os.path.abspath(par.file))[0] #path
         self.fileName = os.path.split(os.path.abspath(par.file))[1] #file
         self.axesParams = parameters
-        self.parent.setWindowTitle('ecogVIS - ' + self.fileName)
+        self.parent.setWindowTitle('ecogVIS - '+self.fileName+' - '+self.parent.current_session)
 
         self.io = pynwb.NWBHDF5IO(self.fullpath,'r+')
         self.nwb = self.io.read()      #reads NWB file
@@ -92,7 +92,7 @@ class ecogVIS:
                 obj.stop = self.nwb.invalid_times.columns[1][ii]
                 obj.type = 'invalid'
                 obj.color = 'red'
-                obj.user = ''
+                obj.session = ''
                 self.allIntervals.append(obj)
 
         # Plot interval rectangles at upper and middle pannels
@@ -275,7 +275,7 @@ class ecogVIS:
         for i in range(len(self.AnnotationsList)):
             plt2.removeItem(self.AnnotationsList[i])
         for i in range(len(self.AnnotationsList)):
-            aux = self.AnnotationsList[i]
+            aux = self.AnnotationsList[i].pg_item
             x = self.AnnotationsPosAV[i,0]
             # Y to plot = (Y_va + Channel offset)*scale_variance
             y_va = self.AnnotationsPosAV[i,1]
@@ -497,7 +497,7 @@ class ecogVIS:
 
 
     ## Annotation functions ----------------------------------------------------
-    def AnnotationAdd(self, x, y, color='yellow', text='Event'):
+    def AnnotationAdd(self, x, y, color='yellow', text=''):
         if color=='yellow':
             bgcolor = pg.mkBrush(250, 250, 150, 200)
         elif color=='red':
@@ -509,9 +509,19 @@ class ecogVIS:
         c = pg.TextItem(anchor=(.5,.5), border=pg.mkPen(100, 100, 100), fill=bgcolor)
         c.setText(text=text, color=(0,0,0))
         # Y coordinate transformed to variance_units (for plot control)
-        y_va = y/self.scaleVec[0]
+        y_va = np.round(y/self.scaleVec[0]).astype('int')
         c.setPos(x,y_va)
-        self.AnnotationsList = np.append(self.AnnotationsList, c)
+        # create annotation object and add it to the list
+        obj = CustomAnnotation()
+        obj.pg_item = c
+        obj.x = x
+        obj.y_va = y_va
+        obj.y_off = self.firstCh
+        obj.color = color
+        obj.text = text
+        obj.session = self.parent.current_session
+        self.AnnotationsList.append(obj)
+        # List of positions (to calculate distances)
         if len(self.AnnotationsPosAV) > 0:
             self.AnnotationsPosAV = np.concatenate((self.AnnotationsPosAV,
                                                     np.array([x, y_va, self.firstCh]).reshape(1,3)))
@@ -523,12 +533,12 @@ class ecogVIS:
 
     def AnnotationDel(self, x, y):
         x_ann = self.AnnotationsPosAV[:,0]
-        y_ann = (self.AnnotationsPosAV[:,1] + self.AnnotationsPosAV[:,2] - self.firstCh)*self.scaleVec[0]
+        y_ann = np.round((self.AnnotationsPosAV[:,1] + self.AnnotationsPosAV[:,2] - self.firstCh)*self.scaleVec[0])
         # Calculates euclidian distance from click
         euclid_dist = np.sqrt( (x_ann-x)**2 + (y_ann-y)**2 )
         indmin = np.argmin(euclid_dist)
         # Checks if user intends to delete annotation
-        text = self.AnnotationsList[indmin].textItem.toPlainText()
+        text = self.AnnotationsList[indmin].text
         buttonReply = QMessageBox.question(None,
                                            'Delete Annotation', "Delete the annotation: \n\n"+text+' ?',
                                            QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
@@ -546,11 +556,10 @@ class ecogVIS:
             c0 = self.AnnotationsPosAV[:,0]     # x
             c1 = self.AnnotationsPosAV[:,1]     # y_va
             c2 = self.AnnotationsPosAV[:,2]     # y_off
-            # colors
-            c3 = [self.AnnotationsList[i].fill.color().getRgb() for i in range(len(self.AnnotationsList))]
-            # texts
-            c4 = [self.AnnotationsList[i].textItem.toPlainText() for i in range(len(self.AnnotationsList))]
-            d = {'x':c0, 'y_va':c1, 'y_off':c2, 'color':c3, 'text':c4}
+            c3 = [self.AnnotationsList[i].color for i in range(len(self.AnnotationsList))]
+            c4 = [self.AnnotationsList[i].text for i in range(len(self.AnnotationsList))]
+            c5 = [self.AnnotationsList[i].session for i in range(len(self.AnnotationsList))]
+            d = {'x':c0, 'y_va':c1, 'y_off':c2, 'color':c3, 'text':c4, 'session':c5}
             df = pd.DataFrame(data=d)
             fullfile = os.path.join(self.pathName, self.fileName[:-4] + '_annotations_' +
                                     datetime.datetime.today().strftime('%Y-%m-%d')+
@@ -564,18 +573,33 @@ class ecogVIS:
         all_x = df['x'].values
         all_y_va = df['y_va'].values
         all_y_off = df['y_off'].values
-        texts = df['text'].values.tolist()
-        colors_rgb = df['color'].tolist()
+        texts = df['text'].tolist()
+        colors = df['color'].tolist()
+        session = df['session'].tolist()
         for i, txt in enumerate(texts):    # Add loaded annotations to graph
-            rgb = make_tuple(colors_rgb[i])
-            bgcolor = pg.mkBrush(rgb[0], rgb[1], rgb[2], rgb[3])
+            if colors[i]=='yellow':
+                bgcolor = pg.mkBrush(250, 250, 150, 200)
+            elif colors[i]=='red':
+                bgcolor = pg.mkBrush(250, 0, 0, 200)
+            elif colors[i]=='green':
+                bgcolor = pg.mkBrush(0, 255, 0, 200)
+            elif colors[i]=='blue':
+                bgcolor = pg.mkBrush(0, 0, 255, 200)
             c = pg.TextItem(anchor=(.5,.5), border=pg.mkPen(100, 100, 100), fill=bgcolor)
             c.setText(text=txt, color=(0,0,0))
             # Y coordinate transformed to variance_units (for plot control)
             y_va = all_y_va[i]
             x = all_x[i]
             c.setPos(x,y_va)
-            self.AnnotationsList = np.append(self.AnnotationsList, c)
+            obj = CustomAnnotation()
+            obj.pg_item = c
+            obj.x = all_x[i]
+            obj.y_va = all_y_va[i]
+            obj.y_off = all_y_off[i]
+            obj.color = colors[i]
+            obj.text = txt
+            obj.session = session[i]
+            self.AnnotationsList.append(obj)
             if len(self.AnnotationsPosAV) > 0:
                 self.AnnotationsPosAV = np.concatenate((self.AnnotationsPosAV,
                                                         np.array([x, y_va, all_y_off[i]]).reshape(1,3)))
@@ -586,7 +610,7 @@ class ecogVIS:
 
 
     ## Interval functions ------------------------------------------------------
-    def IntervalAdd(self, interval, int_type, color, user):
+    def IntervalAdd(self, interval, int_type, color, session):
         if color=='yellow':
             bc = [250, 250, 150, 180]
         elif color=='red':
@@ -613,7 +637,7 @@ class ecogVIS:
         obj.stop = interval[1]
         obj.type = int_type
         obj.color = color
-        obj.user = user
+        obj.session = session
         self.allIntervals.append(obj)
         self.nBI = len(self.allIntervals)
         self.unsaved_changes_interval = True
@@ -642,8 +666,8 @@ class ecogVIS:
                 c1.append(obj.stop)      # stop
                 c2.append(obj.type)      # type
                 c3.append(obj.color)     # color
-                c4.append(obj.user)      # user
-            d = {'start':c0, 'stop':c1, 'type':c2, 'color':c3, 'user':c4}
+                c4.append(obj.session)   # session
+            d = {'start':c0, 'stop':c1, 'type':c2, 'color':c3, 'session':c4}
             df = pd.DataFrame(data=d)
             fullfile = os.path.join(self.pathName, self.fileName[:-4] + '_intervals_' +
                                     datetime.datetime.today().strftime('%Y-%m-%d')+
@@ -658,8 +682,8 @@ class ecogVIS:
             interval = [row.start, row.stop]
             int_type = row.type
             color = row.color
-            user = row.user
-            self.IntervalAdd(interval, int_type, color, user)
+            session = row.session
+            self.IntervalAdd(interval, int_type, color, session)
             #Update dictionary of interval types
             # TO-DO
         self.refreshScreen()
@@ -756,8 +780,18 @@ class CustomInterval:
         self.stop = -999
         self.type = ''
         self.color = ''
-        self.user = ''
+        self.session = ''
         self.channels = []
+
+class CustomAnnotation:
+    def __init__(self):
+        self.pg_item = None
+        self.x = 0
+        self.y_va = 0
+        self.y_off = 0
+        self.color = ''
+        self.text = ''
+        self.session = ''
 
 
 class CustomBox(pg.QtGui.QGraphicsRectItem):

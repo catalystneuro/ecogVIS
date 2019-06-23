@@ -27,11 +27,10 @@ class CustomIntervalDialog(QtGui.QDialog, Ui_CustomInterval):
         if self.exec_() == QtGui.QDialog.Accepted:
             # get all values
             int_type = str(self.lineEdit_1.text())
-            user_name = str(self.lineEdit_2.text())
             color = str(self.comboBox.currentText())
-            return int_type, user_name, color
+            return int_type, color
         else:
-            return '', '', ''
+            return '', ''
 
 
 # Warning of no High gamma data in the NWB file ------------ -------------------
