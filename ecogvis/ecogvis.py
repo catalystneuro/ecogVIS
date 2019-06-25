@@ -4,6 +4,8 @@ import os
 import time
 import numpy as np
 import datetime
+import re
+import glob
 
 from PyQt5 import QtCore, QtGui, Qt
 from PyQt5.QtCore import QCoreApplication
@@ -167,9 +169,23 @@ class Application(QMainWindow):
         '''
         Buttons and controls vertical box layout
         '''
+        #Block change buttons
+        fname = os.path.split(os.path.abspath(self.file))[1]
+        aux = re.search('_B(.*).nwb', fname)
+        bnum = aux.group(1)
+        self.qlabelBlocks = QLabel('Move Block')
+        self.pushBlock_0 = QPushButton('<')
+        self.pushBlock_0.clicked.connect(lambda: self.change_block(-1))
+        self.pushBlock_1 = QPushButton('>')
+        self.pushBlock_1.clicked.connect(lambda: self.change_block(1))
+        grid0 = QGridLayout()
+        grid0.addWidget(self.pushBlock_0, 0, 0, 1, 1)
+        grid0.addWidget(self.qlabelBlocks, 0, 1, 1, 3)
+        grid0.addWidget(self.pushBlock_1, 0, 4, 1, 1)
+
+
         panel1 = QGroupBox('Panel')
         panel1.setFixedWidth(250)
-        #panel1.setFixedHeight(200)
 
         # Annotation buttons
         qlabelAnnotations = QLabel('Annotation:')
@@ -346,6 +362,7 @@ class Application(QMainWindow):
         panel3.setLayout(form_2)
 
         self.vbox1 = QVBoxLayout()
+        self.vbox1.addLayout(grid0)
         self.vbox1.addWidget(panel1)
         self.vbox1.addWidget(panel2)
         self.vbox1.addWidget(panel3)
@@ -400,15 +417,26 @@ class Application(QMainWindow):
         self.hbox.addLayout(self.vbox2)    #add plots second
 
 
+    def change_block(self, move):
+        fpath = os.path.split(os.path.abspath(self.file))[0] #file directory
+        fname = os.path.split(os.path.abspath(self.file))[1] #current file
+        pre, _ = fname.split('_B')
+        flist = glob.glob(fpath+'/'+pre+'_B*.nwb')
+        curr_ind = flist.index(self.file)
+        if curr_ind+move == len(flist):
+            new_file = flist[0]
+        else:
+            new_file = flist[curr_ind+move]
+        self.open_another_file(filename=new_file)
 
     def open_file(self):
         filename, _ = QFileDialog.getOpenFileName(None, 'Open file', '', "(*.nwb)")
         return filename
 
 
-    def open_another_file(self):
-        # Opens new file dialog
-        filename, _ = QFileDialog.getOpenFileName(None, 'Open file', '', "(*.nwb)")
+    def open_another_file(self, filename=None):
+        if filename is None: # Opens new file dialog
+            filename, _ = QFileDialog.getOpenFileName(None, 'Open file', '', "(*.nwb)")
         if os.path.isfile(filename):
             self.file = filename
             # Reset file specific variables on GUI

@@ -449,8 +449,10 @@ class HighGammaDialog(QtGui.QDialog, Ui_HighGamma):
         p1 = default_bands.chang_lab['sds'][29:]
         self.tableWidget.setRowCount(len(p0))
         for i in np.arange(len(p0)):
-            self.tableWidget.setItem(i, 0, QTableWidgetItem(str(round(p0[i],1))))
-            self.tableWidget.setItem(i, 1, QTableWidgetItem(str(round(p1[i],1))))
+            #chk_bx = QCheckBox()
+            #self.tableWidget.setItem(i, 0, chk_bx)
+            self.tableWidget.setItem(i, 1, QTableWidgetItem(str(round(p0[i],1))))
+            self.tableWidget.setItem(i, 2, QTableWidgetItem(str(round(p1[i],1))))
 
     def choice_custom(self):  # default chosen
         self.pushButton_1.setEnabled(False)
@@ -752,6 +754,8 @@ class GroupPeriodogramDialog(QtGui.QDialog):
 class ERPDialog(QtGui.QDialog):
     def __init__(self, parent):
         super().__init__()
+        #self.setWindowFlags(self.windowFlags() & ~QtCore.Qt.WindowStaysOnTopHint)
+        #self.setModal(True)
 
         self.parent = parent
         self.nCols = 16

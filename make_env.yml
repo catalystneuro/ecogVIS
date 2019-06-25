@@ -17,6 +17,7 @@ dependencies:
 - pyqtgraph
 - pynwb
 - pyopengl
+- hdmf=1.0.3
 #because of process_ecog
 - nomkl
 - scikit-learn
@@ -25,3 +26,6 @@ dependencies:
   - PyQt5
   - nwbext_ecog==0.7.2
   - -e .
+  #extension Spectrum
+  #- git+https://github.com/hdmf-dev/hdmf.git
+  #- git+https://github.com/bendichter/ndx-spectrum.git

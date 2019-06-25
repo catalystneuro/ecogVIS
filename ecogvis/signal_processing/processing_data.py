@@ -143,6 +143,7 @@ def preprocess_raw_data(block_path, config):
                                               description='Extracellular electrophysiology data.')
             # Add module to NWB file
             nwb.add_processing_module(ecephys_module)
+            print('Created ecephys')
 
         # LFP: Downsampled and power line signal removed -----------------------
         if 'LFP' in nwb.modules['ecephys'].data_interfaces:    # if LFP already exists
@@ -207,9 +208,10 @@ def preprocess_raw_data(block_path, config):
             lfp_ts = lfp.create_electrical_series(name='preprocessed',
                                                   data=X.T,
                                                   electrodes=elecs_region,
+                                                  #electrodes=nwb.acquisition['ECoG'].electrodes,
                                                   rate=rate,
-                                                  description='',
-                                                  comments=config_comment)
+                                                  description='',)
+                                                  #comments=config_comment)
             ecephys_module.add_data_interface(lfp)
 
             # Write LFP to NWB file

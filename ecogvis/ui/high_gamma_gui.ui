@@ -9,7 +9,7 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>566</width>
+    <width>674</width>
     <height>366</height>
    </rect>
   </property>
@@ -75,7 +75,7 @@
     <rect>
      <x>320</x>
      <y>100</y>
-     <width>241</width>
+     <width>341</width>
      <height>211</height>
     </rect>
    </property>
@@ -113,12 +113,17 @@
     <number>1</number>
    </property>
    <property name="columnCount">
-    <number>2</number>
+    <number>3</number>
    </property>
    <attribute name="verticalHeaderHighlightSections">
     <bool>true</bool>
    </attribute>
    <row/>
+   <column>
+    <property name="text">
+     <string>include</string>
+    </property>
+   </column>
    <column>
     <property name="text">
      <string>mean [Hz]</string>
@@ -215,7 +220,7 @@
     <rect>
      <x>10</x>
      <y>20</y>
-     <width>551</width>
+     <width>651</width>
      <height>61</height>
     </rect>
    </property>
@@ -259,7 +264,7 @@
      <rect>
       <x>190</x>
       <y>30</y>
-      <width>351</width>
+      <width>451</width>
       <height>25</height>
      </rect>
     </property>
