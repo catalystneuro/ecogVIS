@@ -1,7 +1,7 @@
 from PyQt5 import QtGui, QtCore, uic
 from PyQt5.QtWidgets import (QTableWidgetItem, QGridLayout, QGroupBox, QLineEdit,
     QWidget, QLabel, QPushButton, QVBoxLayout, QHBoxLayout, QComboBox, QScrollArea,
-    QFileDialog)
+    QFileDialog, QHeaderView)
 import pyqtgraph as pg
 import pyqtgraph.opengl as gl
 import pyqtgraph.exporters as pgexp
@@ -444,15 +444,26 @@ class HighGammaDialog(QtGui.QDialog, Ui_HighGamma):
         self.label_1.setText(text)
         self.runButton.setEnabled(True)
         # Populate table with values
-        self.tableWidget.setHorizontalHeaderLabels(['center [Hz]','sigma [Hz]'])
+        self.tableWidget.setHorizontalHeaderLabels(['','center [Hz]','sigma [Hz]'])
+        self.tableWidget.setColumnWidth(0, 14)
+        self.tableWidget.horizontalHeader().setSectionResizeMode(0, QHeaderView.ResizeToContents)
+        self.tableWidget.setFocusPolicy(QtCore.Qt.NoFocus)
+        self.tableWidget.setSelectionMode(QtGui.QAbstractItemView.NoSelection)
         p0 = default_bands.chang_lab['cfs'][29:]
         p1 = default_bands.chang_lab['sds'][29:]
         self.tableWidget.setRowCount(len(p0))
         for i in np.arange(len(p0)):
-            #chk_bx = QCheckBox()
-            #self.tableWidget.setItem(i, 0, chk_bx)
+            cell_widget = QWidget()
+            chk_bx = QtGui.QCheckBox()
+            chk_bx.setMaximumWidth(14)
+            if i<8:
+                chk_bx.setChecked(True)
+            else: chk_bx.setChecked(False)
+            self.tableWidget.setCellWidget(i, 0, chk_bx)
             self.tableWidget.setItem(i, 1, QTableWidgetItem(str(round(p0[i],1))))
             self.tableWidget.setItem(i, 2, QTableWidgetItem(str(round(p1[i],1))))
+            self.tableWidget.item(i, 1).setTextAlignment(QtCore.Qt.AlignRight | QtCore.Qt.AlignVCenter)
+            self.tableWidget.item(i, 2).setTextAlignment(QtCore.Qt.AlignRight | QtCore.Qt.AlignVCenter)
 
     def choice_custom(self):  # default chosen
         self.pushButton_1.setEnabled(False)
@@ -464,13 +475,24 @@ class HighGammaDialog(QtGui.QDialog, Ui_HighGamma):
         self.label_1.setText(text)
         self.runButton.setEnabled(True)
         # Populate table with values
-        self.tableWidget.setHorizontalHeaderLabels(['center [Hz]','sigma [Hz]'])
+        self.tableWidget.setHorizontalHeaderLabels(['','center [Hz]','sigma [Hz]'])
+        self.tableWidget.setColumnWidth(0, 14)
+        self.tableWidget.horizontalHeader().setSectionResizeMode(0, QHeaderView.ResizeToContents)
+        self.tableWidget.setFocusPolicy(QtCore.Qt.NoFocus)
+        self.tableWidget.setSelectionMode(QtGui.QAbstractItemView.NoSelection)
         p0 = default_bands.chang_lab['cfs'][29:]
         p1 = default_bands.chang_lab['sds'][29:]
         self.tableWidget.setRowCount(len(p0))
         for i in np.arange(len(p0)):
-            self.tableWidget.setItem(i, 0, QTableWidgetItem(str(round(p0[i],1))))
-            self.tableWidget.setItem(i, 1, QTableWidgetItem(str(round(p1[i],1))))
+            cell_widget = QWidget()
+            chk_bx = QtGui.QCheckBox()
+            chk_bx.setChecked(True)
+            chk_bx.setMaximumWidth(14)
+            self.tableWidget.setCellWidget(i, 0, chk_bx)
+            self.tableWidget.setItem(i, 1, QTableWidgetItem(str(round(p0[i],1))))
+            self.tableWidget.setItem(i, 2, QTableWidgetItem(str(round(p1[i],1))))
+            self.tableWidget.item(i, 1).setTextAlignment(QtCore.Qt.AlignRight | QtCore.Qt.AlignVCenter)
+            self.tableWidget.item(i, 2).setTextAlignment(QtCore.Qt.AlignRight | QtCore.Qt.AlignVCenter)
         # Allows user to populate table with values
         self.tableWidget.setEditTriggers(QtGui.QAbstractItemView.DoubleClicked)
         self.pushButton_1.setEnabled(True)
@@ -479,19 +501,28 @@ class HighGammaDialog(QtGui.QDialog, Ui_HighGamma):
     def add_band(self):
         nRows = self.tableWidget.rowCount()
         self.tableWidget.insertRow(nRows)
-        self.tableWidget.setItem(nRows, 0, QTableWidgetItem(str(0)))
+        cell_widget = QWidget()
+        chk_bx = QtGui.QCheckBox()
+        chk_bx.setChecked(True)
+        chk_bx.setMaximumWidth(14)
+        self.tableWidget.setCellWidget(nRows, 0, chk_bx)
         self.tableWidget.setItem(nRows, 1, QTableWidgetItem(str(0)))
+        self.tableWidget.setItem(nRows, 2, QTableWidgetItem(str(0)))
+        self.tableWidget.item(nRows, 1).setTextAlignment(QtCore.Qt.AlignRight | QtCore.Qt.AlignVCenter)
+        self.tableWidget.item(nRows, 2).setTextAlignment(QtCore.Qt.AlignRight | QtCore.Qt.AlignVCenter)
 
     def del_band(self):
         nRows = self.tableWidget.rowCount()
         self.tableWidget.removeRow(nRows-1)
 
     def run(self):
+        self.chosen_bands = np.zeros((2,0))
         nRows = self.tableWidget.rowCount()
-        self.chosen_bands = np.zeros((2,nRows))
         for i in np.arange(nRows):
-            self.chosen_bands[0,i] = float(self.tableWidget.item(i, 0).text())
-            self.chosen_bands[1,i] = float(self.tableWidget.item(i, 1).text())
+            if self.tableWidget.cellWidget(i, 0).isChecked():
+                val0 = float(self.tableWidget.item(i, 1).text())
+                val1 = float(self.tableWidget.item(i, 2).text())
+                self.chosen_bands = np.append(self.chosen_bands, np.array([[val0],[val1]]), axis=1)
         # If Decomposition data does not exist in NWB file and user decides to create it
         self.label_1.setText('Processing High Gamma power estimation. \nPlease wait...')
         self.pushButton_1.setEnabled(False)

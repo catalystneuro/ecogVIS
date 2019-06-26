@@ -9,7 +9,7 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>674</width>
+    <width>588</width>
     <height>366</height>
    </rect>
   </property>
@@ -75,12 +75,12 @@
     <rect>
      <x>320</x>
      <y>100</y>
-     <width>341</width>
+     <width>256</width>
      <height>211</height>
     </rect>
    </property>
    <property name="sizePolicy">
-    <sizepolicy hsizetype="MinimumExpanding" vsizetype="MinimumExpanding">
+    <sizepolicy hsizetype="Fixed" vsizetype="MinimumExpanding">
      <horstretch>0</horstretch>
      <verstretch>0</verstretch>
     </sizepolicy>
@@ -115,23 +115,32 @@
    <property name="columnCount">
     <number>3</number>
    </property>
+   <attribute name="horizontalHeaderMinimumSectionSize">
+    <number>10</number>
+   </attribute>
    <attribute name="verticalHeaderHighlightSections">
     <bool>true</bool>
    </attribute>
    <row/>
    <column>
     <property name="text">
-     <string>include</string>
+     <string/>
     </property>
    </column>
    <column>
     <property name="text">
      <string>mean [Hz]</string>
     </property>
+    <property name="textAlignment">
+     <set>AlignCenter</set>
+    </property>
    </column>
    <column>
     <property name="text">
      <string>std [Hz]</string>
+    </property>
+    <property name="textAlignment">
+     <set>AlignCenter</set>
     </property>
    </column>
   </widget>
@@ -220,7 +229,7 @@
     <rect>
      <x>10</x>
      <y>20</y>
-     <width>651</width>
+     <width>566</width>
      <height>61</height>
     </rect>
    </property>
@@ -264,7 +273,7 @@
      <rect>
       <x>190</x>
       <y>30</y>
-      <width>451</width>
+      <width>366</width>
       <height>25</height>
      </rect>
     </property>
