@@ -1,10 +1,11 @@
 from PyQt5 import QtGui, QtCore, uic
 from PyQt5.QtWidgets import (QTableWidgetItem, QGridLayout, QGroupBox, QLineEdit,
     QWidget, QLabel, QPushButton, QVBoxLayout, QHBoxLayout, QComboBox, QScrollArea,
-    QFileDialog, QHeaderView)
+    QFileDialog, QHeaderView, QMainWindow)
 import pyqtgraph as pg
 import pyqtgraph.opengl as gl
 import pyqtgraph.exporters as pgexp
+from pyqtgraph.GraphicsScene import exportDialog
 from ecogvis.signal_processing import bands as default_bands
 from ecogvis.signal_processing.processing_data import processing_data
 from .FS_colorLUT import get_lut
@@ -782,11 +783,11 @@ class GroupPeriodogramDialog(QtGui.QDialog):
 
 
 # Creates Event-Related Potential dialog ---------------------------------------
-class ERPDialog(QtGui.QDialog):
+class ERPDialog(QMainWindow):#QtGui.QDialog):
     def __init__(self, parent):
         super().__init__()
-        #self.setWindowFlags(self.windowFlags() & ~QtCore.Qt.WindowStaysOnTopHint)
-        #self.setModal(True)
+        self.setWindowTitle('Event-Related Potentials')
+        self.resize(1250,500)
 
         self.parent = parent
         self.nCols = 16
@@ -824,8 +825,8 @@ class ERPDialog(QtGui.QDialog):
         self.push2_0 = QPushButton('Significant')
         self.push2_0.setCheckable(True)
         self.push2_0.setChecked(False)
-        self.push3_0 = QPushButton('Channels')
-        self.push3_0.clicked.connect(self.channel_select)
+        self.push3_0 = QPushButton('Brain areas')
+        self.push3_0.clicked.connect(self.areas_select)
         self.push4_0 = QPushButton('Save image')
         self.push4_0.clicked.connect(self.save_image)
         label4 = QLabel('Rotate grid:')
@@ -879,7 +880,6 @@ class ERPDialog(QtGui.QDialog):
         # Right panel
         self.win = pg.GraphicsLayoutWidget()
         self.win.resize(1020,1020)
-        #self.win.setBackground('w')
         background_color = self.palette().color(QtGui.QPalette.Background)
         self.win.setBackground(background_color)
         for j in range(16):
@@ -887,20 +887,25 @@ class ERPDialog(QtGui.QDialog):
             self.win.ci.layout.setColumnFixedWidth(j, 60)
             self.win.ci.layout.setColumnSpacing(j, 3)
             self.win.ci.layout.setRowSpacing(j, 3)
+            #this is to avoid the error:
+            #RuntimeError: wrapped C/C++ object of type GraphicsScene has been deleted
+            p = self.win.addPlot(j,j)
+            p.hideAxis('left')
+            p.hideAxis('bottom')
         #Scroll Area Properties
-        scroll = QScrollArea()
-        scroll.setVerticalScrollBarPolicy(QtCore.Qt.ScrollBarAsNeeded)
-        scroll.setHorizontalScrollBarPolicy(QtCore.Qt.ScrollBarAsNeeded)
-        scroll.setWidgetResizable(False)
-        scroll.setWidget(self.win)
+        self.scroll = QScrollArea()
+        self.scroll.setVerticalScrollBarPolicy(QtCore.Qt.ScrollBarAsNeeded)
+        self.scroll.setHorizontalScrollBarPolicy(QtCore.Qt.ScrollBarAsNeeded)
+        self.scroll.setWidgetResizable(False)
+        self.scroll.setWidget(self.win)
 
-        self.hbox = QHBoxLayout()
-        self.hbox.addLayout(self.leftbox)
-        self.hbox.addWidget(scroll)
-        self.setLayout(self.hbox)
-        self.setWindowTitle('Event-Related Potentials')
-        self.resize(1200,600)
-        self.exec_()
+        self.centralwidget = QWidget()
+        self.setCentralWidget(self.centralwidget)
+        self.hbox = QHBoxLayout(self.centralwidget)
+        self.hbox.addLayout(self.leftbox)    #add panels first
+        self.hbox.addWidget(self.scroll)
+
+        self.show()
 
     def set_onset(self):
         self.alignment = 'start_time'
@@ -932,11 +937,10 @@ class ERPDialog(QtGui.QDialog):
         self.draw_erp()
 
     def save_image(self):
-        #pgexp.ImageExporter(self.win.ci)
-        #print(self.win)
-        #print(self.win.sceneObj)
-        #self.win.sceneObj.showExportDialog()
-        return
+        #a = exportDialog.ExportDialog(self.win.sceneObj)
+        p = self.win.getItem(row=0, col=0)
+        self.win.sceneObj.contextMenuItem = p
+        self.win.sceneObj.showExportDialog()
 
     def scale_plots(self):
         for ind, ch in enumerate(self.grid_order):
@@ -1025,6 +1029,8 @@ class ERPDialog(QtGui.QDialog):
             if p == None:
                 vb = CustomViewBox(self, ch)
                 p = self.win.addPlot(row=row, col=col, viewBox = vb)
+            p.hideAxis('left')
+            p.hideAxis('bottom')
             p.clear()
             p.setMouseEnabled(x=False, y=False)
             p.setToolTip('Ch '+str(ch+1)+'\n'+str(self.parent.model.nwb.electrodes['location'][ch]))
@@ -1059,7 +1065,7 @@ class ERPDialog(QtGui.QDialog):
         self.Yscale['global max'] = [ymin, ymax]
         self.Yscale['global std'] = [-ystd, ystd]
 
-    def channel_select(self):
+    def areas_select(self):
         # Dialog to choose channels from specific brain regions
         w = SelectChannelsDialog(self.parent.model.all_regions, self.parent.model.regions_mask)
         self.transparent = []
@@ -1068,6 +1074,7 @@ class ERPDialog(QtGui.QDialog):
             if loc not in w.choices:
                 self.transparent.append(ch)
         self.draw_erp()
+
 
 
 
