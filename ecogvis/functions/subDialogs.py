@@ -546,6 +546,10 @@ class HighGammaDialog(QtGui.QDialog, Ui_HighGamma):
 
     def out_close(self, val):
         self.value = val
+        # When out of this function, the current file will be refreshed or the
+        # newly created will be opened
+        if self.new_fname=='':
+            self.new_fname = os.path.join(self.fpath,self.fname)
         self.accept()
 
 
@@ -1002,7 +1006,7 @@ class ERPDialog(QMainWindow):#QtGui.QDialog):
         self.push1_1.setEnabled(True)
         self.qline2.setEnabled(True)
         self.combo1.setEnabled(True)
-        self.push2_0.setEnabled(True)
+        #self.push2_0.setEnabled(True)
         self.push3_0.setEnabled(True)
         self.push4_0.setEnabled(True)
         self.push5_0.setEnabled(True)

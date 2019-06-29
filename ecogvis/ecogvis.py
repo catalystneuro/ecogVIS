@@ -128,7 +128,7 @@ class Application(QMainWindow):
         change_session_file.triggered.connect(self.change_session)
         action_open_file = QAction('Open Another File', self)
         fileMenu.addAction(action_open_file)
-        action_open_file.triggered.connect(self.open_another_file)
+        action_open_file.triggered.connect(lambda: self.open_another_file(None))
         action_save_file = QAction('Save to NWB', self)
         fileMenu.addAction(action_save_file)
         action_save_file.triggered.connect(self.save_file)
@@ -170,9 +170,6 @@ class Application(QMainWindow):
         Buttons and controls vertical box layout
         '''
         #Block change buttons
-        fname = os.path.split(os.path.abspath(self.file))[1]
-        aux = re.search('_B(.*).nwb', fname)
-        bnum = aux.group(1)
         self.qlabelBlocks = QLabel('Move Block')
         self.pushBlock_0 = QPushButton('<')
         self.pushBlock_0.clicked.connect(lambda: self.change_block(-1))
@@ -719,9 +716,10 @@ class Application(QMainWindow):
     def CalcHighGamma(self):
         w = HighGammaDialog(self)
         if w.value==1:       # If new data was created
-            self.model.refresh_file()        # re-opens the file, now with new data
-            self.combo3.setCurrentIndex(self.combo3.findText('preprocessed'))
-            self.voltage_time_series()
+            self.open_another_file(filename=w.new_fname)
+            #self.model.refresh_file()        # re-opens the file, now with new data
+            #self.combo3.setCurrentIndex(self.combo3.findText('preprocessed'))
+            #self.voltage_time_series()
 
 
     ## Change Signals plot panel -----------------------------------------------
