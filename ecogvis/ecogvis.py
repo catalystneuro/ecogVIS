@@ -439,6 +439,11 @@ class Application(QMainWindow):
             # Reset file specific variables on GUI
             self.combo3.setCurrentIndex(self.combo3.findText('raw'))
             self.combo4.clear()
+            self.qline0.setText('16')
+            self.qline1.setText('1')
+            self.qline2.setText('0.01')
+            self.qline3.setText('2')
+            self.qline4.setText('1')
             self.win1.clear()
             self.win2.clear()
             self.win3.clear()
