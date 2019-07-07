@@ -17,9 +17,9 @@ import pyqtgraph as pg
 from pyqtgraph.widgets.MatplotlibWidget import MatplotlibWidget
 from ecogvis.functions.subFunctions import ecogVIS
 from ecogvis.functions.subDialogs import (CustomIntervalDialog, SelectChannelsDialog,
-    SpectralChoiceDialog, PeriodogramGridDialog, NoHighGammaDialog, NoPreprocessedDialog,
-    NoTrialsDialog, ExitDialog, ERPDialog, HighGammaDialog, GroupPeriodogramDialog,
-    PreprocessingDialog, NoRawDialog)
+    SpectralChoiceDialog, NoHighGammaDialog, NoPreprocessedDialog, NoTrialsDialog,
+    ExitDialog, ERPDialog, HighGammaDialog, Periodograms,
+    PreprocessingDialog, NoRawDialog, NoSpectrumDialog)
 
 
 intervalAdd_ = False
@@ -230,7 +230,6 @@ class Application(QMainWindow):
         self.push4_0.clicked.connect(self.ChannelSelect)
         # One-click Periodogram
         self.push5_0 = QPushButton('Periodogram')
-        self.push5_0.setCheckable(True)
         self.push5_0.clicked.connect(self.PeriodogramSelect)
         # One-click preprocess signals
         self.push6_0 = QPushButton('Preprocess')
@@ -432,6 +431,7 @@ class Application(QMainWindow):
 
 
     def open_another_file(self, filename=None):
+        """Opens another NWB file."""
         if filename is None: # Opens new file dialog
             filename, _ = QFileDialog.getOpenFileName(None, 'Open file', '', "(*.nwb)")
         if os.path.isfile(filename):
@@ -456,11 +456,13 @@ class Application(QMainWindow):
             self.model = ecogVIS(self, parameters)
 
 
+    #TODO - save alterations to NWB file
     def save_file(self):
         print('Save file to NWB - to be implemented')
 
+
     def change_session(self):
-        # opens dialog for user input
+        """Changes session name."""
         text = 'Current session is: '+self.current_session+'\nEnter new session name:'
         uinp, ok = QInputDialog.getText(None, 'Change session', text)
         if ok:
@@ -481,8 +483,9 @@ class Application(QMainWindow):
         if fname!='':
             self.model.IntervalLoad(fname=fname)
 
+
     def add_badchannel(self):
-        # opens dialog for user input
+        """Opens dialog for user input of channels to mark as bad."""
         text = 'Channel number: \n(e.g.: 3, 5, 8-12)'
         uinp, ok = QInputDialog.getText(None, 'Add as bad channel', text)
         if ok:
@@ -501,8 +504,9 @@ class Application(QMainWindow):
             except Exception as ex:
                 print(str(ex))
 
+
     def del_badchannel(self):
-        # opens dialog for user input
+        """Opens dialog for user input of channels to unmark as bad."""
         text = 'Channel number: \n(e.g.: 3, 5, 8-12)'
         uinp, ok = QInputDialog.getText(None, 'Delete bad channel', text)
         if ok:
@@ -521,16 +525,21 @@ class Application(QMainWindow):
             except Exception as ex:
                 print(str(ex))
 
+
     def save_badchannel(self):
+        """Saves bad channels to file."""
         self.model.BadChannelSave()
 
 
     def spectral_analysis(self):
+        """Opens Spectral decomposition dialog."""
         w = SpectralChoiceDialog(self)
         if w.value==1:       # If new data was created
-            self.model.refresh_file()        # re-opens the file, now with new data
+            self.model.refresh_file()
+
 
     def event_related_potential(self):
+        """Opens ERP window."""
         # If file contains trials information
         if self.model.nwb.trials is None:
             NoTrialsDialog()
@@ -539,6 +548,7 @@ class Application(QMainWindow):
 
 
     def about(self):
+        """About dialog."""
         msg = QMessageBox()
         msg.setWindowTitle("About ecogVIS")
         msg.setIcon(QMessageBox.Information)
@@ -580,11 +590,13 @@ class Application(QMainWindow):
 
     ## Annotation functions ----------------------------------------------------
     def AnnotationColor(self):
+        """Selects annotation color."""
         global annotationColor_
         annotationColor_ = str(self.combo1.currentText())
 
 
     def AnnotationAdd(self):
+        """Add new annotation at point selected with mouse right-click."""
         global annotationAdd_
         if self.push1_1.isChecked():  #if button is pressed down
             self.active_mode = 'annotationAdd'
@@ -596,6 +608,7 @@ class Application(QMainWindow):
 
 
     def AnnotationDel(self):
+        """Deletes annotations chosen with mouse right-click."""
         global annotationDel_
         if self.push1_2.isChecked():  #if button is pressed down
             self.active_mode = 'annotationDel'
@@ -607,6 +620,7 @@ class Application(QMainWindow):
 
 
     def AnnotationSave(self):
+        """Saves current set of annotations to file."""
         self.active_mode = 'default'
         self.reset_buttons()
         try:
@@ -617,6 +631,7 @@ class Application(QMainWindow):
 
     ## Interval functions ------------------------------------------------------
     def IntervalType(self):
+        """Add new interval type."""
         global intervalType_
         global intervalsDict_
 
@@ -641,6 +656,7 @@ class Application(QMainWindow):
 
 
     def IntervalAdd(self):
+        """Adds intervals with mouse click-and-drag at time series plot."""
         global intervalAdd_
         if self.push2_1.isChecked():  #if button is pressed down
             self.active_mode = 'intervalAdd'
@@ -652,6 +668,7 @@ class Application(QMainWindow):
 
 
     def IntervalDel(self):
+        """Deletes intervals chosen with mouse right-click."""
         global intervalDel_
         if self.push2_2.isChecked():  #if button is pressed down
             self.active_mode = 'intervalDel'
@@ -663,6 +680,7 @@ class Application(QMainWindow):
 
 
     def IntervalSave(self):
+        """Saves current set of intervals to file."""
         self.active_mode = 'default'
         self.reset_buttons()
         try:
@@ -671,9 +689,8 @@ class Application(QMainWindow):
             self.log_error(str(ex))
 
 
-
-    ## Channel functions -------------------------------------------------------
     def ChannelSelect(self):
+        """Opens dialog to select channels from specific brain regions."""
         self.active_mode = 'default'
         self.reset_buttons()
         # Dialog to choose channels from specific brain regions
@@ -696,10 +713,22 @@ class Application(QMainWindow):
         self.model.refreshScreen()
 
 
-
     # Select channel for Periodogram display -----------------------------------
     def PeriodogramSelect(self):
-        w = PeriodogramGridDialog(self)
+        w = Periodograms(self)
+        if self.combo3.currentText()=='raw':
+            try:
+                psd = self.model.modules['ecephys'].data_interfaces['spectrum_raw']
+                w = Periodograms(self)
+            except:
+                NoSpectrumDialog(self, 'raw')
+        elif self.combo3.currentText()=='preprocessed':
+            try:
+                psd = self.model.modules['ecephys'].data_interfaces['spectrum_preprocessed']
+                w = Periodograms(self)
+            except:
+                NoSpectrumDialog(self, 'preprocessed')
+
         #global periodogram_
         #if self.push5_0.isChecked():  #if button is pressed down
     #        self.active_mode = 'periodogram'
@@ -709,26 +738,25 @@ class Application(QMainWindow):
     #        self.active_mode = 'default'
     #        self.reset_buttons()
 
-    # One-click Preprocessing of raw signals -----------------------------------
+
     def Preprocess(self):
+        """Opens Preprocessing dialog."""
         w = PreprocessingDialog(self)
         if w.value==1:       # If new data was created
             self.model.refresh_file()        # re-opens the file, now with new data
             self.combo3.setCurrentIndex(self.combo3.findText('preprocessed'))
             self.voltage_time_series()
 
-    # One-click calculate High Gamma -------------------------------------------
+
     def CalcHighGamma(self):
+        """Opens calculate High Gamma dialog."""
         w = HighGammaDialog(self)
         if w.value==1:       # If new data was created
             self.open_another_file(filename=w.new_fname)
-            #self.model.refresh_file()        # re-opens the file, now with new data
-            #self.combo3.setCurrentIndex(self.combo3.findText('preprocessed'))
-            #self.voltage_time_series()
 
 
-    ## Change Signals plot panel -----------------------------------------------
     def voltage_time_series(self):
+        """Selects the time series data to be ploted on main window."""
         if self.combo3.currentText()=='raw':
             try:
                 self.model.source = self.model.nwb.acquisition['ECoG']
@@ -772,8 +800,8 @@ class Application(QMainWindow):
         self.model.refreshScreen()
 
 
-
     def choose_stim(self):
+        """Choose stimulus."""
         stimName = self.combo4.currentText()
         if stimName != '':
             self.model.refreshScreen()
@@ -804,20 +832,27 @@ class Application(QMainWindow):
     def scroll_forward(self):
         self.model.time_scroll(scroll=1/3)
 
-    def verticalScale(self):
-        self.model.refreshScreen()
-
     def horizontalScaleIncrease(self):
         self.model.horizontalScaleIncrease()
 
     def horizontalScaleDecrease(self):
         self.model.horizontalScaleDecrease()
 
+    def verticalScale(self):
+        """Updates vertical scale and refreshes plot."""
+        self.model.refreshScreen()
+
     def verticalScaleIncrease(self):
-        self.model.verticalScaleIncrease()
+        """Increases vertical scale by a factor of 2."""
+        scaleFac = float(self.qline4.text())
+        self.qline4.setText(str(scaleFac * 2))
+        self.model.refreshScreen()
 
     def verticalScaleDecrease(self):
-        self.model.verticalScaleDecrease()
+        """Decreases vertical scale by a factor of 2."""
+        scaleFac = float(self.qline4.text())
+        self.qline4.setText(str(scaleFac / 2))
+        self.model.refreshScreen()
 
     def time_window_size(self):
         self.model.updateCurXAxisPosition()

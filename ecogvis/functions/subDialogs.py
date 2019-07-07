@@ -3,8 +3,9 @@ from PyQt5.QtWidgets import (QTableWidgetItem, QGridLayout, QGroupBox, QLineEdit
     QWidget, QLabel, QPushButton, QVBoxLayout, QHBoxLayout, QComboBox, QScrollArea,
     QFileDialog, QHeaderView, QMainWindow)
 import pyqtgraph as pg
-import pyqtgraph.opengl as gl
 import pyqtgraph.exporters as pgexp
+import pyqtgraph.opengl as gl
+import OpenGL.GL as ogl
 from pyqtgraph.GraphicsScene import exportDialog
 from ecogvis.signal_processing import bands as default_bands
 from ecogvis.signal_processing.processing_data import processing_data
@@ -105,6 +106,31 @@ class NoTrialsDialog(QtGui.QDialog):
         vbox.addWidget(self.okButton)
         self.setLayout(vbox)
         self.setWindowTitle('No trial data')
+        self.exec_()
+
+    def onAccepted(self):
+        self.accept()
+
+
+# Warning of no Spectrum data in the NWB file --------------------------------
+class NoSpectrumDialog(QtGui.QDialog):
+    def __init__(self, parent, type):
+        super().__init__()
+        self.parent = parent
+        self.text = QLabel("There is no Spectrum data for "+type+" data in the current NWB file.\n"+
+                           "To calculate the Power Spectral Density, click Calculate.")
+        self.cancelButton = QtGui.QPushButton("Cancel")
+        self.cancelButton.clicked.connect(self.onAccepted)
+        self.calculateButton = QtGui.QPushButton("Calculate")
+        self.calculateButton.clicked.connect(self.onAccepted)
+        hbox = QtGui.QHBoxLayout()
+        hbox.addWidget(self.cancelButton)
+        hbox.addWidget(self.calculateButton)
+        vbox = QtGui.QVBoxLayout()
+        vbox.addWidget(self.text)
+        vbox.addLayout(hbox)
+        self.setLayout(vbox)
+        self.setWindowTitle('No Spectrum data')
         self.exec_()
 
     def onAccepted(self):
@@ -545,9 +571,9 @@ class HighGammaDialog(QtGui.QDialog, Ui_HighGamma):
         self.thread.start()
 
     def out_close(self, val):
+        """When out of this function, the current file will be refreshed or the
+        newly created will be opened"""
         self.value = val
-        # When out of this function, the current file will be refreshed or the
-        # newly created will be opened
         if self.new_fname=='':
             self.new_fname = os.path.join(self.fpath,self.fname)
         self.accept()
@@ -715,73 +741,345 @@ class PeriodogramDialog(QtGui.QDialog):
 
 
 
-# Creates Group Periodogram dialog ---------------------------------------------
-class GroupPeriodogramDialog(QtGui.QDialog):
-    def __init__(self, model, x, y):
+# Creates Group Periodograms window --------------------------------------------
+class Periodograms(QtGui.QDialog):
+    def __init__(self, parent):
         super().__init__()
+        self.parent = parent
+        self.nChannels = parent.model.nChTotal
+        self.freqMax = 200
+        self.freqTickRes = 20
+        self.chTickGrid = 5
+        self.chTickSpace = self.nChannels/(self.chTickGrid-1)
+        self.transparent = []
 
-        self.model = model
-        self.x = x
-        self.y = y
-        self.relative_index = np.argmin(np.abs(self.model.scaleVec-self.y))
-        self.chosen_channel = model.selectedChannels[self.relative_index]
-        self.BIs = model.IntRects2
+        #Left panel
+        self.push0_0 = QPushButton('Draw')
+        self.push0_0.clicked.connect(self.draw_periodograms)
+        self.push1_0 = QPushButton('Brain areas')
+        self.push1_0.clicked.connect(self.areas_select)
+        label2 = QLabel('Freq bin [Hz]:')
+        self.qline2 = QLineEdit('20')
+        self.qline2.returnPressed.connect(self.set_freq_bin)
+        label3 = QLabel('Ch grid [#]:')
+        self.qline3 = QLineEdit('5')
+        self.qline3.returnPressed.connect(self.set_ch_grid)
 
-        self.fig1 = gl.GLViewWidget()               #uppper periodogram plot
-        #self.fig1.setBackgroundColor('w')
-        self.fig2 = pg.PlotWidget()               #lower voltage plot
-        self.fig2.setBackground('w')
+        self.push4_0 = QPushButton('Save image')
+        self.push4_0.clicked.connect(self.save_image)
 
-        self.fig1.opts['distance'] = 200
-        # create the background grids
-        gx = gl.GLGridItem()
+        grid0 = QGridLayout()
+        grid0.addWidget(label2, 0, 0, 1, 4)
+        grid0.addWidget(self.qline2, 0, 4, 1, 2)
+        grid0.addWidget(label3, 1, 0, 1, 4)
+        grid0.addWidget(self.qline3, 1, 4, 1, 2)
+        grid0.addWidget(QHLine(), 2, 0, 1, 6)
+        grid0.addWidget(self.push1_0, 3, 0, 1, 6)
+        grid0.addWidget(self.push4_0, 4, 0, 1, 6)
+        grid0.setAlignment(QtCore.Qt.AlignTop)
+
+        panel0 = QGroupBox('Controls:')
+        panel0.setFixedWidth(180)
+        panel0.setLayout(grid0)
+
+        self.leftbox = QVBoxLayout()
+        self.leftbox.addWidget(self.push0_0)
+        self.leftbox.addWidget(panel0)
+
+        #Right panel -----------------------------------------------------------
+        self.fig1 = CustomGLWidget(self) #gl.GLViewWidget()
+        background_color = self.palette().color(QtGui.QPalette.Background)
+        self.fig1.setBackgroundColor(background_color)
+        self.fig1.setToolTip('Tooltip')
+
+        self.rightbox = QGridLayout() #QVBoxLayout()
+        self.rightbox.setSpacing(0.0)
+        self.rightbox.setRowStretch(0, 2)
+        #self.rightbox.setRowStretch(1, 1)
+        self.rightbox.addWidget(self.fig1)
+
+        self.hbox = QHBoxLayout()
+        self.hbox.addLayout(self.leftbox)    #add panels in the left
+        self.hbox.addLayout(self.rightbox)   #add plot on the right
+
+        self.setLayout(self.hbox)
+        self.setWindowTitle('Periodogram')
+        self.resize(1100,600)
+        self.exec_()
+
+    def set_freq_bin(self):
+        self.freqTickRes = float(self.qline2.text())
+        self.draw_periodograms()
+
+    def set_ch_grid(self):
+        self.chTickGrid = float(self.qline3.text())
+        self.chTickSpace = self.nChannels/(self.chTickGrid-1)
+        self.draw_periodograms()
+
+    def save_image(self):
+        """Export image. For 3D scenes, this is still a bit limited."""
+        default_path_name = self.parent.model.pathName
+        filename, _ = QFileDialog.getSaveFileName(self, 'Export image',
+                                                  default_path_name, "(*.png)")
+        print(filename)
+        self.fig1.grabFrameBuffer().save(filename+'.png')
+
+    def areas_select(self):
+        """Dialog to choose channels from specific brain regions."""
+        w = SelectChannelsDialog(self.parent.model.all_regions, self.parent.model.regions_mask)
+        self.transparent = []
+        for ch in np.arange(self.nChannels):
+            loc = self.parent.model.nwb.electrodes['location'][ch]
+            if loc not in w.choices:
+                self.transparent.append(ch)
+        self.draw_periodograms()
+
+    def draw_periodograms(self):
+        """Draw periodograms."""
+        for it in self.fig1.items[:]:
+            self.fig1.removeItem(it)
+        nBins = 400
+        y = np.linspace(0,self.nChannels,self.nChannels)
+        x = np.linspace(0,self.freqMax,nBins)
+        maxz = 0
+        Yscale = self.freqMax/2  #Scale Z for better visualization
+        for ch in range(self.nChannels):
+            if ch in self.transparent: #if it should be made transparent
+                elem_alpha = .1
+            else:
+                elem_alpha = 1
+            yi = np.array([y[ch]]*nBins)
+            z = Yscale*(np.exp(-x/70) + np.random.randn(len(x))*np.exp(-x/70)/5)
+            maxz = max(maxz,max(z))
+            pts = np.vstack([x,yi,z]).transpose()
+            plt = gl.GLLinePlotItem(pos=pts, color=(0,0,0,elem_alpha), width=1., antialias=True)
+            self.fig1.addItem(plt)
+        #Axes
+        axis = Custom3DAxis(self.fig1)
+        axis.setSize(x=self.freqMax, y=self.nChannels, z=maxz)
+        axis.add_labels(labels=['Frequency [Hz]','Channel #','PSD [V**2/Hz]'])
+        xticks=np.arange(0,self.freqMax+0.01,self.freqTickRes, dtype='int')
+        yticks=np.linspace(1,self.nChannels,self.chTickGrid, dtype='int')
+        zticks=np.round(np.linspace(0,maxz,4),1)
+        axis.add_tick_values(xticks=xticks, yticks=yticks, zticks=zticks)
+        self.fig1.addItem(axis)
+        #Camera initial position
+        self.fig1.setCameraPosition(distance=497, elevation=22, azimuth=-83)
+        self.fig1.opts['center'] = QtGui.QVector3D(95.6, 195.4, 0)
+        #Reference grids
+        gx = CustomGLGrid(self)#gl.GLGridItem()
         gx.rotate(90, 0, 1, 0)
-        gx.translate(-10, 0, 0)
+        gx.setSize(x=maxz, y=self.nChannels)
+        gx.translate(dx=0, dy=self.nChannels/2, dz=maxz/2.)
+        gx.setSpacing(x=np.diff(zticks)[0], y=self.chTickSpace)
         self.fig1.addItem(gx)
-        gy = gl.GLGridItem()
+        gy = CustomGLGrid(self)#gl.GLGridItem()
         gy.rotate(90, 1, 0, 0)
-        gy.translate(0, -10, 0)
+        gy.setSize(x=self.freqMax, y=maxz)
+        gy.translate(dx=self.freqMax/2, dy=self.nChannels, dz=maxz/2)
+        gy.setSpacing(x=np.diff(xticks)[0], y=np.diff(zticks)[0])
         self.fig1.addItem(gy)
-        gz = gl.GLGridItem()
-        gz.translate(0, 0, -10)
+        gz = CustomGLGrid(self)#gl.GLGridItem()
+        gz.setSize(x=self.freqMax, y=self.nChannels)
+        gz.translate(dx=self.freqMax/2, dy=self.nChannels/2, dz=0)
+        gz.setSpacing(x=np.diff(xticks)[0], y=self.chTickSpace)
         self.fig1.addItem(gz)
 
-        grid = QGridLayout() #QVBoxLayout()
-        grid.setSpacing(0.0)
-        grid.setRowStretch(0, 2)
-        grid.setRowStretch(1, 1)
-        grid.addWidget(self.fig1)
-        grid.addWidget(self.fig2)
 
-        self.setLayout(grid)
-        self.setWindowTitle('Periodogram')
+class Custom3DAxis(gl.GLAxisItem):
+    """Class defined to extend 'gl.GLAxisItem'."""
+    def __init__(self, parent):
+        gl.GLAxisItem.__init__(self)
+        self.parent = parent
 
-        # Upper Panel: Periodogram plot ----------------------------------------
-        startSamp = self.model.intervalStartSamples
-        endSamp = self.model.intervalEndSamples
-        fs = model.fs_signal
-        dF = 0.1       #Frequency bin size
-        nfft = fs/dF   #dF = fs/nfft
-        X = np.zeros((2000,3))
-        for i in np.array([1,2,3]): #self.model.selectedChannels:
-            trace = model.plotData[startSamp-1:endSamp, self.chosen_channel-1]
-            fx, Py = signal.periodogram(trace, fs=fs, nfft=nfft)
-            X[:,0] = i
-            X[:,1] = fx[0:2000]
-            X[:,2] = Py[0:2000]
-            print(i)
-            line = gl.GLLinePlotItem(pos=X, color=pg.glColor('w'))
-            line.setLabel('bottom', 'Frequency', units = 'Hz')
-            #line.setData()
-            self.fig1.addItem(line)
-        #self.fig1.show()
+    def add_labels(self, labels=['X','Y','Z']):
+        """Adds axes labels."""
+        x,y,z = self.size()
+        #X label
+        self.xLabel = CustomTextItem(X=x/2, Y=-y/10, Z=-z/10, text=labels[0])
+        self.xLabel.setGLViewWidget(self.parent)
+        self.parent.addItem(self.xLabel)
+        #Y label
+        self.yLabel = CustomTextItem(X=x+x/10, Y=y/2, Z=-z/10, text=labels[1])
+        self.yLabel.setGLViewWidget(self.parent)
+        self.parent.addItem(self.yLabel)
+        #Z label
+        self.zLabel = CustomTextItem(X=-x/8, Y=-y/8, Z=z/2, text=labels[2])
+        self.zLabel.setGLViewWidget(self.parent)
+        self.parent.addItem(self.zLabel)
 
-        #plt1.setLabel('left', 'Average power', units = 'V**2/Hz')
-        #plt1.setTitle('Channel #'+str(self.chosen_channel+1))
-        #plt1.plot(fx, Py, pen='k', width=1)
-        self.fig1.setXRange(0., 200.)
+    def add_tick_values(self, xticks=[], yticks=[], zticks=[]):
+        """Adds ticks values."""
+        x,y,z = self.size()
+        xtpos = xticks#np.linspace(0, x, len(xticks))
+        ytpos = yticks#np.linspace(0, y, len(yticks))
+        ztpos = np.linspace(0, z, len(zticks))
+        #X ticks
+        for i, xt in enumerate(xticks):
+            val = CustomTextItem(X=xtpos[i], Y=-y/50, Z=-z/50, text=str(xt))
+            val.setGLViewWidget(self.parent)
+            self.parent.addItem(val)
+        #Y ticks
+        for i, yt in enumerate(yticks):
+            val = CustomTextItem(X=x+x/50, Y=ytpos[i], Z=-z/50, text=str(yt))
+            val.setGLViewWidget(self.parent)
+            self.parent.addItem(val)
+        #Z ticks
+        for i, zt in enumerate(zticks):
+            val = CustomTextItem(X=-x/15, Y=-y/15, Z=ztpos[i], text=str(zt))
+            val.setGLViewWidget(self.parent)
+            self.parent.addItem(val)
 
-        self.exec_()
+    def paint(self):
+        self.setupGLState()
+        if self.antialias:
+            ogl.glEnable(ogl.GL_LINE_SMOOTH)
+            ogl.glHint(ogl.GL_LINE_SMOOTH_HINT, ogl.GL_NICEST)
+        ogl.glBegin(ogl.GL_LINES)
+
+        x,y,z = self.size()
+        #Draw Z
+        ogl.glColor4f(0, 0, 0, .6)
+        ogl.glVertex3f(0, 0, 0)
+        ogl.glVertex3f(0, 0, z)
+        #Draw Y
+        ogl.glColor4f(0, 0, 0, .6)
+        ogl.glVertex3f(0, 0, 0)
+        ogl.glVertex3f(0, y, 0)
+        #Draw X
+        ogl.glColor4f(0, 0, 0, .6)
+        ogl.glVertex3f(0, 0, 0)
+        ogl.glVertex3f(x, 0, 0)
+        ogl.glEnd()
+
+
+class CustomGLWidget(gl.GLViewWidget):
+    """Class defined to extend 'gl.GLAxisItem'."""
+    def __init__(self, parent):
+        gl.GLViewWidget.__init__(self)
+        self.parent = parent
+
+    def mousePressEvent(self, ev):
+        """Method altered to allow for mouse-click print of region."""
+        self.mousePos = ev.pos()
+        region = (ev.pos().x()-5, ev.pos().y()-5, 10, 10)
+        if len(self.itemsAt(region))>1:
+            item = self.itemsAt(region)[0]
+            if type(item).__name__=='GLLinePlotItem':
+                print(item.pos[0,1])
+
+    def mouseMoveEvent(self, ev):
+        """Method altered to allow for mouse-driven pan."""
+        diff = ev.pos() - self.mousePos
+        self.mousePos = ev.pos()
+        if ev.buttons() == QtCore.Qt.LeftButton:
+            self.pan(diff.x(), diff.y(), 0, relative=True)
+        elif ev.buttons() == QtCore.Qt.MidButton:
+            if (ev.modifiers() & QtCore.Qt.ControlModifier):
+                self.pan(diff.x(), 0, diff.y(), relative=True)
+            else:
+                self.pan(diff.x(), diff.y(), 0, relative=True)
+        print('center: ', self.parent.fig1.opts['center'])
+        print('distance: ', self.parent.fig1.opts['distance'])
+        print('elevation:', self.parent.fig1.opts['elevation'])
+        print('azimuth:', self.parent.fig1.opts['azimuth'])
+
+
+class CustomGLGrid(gl.GLGridItem):
+    """Class defined to extend 'gl.GLGridItem'."""
+    def __init__(self, parent):
+        gl.GLGridItem.__init__(self)
+        self.parent = parent
+
+    def paint(self):
+        self.setupGLState()
+        if self.antialias:
+            ogl.glEnable(ogl.GL_LINE_SMOOTH)
+            ogl.glEnable(ogl.GL_BLEND)
+            ogl.glBlendFunc(ogl.GL_SRC_ALPHA, ogl.GL_ONE_MINUS_SRC_ALPHA)
+            ogl.glHint(ogl.GL_LINE_SMOOTH_HINT, ogl.GL_NICEST)
+        ogl.glBegin(ogl.GL_LINES)
+        x,y,z = self.size()
+        xs,ys,zs = self.spacing()
+        xvals = np.arange(-x/2., x/2. + xs*0.001, xs)
+        yvals = np.arange(-y/2., y/2. + ys*0.001, ys)
+        ogl.glColor4f(.3, .3, .3, 1)
+        st = 1.02   #scale to create ticks
+        for x in xvals:
+            ogl.glVertex3f(x, yvals[0]*st, 0)
+            ogl.glVertex3f(x, yvals[-1]*st, 0)
+        for y in yvals:
+            ogl.glVertex3f(xvals[0]*st, y, 0)
+            ogl.glVertex3f(xvals[-1]*st, y, 0)
+        ogl.glEnd()
+
+
+class CustomTextItem(gl.GLGraphicsItem.GLGraphicsItem):
+    def __init__(self, X, Y, Z, text):
+        gl.GLGraphicsItem.GLGraphicsItem.__init__(self)
+        self.text = text
+        self.X = X
+        self.Y = Y
+        self.Z = Z
+
+    def setGLViewWidget(self, GLViewWidget):
+        self.GLViewWidget = GLViewWidget
+
+    def setText(self, text):
+        self.text = text
+        self.update()
+
+    def setX(self, X):
+        self.X = X
+        self.update()
+
+    def setY(self, Y):
+        self.Y = Y
+        self.update()
+
+    def setZ(self, Z):
+        self.Z = Z
+        self.update()
+
+    def paint(self):
+        self.GLViewWidget.qglColor(QtCore.Qt.black)
+        self.GLViewWidget.renderText(self.X, self.Y, self.Z, self.text)
+
+
+
+
+class GroupPeriodogramDialog333(QMainWindow):
+    def __init__(self, parent):
+        super().__init__()
+        self.setWindowTitle('Event-Related Potentials')
+        self.resize(1250,500)
+
+    # def draw_periodograms(self):
+    #     """Draw periodograms."""
+    #     startSamp = self.model.intervalStartSamples
+    #     endSamp = self.model.intervalEndSamples
+    #     fs = model.fs_signal
+    #     dF = 0.1       #Frequency bin size
+    #     nfft = fs/dF   #dF = fs/nfft
+    #     X = np.zeros((2000,3))
+    #     for i in np.array([1,2,3]): #self.model.selectedChannels:
+    #         trace = model.plotData[startSamp-1:endSamp, self.chosen_channel-1]
+    #         fx, Py = signal.periodogram(trace, fs=fs, nfft=nfft)
+    #         X[:,0] = i
+    #         X[:,1] = fx[0:2000]
+    #         X[:,2] = Py[0:2000]
+    #         print(i)
+    #         line = gl.GLLinePlotItem(pos=X, color=pg.glColor('w'))
+    #         line.setLabel('bottom', 'Frequency', units = 'Hz')
+    #         #line.setData()
+    #         self.fig1.addItem(line)
+    #     #self.fig1.show()
+    #
+    #     #plt1.setLabel('left', 'Average power', units = 'V**2/Hz')
+    #     #plt1.setTitle('Channel #'+str(self.chosen_channel+1))
+    #     #plt1.plot(fx, Py, pen='k', width=1)
+    #     self.fig1.setXRange(0., 200.)
+
 
 
 
@@ -1006,7 +1304,6 @@ class ERPDialog(QMainWindow):#QtGui.QDialog):
         self.push1_1.setEnabled(True)
         self.qline2.setEnabled(True)
         self.combo1.setEnabled(True)
-        #self.push2_0.setEnabled(True)
         self.push3_0.setEnabled(True)
         self.push4_0.setEnabled(True)
         self.push5_0.setEnabled(True)

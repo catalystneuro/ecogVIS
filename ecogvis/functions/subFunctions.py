@@ -147,8 +147,8 @@ class ecogVIS:
         self.refreshScreen()
 
 
-    # Re-opens the file, for when new data is included
     def refresh_file(self):
+        """Re-opens the current file, for when new data is included"""
         self.io.close()   #closes current NWB file
         self.io = pynwb.NWBHDF5IO(self.fullpath,'r+')
         self.nwb = self.io.read()      #reads NWB file
@@ -166,13 +166,13 @@ class ecogVIS:
         self.updateCurXAxisPosition()
 
 
-    # Re-draws all plots
     def refreshScreen(self):
+        """Re-draws all plots"""
         self.TimeSeries_plotter()
 
 
-    # Plots time series signals ------------------------------------------------
     def TimeSeries_plotter(self):
+        """Plots time series signals"""
         startSamp = self.intervalStartSamples
         endSamp = self.intervalEndSamples
 
@@ -312,9 +312,9 @@ class ecogVIS:
         self.updateCurXAxisPosition()
 
 
-    # Updates the time interval selected from the user forms,
-    # with checks for allowed values
     def updateCurXAxisPosition(self):
+        """Updates the time interval selected from the user forms,
+           with checks for allowed values"""
         # Read from user forms
         self.intervalStartGuiUnits = float(self.axesParams['editLine']['qLine2'].text())
         self.intervalLengthGuiUnits = float(self.axesParams['editLine']['qLine3'].text())
@@ -348,17 +348,17 @@ class ecogVIS:
         self.refreshScreen()
 
 
-    # Updates the plotting time interval range
     def time_window_resize(self, wscale):
+        """Updates the plotting time interval range"""
         self.intervalLengthGuiUnits = float(self.axesParams['editLine']['qLine3'].text())
         self.intervalLengthGuiUnits = self.intervalLengthGuiUnits * wscale
         self.axesParams['editLine']['qLine3'].setText(str(self.intervalLengthGuiUnits))
         self.updateCurXAxisPosition()
 
 
-    # Updates the plotting time interval for scrolling
-    # Buttons: >>, >, <<, <
     def time_scroll(self, scroll=0):
+        """Updates the plotting time interval for scrolling.
+           Buttons: >>, >, <<, <"""
         #new interval start
         self.intervalStartSamples = self.intervalStartSamples \
                                     + int(scroll * self.intervalLengthSamples)
@@ -388,10 +388,8 @@ class ecogVIS:
         return yrs, xrs
 
 
-
-    # Updates the channels to be plotted
-    # Buttons: ^, ^^
     def channel_Scroll_Up(self, opt='unit'):
+        """Updates the channels to be plotted. Buttons: ^, ^^ """
         # Test upper limit
         if self.lastCh < self.nChTotal:
             if opt=='unit':
@@ -408,8 +406,8 @@ class ecogVIS:
         self.refreshScreen()
 
 
-    # Buttons: v, vv
     def channel_Scroll_Down(self, opt='unit'):
+        """Updates the channels to be plotted. Buttons: v, vv """
         # Test lower limit
         if self.firstCh > 1:
             if opt=='unit':
@@ -423,18 +421,6 @@ class ecogVIS:
             self.axesParams['editLine']['qLine1'].setText(str(self.firstCh))
             self.nChToShow = self.lastCh - self.firstCh + 1
             self.selectedChannels = self.channels_mask_ind[self.firstCh-1:self.lastCh]
-        self.refreshScreen()
-
-
-    def verticalScaleIncrease(self):
-        scaleFac = float(self.axesParams['editLine']['qLine4'].text())
-        self.axesParams['editLine']['qLine4'].setText(str(scaleFac * 2))
-        self.refreshScreen()
-
-
-    def verticalScaleDecrease(self):
-        scaleFac = float(self.axesParams['editLine']['qLine4'].text())
-        self.axesParams['editLine']['qLine4'].setText(str(scaleFac/2.0))
         self.refreshScreen()
 
 
