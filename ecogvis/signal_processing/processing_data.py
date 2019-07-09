@@ -5,10 +5,11 @@ import numpy as np
 
 import nwbext_ecog
 from pynwb import NWBHDF5IO, ProcessingModule
-from pynwb.ecephys import LFP
+from pynwb.ecephys import LFP, ElectricalSeries
 from pynwb.core import DynamicTable, DynamicTableRegion, VectorData
 from pynwb.misc import DecompositionSeries
 from pynwb.base import TimeSeries
+from pynwb.file import Subject
 
 from ecogvis.signal_processing.hilbert_transform import *
 from ecogvis.signal_processing.resample import *
@@ -81,6 +82,12 @@ def make_new_nwb(old_file, new_file):
                     nwb_new.add_electrode_column(name=var,
                                                  description=nwb.electrodes[var].description,
                                                  data=nwb.electrodes[var].data[:])
+            #Epochs
+            if nwb.epochs is not None:
+                nEpochs = len(nwb.epochs['start_time'].data[:])
+                for i in np.arange(nEpochs):
+                    nwb_new.add_epoch(start_time=nwb.epochs['start_time'].data[i],
+                                      stop_time=nwb.epochs['stop_time'].data[i])
             #Institution and Lab names
             nwb_new.institution = str(nwb.institution)
             nwb_new.lab = str(nwb.lab)
@@ -90,32 +97,15 @@ def make_new_nwb(old_file, new_file):
                 for aux in np.arange(nInvalid):
                     nwb_new.add_invalid_time_interval(start_time=nwb.invalid_times['start_time'][aux],
                                                       stop_time=nwb.invalid_times['stop_time'][aux])
-            #Subject
-            try:
-                cortical_surfaces = CorticalSurfaces()
-                surfaces = nwb.subject.cortical_surfaces.surfaces
-                for sfc in list(surfaces.keys()):
-                    cortical_surfaces.create_surface(name=surfaces[sfc].name,
-                                                     faces=surfaces[sfc].faces,
-                                                     vertices=surfaces[sfc].vertices)
-                nwb_new.subject = ECoGSubject(cortical_surfaces=cortical_surfaces,
-                                              subject_id=nwb.subject.subject_id,
-                                              age=nwb.subject.age,
-                                              description=nwb.subject.description,
-                                              genotype=nwb.subject.genotype,
-                                              sex=nwb.subject.sex,
-                                              species=nwb.subject.species,
-                                              weight=nwb.subject.weight,
-                                              date_of_birth=nwb.subject.date_of_birth)
-            except:
-                None
-
             #Trials
             if nwb.trials is not None:
                 nTrials = len(nwb.trials['start_time'])
                 for aux in np.arange(nTrials):
                     nwb_new.add_trial(start_time=nwb.trials['start_time'][aux],
                                       stop_time=nwb.trials['stop_time'][aux])
+            #Session id
+            if nwb.session_id is not None:
+                nwb_new.session_id = nwb.session_id
             #Stimulus
             if nwb.stimulus is not None:
                 for stim_name in list(nwb.stimulus.keys()):
@@ -129,7 +119,33 @@ def make_new_nwb(old_file, new_file):
                                     starting_time=stim.starting_time,
                                     unit=stim.unit)
                     nwb_new.add_stimulus(ts)
-
+            #Subject
+            if nwb.subject is not None:
+                try:
+                    cortical_surfaces = CorticalSurfaces()
+                    surfaces = nwb.subject.cortical_surfaces.surfaces
+                    for sfc in list(surfaces.keys()):
+                        cortical_surfaces.create_surface(name=surfaces[sfc].name,
+                                                         faces=surfaces[sfc].faces,
+                                                         vertices=surfaces[sfc].vertices)
+                    nwb_new.subject = ECoGSubject(cortical_surfaces=cortical_surfaces,
+                                                  subject_id=nwb.subject.subject_id,
+                                                  age=nwb.subject.age,
+                                                  description=nwb.subject.description,
+                                                  genotype=nwb.subject.genotype,
+                                                  sex=nwb.subject.sex,
+                                                  species=nwb.subject.species,
+                                                  weight=nwb.subject.weight,
+                                                  date_of_birth=nwb.subject.date_of_birth)
+                except:
+                    nwb_new.subject = Subject(age=nwb.subject.age,
+                                              description=nwb.subject.description,
+                                              genotype=nwb.subject.genotype,
+                                              sex=nwb.subject.sex,
+                                              species=nwb.subject.species,
+                                              subject_id=nwb.subject.subject_id,
+                                              weight=nwb.subject.weight,
+                                              date_of_birth=nwb.subject.date_of_birth)
 
             #Write new file with copied fields
             io2.write(nwb_new, link_data=False)
@@ -308,14 +324,19 @@ def spectral_decomposition(block_path, bands_vals):
         nChannels = lfp.data.shape[1]
         Xp = np.zeros((nBands, nChannels, nSamples))  #power (nBands,nChannels,nSamples)
 
-        # Apply Hilbert transform
-        X = lfp.data[:].T*1e6       # 1e6 scaling helps with numerical accuracy
-        X = X.astype('float32')     # signal (nChannels,nSamples)
-        X_fft_h = None
-        for ii, (bp0, bp1) in enumerate(zip(band_param_0, band_param_1)):
-            kernel = gaussian(X, rate, bp0, bp1)
-            X_analytic, X_fft_h = hilbert_transform(X, rate, kernel, phase=None, X_fft_h=X_fft_h)
-            Xp[ii] = abs(X_analytic).astype('float32')
+        # Apply Hilbert transform ----------------------------------------------
+        print('Running Spectral Decomposition...')
+        start = time.time()
+        for ch in np.arange(nChannels):
+            Xch = lfp.data[:,ch]*1e6       # 1e6 scaling helps with numerical accuracy
+            Xch = Xch.reshape(1,-1)
+            Xch = Xch.astype('float32')     # signal (nChannels,nSamples)
+            X_fft_h = None
+            for ii, (bp0, bp1) in enumerate(zip(band_param_0, band_param_1)):
+                kernel = gaussian(Xch, rate, bp0, bp1)
+                X_analytic, X_fft_h = hilbert_transform(Xch, rate, kernel, phase=None, X_fft_h=X_fft_h)
+                Xp[ii, ch, :] = abs(X_analytic).astype('float32')
+        print('Spectral Decomposition finished in {} seconds'.format(time.time()-start))
 
         # data: (ndarray) dims: num_times * num_channels * num_bands
         Xp = np.swapaxes(Xp,0,2)
@@ -385,14 +406,19 @@ def high_gamma_estimation(block_path, bands_vals, new_file=''):
         nChannels = lfp.data.shape[1]
         Xp = np.zeros((nBands, nChannels, nSamples))  #power (nBands,nChannels,nSamples)
 
-        # Apply Hilbert transform
-        X = lfp.data[:].T*1e6       # 1e6 scaling helps with numerical accuracy
-        X = X.astype('float32')     # signal (nChannels,nSamples)
-        X_fft_h = None
-        for ii, (bp0, bp1) in enumerate(zip(band_param_0, band_param_1)):
-            kernel = gaussian(X, rate, bp0, bp1)
-            X_analytic, X_fft_h = hilbert_transform(X, rate, kernel, phase=None, X_fft_h=X_fft_h)
-            Xp[ii,:,:] = abs(X_analytic).astype('float32')
+        # Apply Hilbert transform ----------------------------------------------
+        print('Running High Gamma estimation...')
+        start = time.time()
+        for ch in np.arange(nChannels):
+            Xch = lfp.data[:,ch]*1e6       # 1e6 scaling helps with numerical accuracy
+            Xch = Xch.reshape(1,-1)
+            Xch = Xch.astype('float32')     # signal (nChannels,nSamples)
+            X_fft_h = None
+            for ii, (bp0, bp1) in enumerate(zip(band_param_0, band_param_1)):
+                kernel = gaussian(Xch, rate, bp0, bp1)
+                X_analytic, X_fft_h = hilbert_transform(Xch, rate, kernel, phase=None, X_fft_h=X_fft_h)
+                Xp[ii, ch, :] = abs(X_analytic).astype('float32')
+        print('High Gamma estimation finished in {} seconds'.format(time.time()-start))
 
         # data: (ndarray) dims: num_times * num_channels * num_bands
         Xp = np.swapaxes(Xp,0,2)

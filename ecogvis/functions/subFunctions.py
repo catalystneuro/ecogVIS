@@ -322,7 +322,7 @@ class ecogVIS:
         self.intervalLengthGuiUnits = float(self.parent.qline3.text())
 
         max_dur = self.nBins * self.tbin_signal  # Max duration in seconds
-        min_len = 1000*self.tbin_signal          # Min accepted length
+        min_len = 500*self.tbin_signal          # Min accepted length
 
         # Check for max and min allowed values: START
         if  self.intervalStartGuiUnits < 0.001:
@@ -345,7 +345,7 @@ class ecogVIS:
         # Updates times in samples
         self.intervalLengthSamples = int(np.floor(self.intervalLengthGuiUnits / self.tbin_signal))
         self.intervalStartSamples = max(np.floor(self.intervalStartGuiUnits / self.tbin_signal),0)
-        self.intervalStartSamples = int(min(self.intervalStartSamples, self.nBins-1001))
+        self.intervalStartSamples = int(min(self.intervalStartSamples, self.nBins-501))
         self.intervalEndSamples = self.intervalStartSamples + self.intervalLengthSamples
 
         self.refreshScreen()
