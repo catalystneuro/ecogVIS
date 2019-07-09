@@ -20,23 +20,26 @@ import pynwb
 import nwbext_ecog
 
 class ecogVIS:
-    def __init__(self, par, parameters):
+    def __init__(self, par):
         self.parent = par
         self.fullpath = par.file
         self.pathName = os.path.split(os.path.abspath(par.file))[0] #path
         self.fileName = os.path.split(os.path.abspath(par.file))[1] #file
-        self.axesParams = parameters
         self.parent.setWindowTitle('ecogVIS - '+self.fileName+' - '+self.parent.current_session)
 
         self.io = pynwb.NWBHDF5IO(self.fullpath,'r+')
         self.nwb = self.io.read()      #reads NWB file
 
-        if (len(self.nwb.acquisition)>0) and ('ECoG' in self.nwb.acquisition):
-            self.source = self.nwb.acquisition['ECoG']              #ecog
-            self.parent.combo3.setCurrentIndex(self.parent.combo3.findText('raw'))
-            self.parent.push5_0.setEnabled(True)
-            self.parent.push6_0.setEnabled(True)
-            self.parent.push7_0.setEnabled(True)
+        # Searches for signal source on file
+        if (len(self.nwb.acquisition)>0):
+            lis = list(self.nwb.acquisition.keys())
+            for i in lis:  # Check if there is ElectricalSeries in acquisition group
+                if type(self.nwb.acquisition[i]).__name__ == 'ElectricalSeries':
+                    self.source = self.nwb.acquisition[i]
+                    self.parent.combo3.setCurrentIndex(self.parent.combo3.findText('raw'))
+                    self.parent.push5_0.setEnabled(True)
+                    self.parent.push6_0.setEnabled(True)
+                    self.parent.push7_0.setEnabled(True)
         elif len(self.nwb.modules)>0:
             if 'LFP' in self.nwb.modules['ecephys'].data_interfaces:
                 self.source = self.nwb.modules['ecephys'].data_interfaces['LFP'].electrical_series['preprocessed']
@@ -73,8 +76,8 @@ class ecogVIS:
         self.unsaved_changes_interval = False
 
         # Channels to show
-        self.firstCh = int(self.axesParams['editLine']['qLine1'].text())
-        self.lastCh = int(self.axesParams['editLine']['qLine0'].text())
+        self.firstCh = int(self.parent.qline1.text())
+        self.lastCh = int(self.parent.qline0.text())
         self.nChToShow = self.lastCh - self.firstCh + 1
         self.selectedChannels = np.arange(self.firstCh-1, self.lastCh)
 
@@ -106,15 +109,13 @@ class ecogVIS:
             self.IntRects1 = np.append(self.IntRects1, c)
             c.setPen(pg.mkPen(color = 'r'))
             c.setBrush(QtGui.QColor(255, 0, 0, 120))
-            a = self.axesParams['pars']['Figure'][1]
-            a.addItem(c)
+            self.parent.win2.addItem(c)
             # on signals plot
             c = pg.QtGui.QGraphicsRectItem(start, -1, max(stop-start, 0.01), 2)
             self.IntRects2 = np.append(self.IntRects2, c)
             c.setPen(pg.mkPen(color = 'r'))
             c.setBrush(QtGui.QColor(255, 0, 0, 120))
-            a = self.axesParams['pars']['Figure'][0]
-            a.addItem(c)
+            self.parent.win1.addItem(c)
 
 
         # Load stimulus signal (audio)
@@ -143,7 +144,7 @@ class ecogVIS:
 
 
         # Initiate plots
-        self.getCurAxisParameters()
+        self.updateCurXAxisPosition()
         self.refreshScreen()
 
 
@@ -152,8 +153,12 @@ class ecogVIS:
         self.io.close()   #closes current NWB file
         self.io = pynwb.NWBHDF5IO(self.fullpath,'r+')
         self.nwb = self.io.read()      #reads NWB file
-        if (len(self.nwb.acquisition)>0) and ('ECoG' in self.nwb.acquisition):
-            self.source = self.nwb.acquisition['ECoG']              #ecog
+        # Searches for signal source on file
+        if (len(self.nwb.acquisition)>0):
+            lis = list(self.nwb.acquisition.keys())
+            for i in lis:  # Check if there is ElectricalSeries in acquisition group
+                if type(self.nwb.acquisition[i]).__name__ == 'ElectricalSeries':
+                    self.source = self.nwb.acquisition[i]
         elif len(self.nwb.modules)>0:
             if 'LFP' in self.nwb.modules['ecephys'].data_interfaces:
                 self.source = self.nwb.modules['ecephys'].data_interfaces['LFP'].electrical_series['preprocessed']
@@ -176,8 +181,16 @@ class ecogVIS:
         startSamp = self.intervalStartSamples
         endSamp = self.intervalEndSamples
 
+        #Bins to plot - subsample for too big arrays
+        maxBins = 1000
+        ratio_to_max = (endSamp-startSamp)/maxBins
+        if ratio_to_max > 1:
+            bins_to_plot = np.linspace(startSamp, endSamp, maxBins, dtype='int')
+        else:
+            bins_to_plot = np.arange(startSamp, endSamp, dtype='int')
+
         # Use the same scaling factor for all channels, to keep things comparable
-        self.verticalScaleFactor = float(self.axesParams['editLine']['qLine4'].text())
+        self.verticalScaleFactor = float(self.parent.qline4.text())
         scaleFac = 2*np.std(self.plotData[startSamp:endSamp, self.selectedChannels-1], axis=0)/self.verticalScaleFactor
 
         # Scale variance_units, offset for each channel
@@ -189,60 +202,22 @@ class ecogVIS:
 
         # constrains the plotData to the chosen interval (and transpose matix)
         # plotData dims=[self.nChToShow, plotInterval]
-        try:
-            data = self.plotData[startSamp - 1 : endSamp, self.selectedChannels-1].T
-            means = np.reshape(np.mean(data, 1),(-1,1))  #to align each trace around its reference trace
-            plotData = data + np.tile(scaleV-means, (1, endSamp - startSamp + 1)) # data + offset
-        except:  #if time segment shorter than window.
-            data = self.plotData[:, self.selectedChannels-1].T
-            means = np.reshape(np.mean(data, 1),(-1,1))  #to align each trace around its reference trace
-            plotData = data + np.tile(scaleV-means, (1, endSamp - startSamp + 1)) # data + offset
-
-
-        # Upper horizontal bar
-        plt1 = self.axesParams['pars']['Figure'][1]
-        plt1.clear()
-        max_dur = self.nBins * self.tbin_signal
-        plt1.plot([0, max_dur], [0, 0], pen=pg.mkPen('k', width=2))
-        plt1.setXRange(0, max_dur)
-        plt1.setYRange(-1, 1)
-
-        if self.current_rect != []:
-            plt1.removeItem(self.current_rect)
-
-        #self.current_rect = pg.LinearRegionItem()
-        #self.current_rect.setMovable(False)
-        #plt1.addItem(self.current_rect)
-        ## Rectangle Plot
-        x = float(self.axesParams['editLine']['qLine2'].text())
-        w = float(self.axesParams['editLine']['qLine3'].text())
-        self.current_rect = CustomBox(self, x, -1000, w, 2000)
-        self.current_rect.setPen(pg.mkPen(color=(0,0,0,50)))
-        self.current_rect.setBrush(QtGui.QColor(0,0,0,50))
-        self.current_rect.setFlags(QtGui.QGraphicsItem.ItemIsMovable)
-        plt1.addItem(self.current_rect)
-        plt1.setLabel('left', 'Span')
-        plt1.getAxis('left').setWidth(w=53)
-        plt1.getAxis('left').setStyle(showValues=False)
-        plt1.getAxis('left').setTicks([])
-
-        # Show Intervals
-        for i in range(len(self.IntRects1)):
-            plt1.removeItem(self.IntRects1[i])
-        for i in range(len(self.IntRects1)):
-            plt1.addItem(self.IntRects1[i])
-
+        data = self.plotData[startSamp:endSamp, self.selectedChannels-1].T
+        data = data[:,bins_to_plot-startSamp-1]
+        means = np.reshape(np.mean(data, 1),(-1,1))  #to align each trace around its reference trace
+        plotData = data + scaleV - means  # data + offset
 
         # Middle signals plot
         # A line indicating reference for every channel
-        timebaseGuiUnits = np.arange(startSamp - 1, endSamp) * (self.intervalStartGuiUnits/self.intervalStartSamples)
-        x = np.tile([timebaseGuiUnits[0], timebaseGuiUnits[-1]], (len(self.scaleVec), 1))
-        y = np.hstack((scaleV, scaleV))
-        plt2 = self.axesParams['pars']['Figure'][0]   #middle signal plot
+        timebaseGuiUnits = bins_to_plot*self.tbin_signal
+        #timebaseGuiUnits = np.arange(startSamp, endSamp)*self.tbin_signal
+        plt2 = self.parent.win1  #middle signal plot
         plt2.clear()
         #Channels reference lines
-        for l in range(np.shape(x)[0]):
-            plt2.plot(x[l], y[l], pen = 'k')
+        for l in range(len(self.scaleVec)):
+            plt2.plot([timebaseGuiUnits[0], timebaseGuiUnits[-1]],
+                      [self.scaleVec[l], self.scaleVec[l]],
+                      pen='k')
 
         # Iterate over chosen channels, plot one at a time
         nrows, ncols = np.shape(plotData)
@@ -257,10 +232,10 @@ class ecogVIS:
         plt2.setLabel('bottom', 'Time', units = 'sec')
         plt2.setLabel('left', 'Channel #')
         labels = [str(ch+1) for ch in self.selectedChannels]
-        ticks = list(zip(y[:, 0], labels))
+        ticks = list(zip(self.scaleVec, labels))
         plt2.getAxis('left').setTicks([ticks])
         plt2.setXRange(timebaseGuiUnits[0], timebaseGuiUnits[-1], padding = 0.003)
-        plt2.setYRange(y[0, 0], y[-1, 0], padding = 0.06)
+        plt2.setYRange(self.scaleVec[0], self.scaleVec[-1], padding = 0.06)
         plt2.getAxis('left').setWidth(w=53)
 
         # Show Intervals
@@ -281,8 +256,38 @@ class ecogVIS:
             aux.setPos(x,y)
             plt2.addItem(aux)
 
+        # Upper horizontal bar
+        plt1 = self.parent.win2
+        plt1.clear()
+        max_dur = self.nBins * self.tbin_signal
+        plt1.plot([0, max_dur], [0, 0], pen=pg.mkPen('k', width=2))
+        plt1.setXRange(0, max_dur)
+        plt1.setYRange(-1, 1)
+
+        if self.current_rect != []:
+            plt1.removeItem(self.current_rect)
+
+        ## Rectangle Plot
+        x = float(self.parent.qline2.text())
+        w = float(self.parent.qline3.text())
+        self.current_rect = CustomBox(self, x, -1000, w, 2000)
+        self.current_rect.setPen(pg.mkPen(color=(0,0,0,50)))
+        self.current_rect.setBrush(QtGui.QColor(0,0,0,50))
+        self.current_rect.setFlags(QtGui.QGraphicsItem.ItemIsMovable)
+        plt1.addItem(self.current_rect)
+        plt1.setLabel('left', 'Span')
+        plt1.getAxis('left').setWidth(w=53)
+        plt1.getAxis('left').setStyle(showValues=False)
+        plt1.getAxis('left').setTicks([])
+
+        # Show Intervals
+        for i in range(len(self.IntRects1)):
+            plt1.removeItem(self.IntRects1[i])
+        for i in range(len(self.IntRects1)):
+            plt1.addItem(self.IntRects1[i])
+
         # Bottom plot - Stimuli
-        plt3 = self.axesParams['pars']['Figure'][2]
+        plt3 = self.parent.win3
         plt3.clear()
         if self.parent.combo4.currentText() is not '':
             xmask = (self.stimX > timebaseGuiUnits[0]) * (self.stimX < timebaseGuiUnits[-1])
@@ -304,11 +309,8 @@ class ecogVIS:
 
 
     def drag_window(self, dt):
-        self.axesParams['editLine']['qLine2'].setText(str(self.intervalStartGuiUnits + dt))
-        self.updateCurXAxisPosition()
-
-
-    def getCurAxisParameters(self):
+        """Updates upper visualization window position when dragged by the user."""
+        self.parent.qline2.setText(str(self.intervalStartGuiUnits + dt))
         self.updateCurXAxisPosition()
 
 
@@ -316,8 +318,8 @@ class ecogVIS:
         """Updates the time interval selected from the user forms,
            with checks for allowed values"""
         # Read from user forms
-        self.intervalStartGuiUnits = float(self.axesParams['editLine']['qLine2'].text())
-        self.intervalLengthGuiUnits = float(self.axesParams['editLine']['qLine3'].text())
+        self.intervalStartGuiUnits = float(self.parent.qline2.text())
+        self.intervalLengthGuiUnits = float(self.parent.qline3.text())
 
         max_dur = self.nBins * self.tbin_signal  # Max duration in seconds
         min_len = 1000*self.tbin_signal          # Min accepted length
@@ -337,12 +339,13 @@ class ecogVIS:
         # Updates form values (round to miliseconds for display)
         self.intervalStartGuiUnits = np.round(self.intervalStartGuiUnits,3)
         self.intervalLengthGuiUnits = np.round(self.intervalLengthGuiUnits,3)
-        self.axesParams['editLine']['qLine2'].setText(str(self.intervalStartGuiUnits))
-        self.axesParams['editLine']['qLine3'].setText(str(self.intervalLengthGuiUnits))
+        self.parent.qline2.setText(str(self.intervalStartGuiUnits))
+        self.parent.qline3.setText(str(self.intervalLengthGuiUnits))
 
         # Updates times in samples
         self.intervalLengthSamples = int(np.floor(self.intervalLengthGuiUnits / self.tbin_signal))
-        self.intervalStartSamples = int(max(np.floor(self.intervalStartGuiUnits / self.tbin_signal),1))
+        self.intervalStartSamples = max(np.floor(self.intervalStartGuiUnits / self.tbin_signal),0)
+        self.intervalStartSamples = int(min(self.intervalStartSamples, self.nBins-1001))
         self.intervalEndSamples = self.intervalStartSamples + self.intervalLengthSamples
 
         self.refreshScreen()
@@ -350,9 +353,9 @@ class ecogVIS:
 
     def time_window_resize(self, wscale):
         """Updates the plotting time interval range"""
-        self.intervalLengthGuiUnits = float(self.axesParams['editLine']['qLine3'].text())
+        self.intervalLengthGuiUnits = float(self.parent.qline3.text())
         self.intervalLengthGuiUnits = self.intervalLengthGuiUnits * wscale
-        self.axesParams['editLine']['qLine3'].setText(str(self.intervalLengthGuiUnits))
+        self.parent.qline3.setText(str(self.intervalLengthGuiUnits))
         self.updateCurXAxisPosition()
 
 
@@ -366,8 +369,8 @@ class ecogVIS:
         # set start such that intserval is in a valid range
         if self.intervalStartSamples + self.intervalLengthSamples > self.nBins:
             self.intervalStartSamples = self.nBins - self.intervalLengthSamples
-        elif self.intervalStartSamples < 1:
-            self.intervalStartSamples = 1
+        elif self.intervalStartSamples < 0:
+            self.intervalStartSamples = 0
 
         #new interval end
         self.intervalEndSamples = self.intervalStartSamples + self.intervalLengthSamples
@@ -376,7 +379,7 @@ class ecogVIS:
         # Round to miliseconds for display
         self.intervalStartGuiUnits = np.round(self.intervalStartGuiUnits,3)
         self.intervalEndGuiUnits = self.intervalEndSamples*self.tbin_signal
-        self.axesParams['editLine']['qLine2'].setText(str(self.intervalStartGuiUnits))
+        self.parent.qline2.setText(str(self.intervalStartGuiUnits))
         self.refreshScreen()
 
 
@@ -399,8 +402,8 @@ class ecogVIS:
             # Add +1 to first and last channels
             self.firstCh += step
             self.lastCh += step
-            self.axesParams['editLine']['qLine0'].setText(str(self.lastCh))
-            self.axesParams['editLine']['qLine1'].setText(str(self.firstCh))
+            self.parent.qline0.setText(str(self.lastCh))
+            self.parent.qline1.setText(str(self.firstCh))
             self.nChToShow = self.lastCh - self.firstCh + 1
             self.selectedChannels = self.channels_mask_ind[self.firstCh-1:self.lastCh]
         self.refreshScreen()
@@ -417,43 +420,17 @@ class ecogVIS:
             # Subtract from first and last channels
             self.firstCh -= step
             self.lastCh -= step
-            self.axesParams['editLine']['qLine0'].setText(str(self.lastCh))
-            self.axesParams['editLine']['qLine1'].setText(str(self.firstCh))
+            self.parent.qline0.setText(str(self.lastCh))
+            self.parent.qline1.setText(str(self.firstCh))
             self.nChToShow = self.lastCh - self.firstCh + 1
             self.selectedChannels = self.channels_mask_ind[self.firstCh-1:self.lastCh]
         self.refreshScreen()
 
 
-    def time_window_size(self):
-        plotIntervalGuiUnits = float(self.axesParams['editLine']['qLine3'].text())
-        n = model.nBins
-        # Minimum time interval
-        if plotIntervalGuiUnits < self.tbin_signal:
-            plotIntervalGuiUnits = self.tbin_signal
-            self.axesParams['editLine']['qLine3'].setText(str(plotIntervalGuiUnits))
-        elif plotIntervalGuiUnits/self.tbin_signal > n:
-            plotIntervalGuiUnits = (n - 1) * self.tbin_signal
-            self.axesParams['editLine']['qLine3'].setText(str(plotIntervalGuiUnits))
-        self.refreshScreen()
-
-
-    def interval_start(self):
-        self.updateCurXAxisPosition()
-        # Interval at least one sample long
-        if self.intervalStartSamples < self.tbin_signal:
-            self.intervalStartSamples = 1   #set to the first sample
-            self.setXAxisPositionSamples()
-        # Maximum interval size
-        if self.intervalStartSamples + self.intervalLengthSamples - 1 > self.nBins:
-            self.intervalStartSamples = self.nBins - self.intervalLengthSamples + 1
-            self.setXAxisPositionSamples()
-        self.refreshScreen()
-
-
     def nChannels_Displayed(self):
-        # Update channels to show
-        self.firstCh = int(self.axesParams['editLine']['qLine1'].text())
-        self.lastCh = int(self.axesParams['editLine']['qLine0'].text())
+        """Updates channels to be plotted."""
+        self.firstCh = int(self.parent.qline1.text())
+        self.lastCh = int(self.parent.qline0.text())
 
         # Make sure indices are in a valid range
         if self.firstCh < 1:
@@ -475,13 +452,27 @@ class ecogVIS:
         #Update variables and values displayed on forms
         self.nChToShow = self.lastCh - self.firstCh + 1
         self.selectedChannels = self.channels_mask_ind[self.firstCh-1:self.lastCh]
-        self.axesParams['editLine']['qLine0'].setText(str(self.lastCh))
-        self.axesParams['editLine']['qLine1'].setText(str(self.firstCh))
+        self.parent.qline0.setText(str(self.lastCh))
+        self.parent.qline1.setText(str(self.firstCh))
         self.refreshScreen()
 
 
     ## Annotation functions ----------------------------------------------------
     def AnnotationAdd(self, x, y, color='yellow', text=''):
+        """
+        Adds new annotation to plot scene.
+
+        Parameters
+        ----------
+        x : float
+            x position
+        y : float
+            y position
+        color :
+            'yellow', 'red', 'green' or 'blue'
+        text : str
+            Annotation text
+        """
         if color=='yellow':
             bgcolor = pg.mkBrush(250, 250, 150, 200)
         elif color=='red':
@@ -516,6 +507,16 @@ class ecogVIS:
 
 
     def AnnotationDel(self, x, y):
+        """
+        Deletes from plot scene the annotation closest to the passed position.
+
+        Parameters
+        ----------
+        x : float
+            x position
+        y : float
+            y position
+        """
         x_ann = self.AnnotationsPosAV[:,0]
         y_ann = np.round((self.AnnotationsPosAV[:,1] + self.AnnotationsPosAV[:,2] - self.firstCh)*self.scaleVec[0])
         # Calculates euclidian distance from click
@@ -534,6 +535,7 @@ class ecogVIS:
 
 
     def AnnotationSave(self):
+        """Saves annotations in an external CSV file."""
         buttonReply = QMessageBox.question(None, ' ', 'Save annotations on external file?',
                                            QMessageBox.No | QMessageBox.Yes)
         if buttonReply == QMessageBox.Yes:
@@ -553,6 +555,7 @@ class ecogVIS:
 
 
     def AnnotationLoad(self, fname=''):
+        """Loads annotations from an external CSV file."""
         df = pd.read_csv(fname)
         all_x = df['x'].values
         all_y_va = df['y_va'].values
@@ -592,9 +595,22 @@ class ecogVIS:
         self.refreshScreen()
 
 
-
     ## Interval functions ------------------------------------------------------
     def IntervalAdd(self, interval, int_type, color, session):
+        """
+        Adds new interval to plot scene.
+
+        Parameters
+        ----------
+        interval : list of floats
+            List with [x_initial, x_final] points.
+        int_type : str
+            Type of the interval (e.g. 'invalid').
+        color :
+            'yellow', 'red', 'green' or 'blue'.
+        session : str
+            Session name.
+        """
         if color=='yellow':
             bc = [250, 250, 150, 180]
         elif color=='red':
@@ -628,11 +644,19 @@ class ecogVIS:
 
 
     def IntervalDel(self, x):
+        """
+        Deletes from plot scene the interval passing by the x position.
+
+        Parameters
+        ----------
+        x : float
+            x position.
+        """
         for i, obj in enumerate(self.allIntervals):
             if (x >= obj.start) & (x <= obj.stop):   #interval of the click
-                self.axesParams['pars']['Figure'][1].removeItem(self.IntRects1[i])
+                self.parent.win2.removeItem(self.IntRects1[i])
                 self.IntRects1 = np.delete(self.IntRects1, i, axis = 0)
-                self.axesParams['pars']['Figure'][0].removeItem(self.IntRects2[i])
+                self.parent.win1.removeItem(self.IntRects2[i])
                 self.IntRects2 = np.delete(self.IntRects2, i, axis = 0)
                 del self.allIntervals[i]
                 self.nBI = len(self.allIntervals)
@@ -641,6 +665,7 @@ class ecogVIS:
 
 
     def IntervalSave(self):
+        """Saves intervals in an external CSV file."""
         buttonReply = QMessageBox.question(None, ' ', 'Save intervals on external file?',
                                            QMessageBox.No | QMessageBox.Yes)
         if buttonReply == QMessageBox.Yes:
@@ -661,6 +686,7 @@ class ecogVIS:
 
 
     def IntervalLoad(self, fname):
+        """Loads intervals from an external CSV file."""
         df = pd.read_csv(fname)
         for index, row in df.iterrows():    # Add loaded intervals to graph
             interval = [row.start, row.stop]
@@ -674,20 +700,38 @@ class ecogVIS:
 
 
     # Channels functions -------------------------------------------------------
-    def BadChannelAdd(self, ch_list):  #ch is list of integers
+    def BadChannelAdd(self, ch_list):
+        """
+        Marks specific channels as 'bad'.
+
+        Parameters
+        ----------
+        ch_list : list of integers
+            List of indices of channels to be marked as 'bad'.
+        """
         for ch in ch_list:
             if ch not in self.badChannels:
                 self.badChannels.append(ch)
         self.refreshScreen()
 
-    def BadChannelDel(self, ch_list):  #ch is list of integers
+
+    def BadChannelDel(self, ch_list):
+        """
+        Un-marks specific channels as 'bad'.
+
+        Parameters
+        ----------
+        ch_list : list of integers
+            List of indices of channels to be un-marked as 'bad'.
+        """
         for ch in ch_list:
             if ch in self.badChannels:
                 self.badChannels.remove(ch)
         self.refreshScreen()
 
+
     def BadChannelSave(self):
-        # opens dialog for user confirmation
+        """Saves list of bad channels in current NWB file."""
         buttonReply = QMessageBox.question(None, ' ', 'Save Bad Channels on current NWB file?',
                                            QMessageBox.No | QMessageBox.Yes)
         if buttonReply == QMessageBox.Yes:
@@ -698,54 +742,9 @@ class ecogVIS:
             self.nwb.electrodes['bad'].data[:] = aux
 
 
-
-    def getChannel(self, mousePoint):
-        x = mousePoint.x()
-        y = mousePoint.y()
-        print('x: ',x,'     y: ',y)
-
-        if (x == []):
-            pass
-        else:
-            start_ = float(self.axesParams['editLine']['qLine2'].text())
-            end_ = float(self.axesParams['editLine']['qLine3'].text())
-            points = np.round(np.linspace(start_, end_, np.shape(self.plotData)[1]), 2)
-
-            index = np.where(points == round(x, 2))
-
-            DataIndex = index[0][0]
-            #print(index)
-            y_points = self.plotData[:, DataIndex]
-            diff_ = abs(np.array(y_points) - y)
-            index = np.argmin(diff_)
-            chanel = self.selectedChannels
-            channel = chanel[index]
-
-            plt = self.axesParams['pars']['Figure'][0]
-            yaxis = plt.getAxis('left').range
-            ymin, ymax = yaxis[0], yaxis[1]
-
-            #plt.setTitle('Selected Channel:' + str(channel))
-            if self.h != []:
-                plt.removeItem(self.h)
-            text_ = 'x:' + str(round(x, 2)) + '\n' + 'y:' + str(round(y, 2))
-            self.h = pg.TextItem(text_, color = pg.mkColor(70, 70, 70), border = pg.mkPen(200, 200, 200),
-                            fill = pg.mkBrush(250, 250, 150, 180))
-
-            self.h.setPos(x, y)
-            plt.addItem(self.h)
-
-            if self.text != []:
-                plt.removeItem(self.text)
-            self.text = pg.TextItem('Selected Channel:' + str(channel), color = 'r', border = pg.mkPen(200, 200, 200))
-            self.text.setPos(end_/2 - 2, ymax + 10)
-            self.text.setFont(QtGui.QFont('SansSerif', 10))
-            plt.addItem(self.text)
-
-
-
     def DrawMarkTime(self, position):
-        plt = self.axesParams['pars']['Figure'][0]     #middle signal plot
+        """Marks temporary reference line when adding a new interval."""
+        plt = self.parent.win1     #middle signal plot
         self.current_mark = pg.QtGui.QGraphicsRectItem(position, 0, 0, 1)
         self.current_mark.setPen(pg.mkPen(color = 'k'))
         self.current_mark.setBrush(QtGui.QColor(150, 150, 150, 100))
@@ -753,21 +752,58 @@ class ecogVIS:
 
 
     def RemoveMarkTime(self):
-        plt = self.axesParams['pars']['Figure'][0]     #middle signal plot
+        """Removes temporary reference line when adding a new interval."""
+        plt = self.parent.win1     #middle signal plot
         plt.removeItem(self.current_mark)
 
 
 
 class CustomInterval:
+    """
+    Stores information about individual Intervals.
+
+    Parameters
+    ----------
+    start : float
+        Start time position.
+    stop : float
+        Stop time position.
+    type : str
+        Interval type (e.g. 'invalid').
+    color : str
+        Interval color: 'yellow', 'red', 'green' or 'blue'.
+    session: str
+        Session name.
+    """
     def __init__(self):
         self.start = -999
         self.stop = -999
         self.type = ''
         self.color = ''
         self.session = ''
-        self.channels = []
+
 
 class CustomAnnotation:
+    """
+    Stores information about individual Annotations.
+
+    Parameters
+    ----------
+    pg_item :
+        pyqtgraph TextItem object.
+    x : float
+        X position (time).
+    y_va : int
+        Y coordinate transformed to variance_units (for plot control).
+    y_off : int
+        Y offset, usually the bottom channel on plot when annotation is saved.
+    color : str
+        Interval color: 'yellow', 'red', 'green' or 'blue'.
+    text : str
+        Annotation text.
+    session: str
+        Session name.
+    """
     def __init__(self):
         self.pg_item = None
         self.x = 0
@@ -779,6 +815,7 @@ class CustomAnnotation:
 
 
 class CustomBox(pg.QtGui.QGraphicsRectItem):
+    """Upper visualization window rectangle that can be dragged by the user."""
     def __init__(self, parent, x, y, w, h):
         pg.QtGui.QGraphicsRectItem.__init__(self, x, y, w, h)
         self.parent = parent

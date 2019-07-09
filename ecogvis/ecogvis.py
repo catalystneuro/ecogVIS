@@ -15,12 +15,13 @@ from PyQt5.QtWidgets import (QWidget, QLabel, QLineEdit, QMessageBox, QHBoxLayou
     QAction, QStackedLayout)
 import pyqtgraph as pg
 from pyqtgraph.widgets.MatplotlibWidget import MatplotlibWidget
+
 from ecogvis.functions.subFunctions import ecogVIS
 from ecogvis.functions.subDialogs import (CustomIntervalDialog, SelectChannelsDialog,
     SpectralChoiceDialog, NoHighGammaDialog, NoPreprocessedDialog, NoTrialsDialog,
     ExitDialog, ERPDialog, HighGammaDialog, Periodograms,
     PreprocessingDialog, NoRawDialog, NoSpectrumDialog)
-
+from ndx_spectrum import Spectrum
 
 intervalAdd_ = False
 intervalDel_ = False
@@ -67,13 +68,7 @@ class Application(QMainWindow):
             self.current_session = 'default'
 
         # Run the main function
-        parameters = {}
-        parameters['pars'] = {'Figure': [self.win1, self.win2, self.win3]}
-        parameters['editLine'] = {'qLine0': self.qline0, 'qLine1': self.qline1,
-                                  'qLine2': self.qline2, 'qLine3': self.qline3,
-                                  'qLine4': self.qline4}
-
-        self.model = ecogVIS(self, parameters)
+        self.model = ecogVIS(self)
 
 
     def closeEvent(self, event):
@@ -447,13 +442,8 @@ class Application(QMainWindow):
             self.win1.clear()
             self.win2.clear()
             self.win3.clear()
-            parameters = {}
-            parameters['pars'] = {'Figure': [self.win1, self.win2, self.win3]}
-            parameters['editLine'] = {'qLine0': self.qline0, 'qLine1': self.qline1,
-                                      'qLine2': self.qline2, 'qLine3': self.qline3,
-                                      'qLine4': self.qline4}
             # Rebuild the model
-            self.model = ecogVIS(self, parameters)
+            self.model = ecogVIS(self)
 
 
     #TODO - save alterations to NWB file
@@ -718,13 +708,13 @@ class Application(QMainWindow):
         w = Periodograms(self)
         if self.combo3.currentText()=='raw':
             try:
-                psd = self.model.modules['ecephys'].data_interfaces['spectrum_raw']
+                psd = self.model.modules['ecephys'].data_interfaces['Spectrum_raw']
                 w = Periodograms(self)
             except:
                 NoSpectrumDialog(self, 'raw')
         elif self.combo3.currentText()=='preprocessed':
             try:
-                psd = self.model.modules['ecephys'].data_interfaces['spectrum_preprocessed']
+                psd = self.model.modules['ecephys'].data_interfaces['Spectrum_preprocessed']
                 w = Periodograms(self)
             except:
                 NoSpectrumDialog(self, 'preprocessed')
@@ -759,7 +749,10 @@ class Application(QMainWindow):
         """Selects the time series data to be ploted on main window."""
         if self.combo3.currentText()=='raw':
             try:
-                self.model.source = self.model.nwb.acquisition['ECoG']
+                lis = list(self.model.nwb.acquisition.keys())
+                for i in lis:  # Check if there is ElectricalSeries in acquisition group
+                    if type(self.model.nwb.acquisition[i]).__name__ == 'ElectricalSeries':
+                        self.model.source = self.model.nwb.acquisition[i]
                 self.model.plot_panel = 'voltage_raw'
                 self.model.plotData = self.model.source.data
                 self.model.nBins = self.model.plotData.shape[0]     #total number of bins
@@ -793,10 +786,10 @@ class Application(QMainWindow):
                 self.model.tbin_signal = 1/self.model.fs_signal
                 self.push5_0.setEnabled(False)
             except:  #if not, opens warning dialog
-                self.combo3.setCurrentIndex(self.combo3.findText('raw'))
+                self.combo3.setCurrentIndex(self.combo3.findText('preprocessed'))
                 self.voltage_time_series()
                 NoHighGammaDialog()
-        self.model.getCurAxisParameters()    #updates time points
+        self.model.updateCurXAxisPosition()    #updates time points
         self.model.refreshScreen()
 
 

@@ -180,42 +180,70 @@ def preprocess_raw_data(block_path, config):
         else: # creates LFP data interface container
             lfp = LFP()
 
+            # Data source
+            lis = list(nwb.acquisition.keys())
+            for i in lis:  # Check if there is ElectricalSeries in acquisition group
+                if type(nwb.acquisition[i]).__name__ == 'ElectricalSeries':
+                    source = nwb.acquisition[i]
+            nChannels = source.data.shape[1]
+
             # Downsampling
-            fs = nwb.acquisition['ECoG'].rate
+            extraBins0 = 0
+            fs = source.rate
             if config['Downsample'] is not None:
+                print("Downsampling signals to "+str(config['Downsample'])+" Hz.")
+                print("Please wait, this might take around 30 minutes.")
+                start = time.time()
+                #zeros to pad to make signal lenght a power of 2
+                nBins = source.data.shape[0]
+                extraBins0 = 2**(np.ceil(np.log2(nBins)).astype('int')) - nBins
+                extraZeros = np.zeros(extraBins0)
                 rate = config['Downsample']
-            else:
-                rate = fs
-            nChannels = nwb.acquisition['ECoG'].data.shape[1]
-            for ch in np.arange(nChannels):     #One channel at a time, to improve memory usage for large files
-                Xch = nwb.acquisition['ECoG'].data[:,ch]*1e6  # 1e6 scaling helps with numerical accuracy
-                if config['Downsample'] is not None:  # Downsample
-                    if not np.allclose(rate, fs):
-                        assert rate < fs
-                        Xch = resample(Xch, rate, fs)
+                #One channel at a time, to improve memory usage for long signals
+                for ch in np.arange(nChannels):
+                    #1e6 scaling helps with numerical accuracy
+                    Xch = source.data[:,ch]*1e6
+                    #Make lenght a power of 2, improves performance
+                    Xch = np.append(Xch,extraZeros)
+                    Xch = resample(Xch, rate, fs)
                     if ch==0:
                         X = Xch.reshape(1,-1)
                     else:
                         X = np.append(X, Xch.reshape(1,-1), axis=0)
-                else:  # No downsample
-                    X = nwb.acquisition['ECoG'].data[:,:].T*1e6
+                print('Downsampling finished in {} seconds'.format(time.time()-start))
+            else:  # No downsample
+                rate = fs
+                X = source.data[:,:].T*1e6
 
             # Subtract CAR
             if config['CAR'] is not None:
                 print("Computing and subtracting Common Average Reference in "+str(config['CAR'])+" channel blocks.")
                 start = time.time()
                 X = subtract_CAR(X, b_size=config['CAR'])
-                print('CAR subtract time for {}: {} seconds'.format(block_name,
-                                                                    time.time()-start))
+                print('CAR subtract time for {}: {} seconds'.format(block_name, time.time()-start))
 
             # Apply Notch filters
             if config['Notch'] is not None:
                 print("Applying Notch filtering of "+str(config['Notch'])+" Hz")
+                #zeros to pad to make signal lenght a power of 2
+                nBins = X.shape[1]
+                extraBins1 = 2**(np.ceil(np.log2(nBins)).astype('int')) - nBins
+                extraZeros = np.zeros(extraBins1)
                 start = time.time()
-                X = linenoise_notch(X, rate, notch_freq=config['Notch'])
-                print('Notch filter time for {}: {} seconds'.format(block_name,
-                                                                    time.time()-start))
+                for ch in np.arange(nChannels):
+                    Xch = np.append(X[ch,:],extraZeros).reshape(1,-1)
+                    Xch = linenoise_notch(Xch, rate, notch_freq=config['Notch'])
+                    if ch==0:
+                        X2 = Xch.reshape(1,-1)
+                    else:
+                        X2 = np.append(X2, Xch.reshape(1,-1), axis=0)
+                print('Notch filter time for {}: {} seconds'.format(block_name, time.time()-start))
 
+            X = np.copy(X2)
+            del X2
+            #Remove excess bins (because of zero padding on previous steps)
+            excessBins = int(np.ceil(extraBins0*rate/fs) + extraBins1)
+            X = X[:, 0:-excessBins]
             X = X.astype('float32')     # signal (nChannels,nSamples)
             X /= 1e6                    # Scales signals back to Volt
 
@@ -235,11 +263,11 @@ def preprocess_raw_data(block_path, config):
             config_comment = 'CAR:'+car+', Notch:'+notch+', Downsampled:'+downs
             lfp_ts = lfp.create_electrical_series(name='preprocessed',
                                                   data=X.T,
-                                                  electrodes=elecs_region,
-                                                  #electrodes=nwb.acquisition['ECoG'].electrodes,
+                                                  #electrodes=elecs_region,
+                                                  electrodes=source.electrodes,
                                                   rate=rate,
-                                                  description='',)
-                                                  #comments=config_comment)
+                                                  description='',
+                                                  comments=config_comment)
             ecephys_module.add_data_interface(lfp)
 
             # Write LFP to NWB file
@@ -364,7 +392,7 @@ def high_gamma_estimation(block_path, bands_vals, new_file=''):
         for ii, (bp0, bp1) in enumerate(zip(band_param_0, band_param_1)):
             kernel = gaussian(X, rate, bp0, bp1)
             X_analytic, X_fft_h = hilbert_transform(X, rate, kernel, phase=None, X_fft_h=X_fft_h)
-            Xp[ii] = abs(X_analytic).astype('float32')
+            Xp[ii,:,:] = abs(X_analytic).astype('float32')
 
         # data: (ndarray) dims: num_times * num_channels * num_bands
         Xp = np.swapaxes(Xp,0,2)
