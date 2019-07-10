@@ -708,23 +708,25 @@ class Application(QMainWindow):
         if self.combo3.currentText()=='raw':
             try:
                 psd = self.model.nwb.modules['ecephys'].data_interfaces['Spectrum_raw']
-                Periodograms(self)
+                Periodograms(self, psd=psd)
             except:
                 w = NoSpectrumDialog(self, 'raw')
                 if w.val == 1:  #PSD was calculated
                     self.model.refresh_file()  # re-opens the file, now with new data
                     self.combo3.setCurrentIndex(self.combo3.findText('raw'))
-                    Periodograms(self)
+                    psd = self.model.nwb.modules['ecephys'].data_interfaces['Spectrum_raw']
+                    Periodograms(self, psd=psd)
         elif self.combo3.currentText()=='preprocessed':
             try:
                 psd = self.model.nwb.modules['ecephys'].data_interfaces['Spectrum_preprocessed']
-                Periodograms(self)
+                Periodograms(self, psd=psd)
             except:
                 w = NoSpectrumDialog(self, 'preprocessed')
                 if w.val == 1:  #PSD was calculated
                     self.model.refresh_file()  # re-opens the file, now with new data
                     self.combo3.setCurrentIndex(self.combo3.findText('preprocessed'))
-                    Periodograms(self)
+                    psd = self.model.nwb.modules['ecephys'].data_interfaces['Spectrum_preprocessed']
+                    Periodograms(self, psd=psd)
 
         #global periodogram_
         #if self.push5_0.isChecked():  #if button is pressed down

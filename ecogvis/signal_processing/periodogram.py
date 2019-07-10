@@ -30,7 +30,7 @@ def psd_estimate(src_file, type):
         # Using a power of 2 number of samples improves performance
         nBinsToUse = 2**(np.floor(np.log2(nSamples)).astype('int'))
         fs = data_obj.rate
-        dF = .05            #Frequency bin size
+        dF = .8            #Frequency bin size
         #Window length as power of 2 and keeps dF~0.05 Hz
         win_len = 2**(np.ceil(np.log2(fs/dF)).astype('int'))   #dF = fs/nfft
         for ch in np.arange(nChannels):  # Iterate over channels

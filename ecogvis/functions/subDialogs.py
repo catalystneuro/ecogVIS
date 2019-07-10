@@ -140,7 +140,7 @@ class NoSpectrumDialog(QtGui.QDialog):
                           "Please wait, this might take around 5 minutes.")
         self.cancelButton.setEnabled(False)
         self.calculateButton.setEnabled(False)
-        self.thread = PeriodogramFunction(self)
+        self.thread = PSDCalcFunction(self)
         self.thread.finished.connect(lambda: self.out_close(val=1))
         self.thread.start()
 
@@ -149,8 +149,8 @@ class NoSpectrumDialog(QtGui.QDialog):
         self.accept()
 
 
-# Runs 'periodogram' function, useful to wait for thread -------------------
-class PeriodogramFunction(QtCore.QThread):
+# Runs 'psd_estimate' function, useful to wait for thread -------------------
+class PSDCalcFunction(QtCore.QThread):
     def __init__(self, parent):
         super().__init__()
         self.parent = parent
@@ -689,11 +689,12 @@ class PreprocessingDialog(QtGui.QDialog, Ui_Preprocessing):
 
 # Creates Group Periodograms window --------------------------------------------
 class Periodograms(QtGui.QDialog):
-    def __init__(self, parent):
+    def __init__(self, parent, psd):
         super().__init__()
         self.parent = parent
+        self.psd = psd    #Power Spectral Density data
         self.nChannels = parent.model.nChTotal
-        self.freqMax = 200
+        self.freqMax = 200.
         self.freqTickRes = 20
         self.chTickGrid = 5
         self.chTickSpace = self.nChannels/(self.chTickGrid-1)
@@ -782,6 +783,7 @@ class Periodograms(QtGui.QDialog):
 
     def draw_periodograms(self):
         """Draw periodograms."""
+        #Cleans scene
         for it in self.fig1.items[:]:
             self.fig1.removeItem(it)
         # nBins = 400
@@ -800,10 +802,14 @@ class Periodograms(QtGui.QDialog):
         #     pts = np.vstack([x,yi,z]).transpose()
         #     plt = gl.GLLinePlotItem(pos=pts, color=(0,0,0,elem_alpha), width=1., antialias=True)
         #     self.fig1.addItem(plt)
-        x = np.linspace(0,200,200)
-        y = np.linspace(0,256,256)
-        for ch in range(256):
-            zch = np.exp(-x/70) + np.random.randn(len(x))*np.exp(-x/70)/20
+        idx = self.psd.frequencies[:]<=self.freqMax
+        idx[0] = False
+        x = self.psd.frequencies[idx]
+        nX = np.sum(idx)
+        nY = self.nChannels
+        y = np.linspace(0,nY,nY)
+        for ch in range(nY):
+            zch = self.psd.power[idx,ch]
             if ch == 0:
                 z = zch
             else:
@@ -811,23 +817,27 @@ class Periodograms(QtGui.QDialog):
         z = z.T  #z.shape (nBinsFreq,nChannels)
         zmax = z.max()
         zmin = z.min()
+        zpercs = np.percentile(z, [10, 90])
         ## Manually specified colors
         csize = 101
         cmap = np.hstack((np.linspace(0,1,csize).reshape(-1,1),
-                          np.zeros(csize).reshape(-1,1),
+                          np.zeros(csize).reshape(-1,1)+.4,
                           np.linspace(1,0,csize).reshape(-1,1)))
-        colors = np.zeros((200,256,4))
+        colors = np.zeros((nX,nY,4))
         # Finds color for each point in surface
-        for f in range(200):
-            for ch in range(256):
-                rel = (z[f,ch]-zmin)/(zmax-zmin)   #relative position to choose color
+        for f in range(nX):
+            for ch in range(nY):
+                #rel = (z[f,ch]-zmin)/(zmax-zmin)
+                #relative position to choose color
+                rel = np.clip((z[f,ch]-zpercs[0])/(zpercs[1]-zpercs[0]), 0, 1)
                 relc = int(rel*(csize-1))
                 colors[f,ch,0] = cmap[relc,0] #red
                 colors[f,ch,1] = cmap[relc,1] #green
                 colors[f,ch,2] = cmap[relc,2] #blue
         # Surface plot
-        p3 = gl.GLSurfacePlotItem(x=x, y=y, z=z, colors=colors.reshape(200*256,4), shader='shaded', smooth=False)
-        zscale = 100
+        p3 = gl.GLSurfacePlotItem(x=x, y=y, z=z, colors=colors.reshape(nX*nY,4),
+                                  shader='shaded', smooth=False)
+        zscale = 200/zmax
         p3.scale(1, 1, zscale)
         self.fig1.addItem(p3)
         #Axes
@@ -843,23 +853,23 @@ class Periodograms(QtGui.QDialog):
         self.fig1.setCameraPosition(distance=497, elevation=22, azimuth=-83)
         self.fig1.opts['center'] = QtGui.QVector3D(95.6, 195.4, 0)
         #Reference grids
-        gx = CustomGLGrid(self)#gl.GLGridItem()
-        gx.rotate(90, 0, 1, 0)
-        gx.setSize(x=zmax*zscale, y=self.nChannels)
-        gx.translate(dx=0, dy=self.nChannels/2, dz=zmax*zscale/2.)
-        gx.setSpacing(x=np.diff(zticks)[0], y=self.chTickSpace)
-        self.fig1.addItem(gx)
-        gy = CustomGLGrid(self)#gl.GLGridItem()
-        gy.rotate(90, 1, 0, 0)
-        gy.setSize(x=self.freqMax, y=zmax*zscale)
-        gy.translate(dx=self.freqMax/2, dy=self.nChannels, dz=zmax*zscale/2)
-        gy.setSpacing(x=np.diff(xticks)[0], y=np.diff(zticks)[0])
-        self.fig1.addItem(gy)
-        gz = CustomGLGrid(self)#gl.GLGridItem()
-        gz.setSize(x=self.freqMax, y=self.nChannels)
-        gz.translate(dx=self.freqMax/2, dy=self.nChannels/2, dz=0)
-        gz.setSpacing(x=np.diff(xticks)[0], y=self.chTickSpace)
-        self.fig1.addItem(gz)
+        # gx = CustomGLGrid(self)#gl.GLGridItem()
+        # gx.rotate(90, 0, 1, 0)
+        # gx.setSize(x=zmax*zscale, y=self.nChannels)
+        # gx.translate(dx=0, dy=self.nChannels/2, dz=zmax*zscale/2.)
+        # gx.setSpacing(x=np.diff(zticks)[0], y=self.chTickSpace)
+        # self.fig1.addItem(gx)
+        # gy = CustomGLGrid(self)#gl.GLGridItem()
+        # gy.rotate(90, 1, 0, 0)
+        # gy.setSize(x=self.freqMax, y=zmax*zscale)
+        # gy.translate(dx=self.freqMax/2, dy=self.nChannels, dz=zmax*zscale/2)
+        # gy.setSpacing(x=np.diff(xticks)[0], y=np.diff(zticks)[0])
+        # self.fig1.addItem(gy)
+        # gz = CustomGLGrid(self)#gl.GLGridItem()
+        # gz.setSize(x=self.freqMax, y=self.nChannels)
+        # gz.translate(dx=self.freqMax/2, dy=self.nChannels/2, dz=0)
+        # gz.setSpacing(x=np.diff(xticks)[0], y=self.chTickSpace)
+        # self.fig1.addItem(gz)
 
 
 class Custom3DAxis(gl.GLAxisItem):
@@ -955,10 +965,10 @@ class CustomGLWidget(gl.GLViewWidget):
                 self.pan(diff.x(), 0, diff.y(), relative=True)
             else:
                 self.pan(diff.x(), diff.y(), 0, relative=True)
-        print('center: ', self.parent.fig1.opts['center'])
-        print('distance: ', self.parent.fig1.opts['distance'])
-        print('elevation:', self.parent.fig1.opts['elevation'])
-        print('azimuth:', self.parent.fig1.opts['azimuth'])
+        #print('center: ', self.parent.fig1.opts['center'])
+        #print('distance: ', self.parent.fig1.opts['distance'])
+        #print('elevation:', self.parent.fig1.opts['elevation'])
+        #print('azimuth:', self.parent.fig1.opts['azimuth'])
 
 
 class CustomGLGrid(gl.GLGridItem):
@@ -1020,42 +1030,6 @@ class CustomTextItem(gl.GLGraphicsItem.GLGraphicsItem):
     def paint(self):
         self.GLViewWidget.qglColor(QtCore.Qt.black)
         self.GLViewWidget.renderText(self.X, self.Y, self.Z, self.text)
-
-
-
-
-class GroupPeriodogramDialog333(QMainWindow):
-    def __init__(self, parent):
-        super().__init__()
-        self.setWindowTitle('Event-Related Potentials')
-        self.resize(1250,500)
-
-    # def draw_periodograms(self):
-    #     """Draw periodograms."""
-    #     startSamp = self.model.intervalStartSamples
-    #     endSamp = self.model.intervalEndSamples
-    #     fs = model.fs_signal
-    #     dF = 0.1       #Frequency bin size
-    #     nfft = fs/dF   #dF = fs/nfft
-    #     X = np.zeros((2000,3))
-    #     for i in np.array([1,2,3]): #self.model.selectedChannels:
-    #         trace = model.plotData[startSamp-1:endSamp, self.chosen_channel-1]
-    #         fx, Py = signal.periodogram(trace, fs=fs, nfft=nfft)
-    #         X[:,0] = i
-    #         X[:,1] = fx[0:2000]
-    #         X[:,2] = Py[0:2000]
-    #         print(i)
-    #         line = gl.GLLinePlotItem(pos=X, color=pg.glColor('w'))
-    #         line.setLabel('bottom', 'Frequency', units = 'Hz')
-    #         #line.setData()
-    #         self.fig1.addItem(line)
-    #     #self.fig1.show()
-    #
-    #     #plt1.setLabel('left', 'Average power', units = 'V**2/Hz')
-    #     #plt1.setTitle('Channel #'+str(self.chosen_channel+1))
-    #     #plt1.plot(fx, Py, pen='k', width=1)
-    #     self.fig1.setXRange(0., 200.)
-
 
 
 
