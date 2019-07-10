@@ -33,6 +33,16 @@ def processing_data(path, subject, blocks, mode=None , config=None, new_file='')
 
 
 def make_new_nwb(old_file, new_file):
+    """
+    Copy all fields, except 'acquisition', from current NWB file to new NWB file.
+
+    Parameters
+    ----------
+    old_file : str, path
+        String such as '/path/to/old_file.nwb'.
+    new_file : str, path
+        String such as '/path/to/new_file.nwb'.
+    """
     from datetime import datetime
     from dateutil.tz import tzlocal
     from pynwb import NWBFile, NWBHDF5IO, get_manager

@@ -705,19 +705,26 @@ class Application(QMainWindow):
 
     # Select channel for Periodogram display -----------------------------------
     def PeriodogramSelect(self):
-        w = Periodograms(self)
         if self.combo3.currentText()=='raw':
             try:
-                psd = self.model.modules['ecephys'].data_interfaces['Spectrum_raw']
-                w = Periodograms(self)
+                psd = self.model.nwb.modules['ecephys'].data_interfaces['Spectrum_raw']
+                Periodograms(self)
             except:
-                NoSpectrumDialog(self, 'raw')
+                w = NoSpectrumDialog(self, 'raw')
+                if w.val == 1:  #PSD was calculated
+                    self.model.refresh_file()  # re-opens the file, now with new data
+                    self.combo3.setCurrentIndex(self.combo3.findText('raw'))
+                    Periodograms(self)
         elif self.combo3.currentText()=='preprocessed':
             try:
-                psd = self.model.modules['ecephys'].data_interfaces['Spectrum_preprocessed']
-                w = Periodograms(self)
+                psd = self.model.nwb.modules['ecephys'].data_interfaces['Spectrum_preprocessed']
+                Periodograms(self)
             except:
-                NoSpectrumDialog(self, 'preprocessed')
+                w = NoSpectrumDialog(self, 'preprocessed')
+                if w.val == 1:  #PSD was calculated
+                    self.model.refresh_file()  # re-opens the file, now with new data
+                    self.combo3.setCurrentIndex(self.combo3.findText('preprocessed'))
+                    Periodograms(self)
 
         #global periodogram_
         #if self.push5_0.isChecked():  #if button is pressed down
