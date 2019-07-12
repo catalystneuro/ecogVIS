@@ -1634,13 +1634,14 @@ class AudioEventDetection(QtGui.QDialog):
         self.win.getAxis('bottom').setPen(pg.mkPen(color=(50,50,50)))
 
     def run_test(self):
-        signalDS, stimtimesDS = detect_events(speaker_data=self.source,
-                                              mic_data=None,
-                                              interval=[self.plotBins[0],self.plotBins[-1]+1],
-                                              dfact=self.fs/float(self.qline3.text()),
-                                              stimtime=float(self.qline4.text()),
-                                              threshold=float(self.qline5.text()))
-        self.stimTimes = stimtimesDS + self.startTime
+        speakerDS, speakerEventDS, micDS, micEventDS = detect_events(
+                                      speaker_data=self.source,
+                                      mic_data=None,
+                                      interval=[self.plotBins[0],self.plotBins[-1]+1],
+                                      dfact=self.fs/float(self.qline3.text()),
+                                      stimtime=float(self.qline4.text()),
+                                      threshold=float(self.qline5.text()))
+        self.stimTimes = speakerEventDS + self.startTime
         self.draw_scene()
 
     def run_detection(self):
