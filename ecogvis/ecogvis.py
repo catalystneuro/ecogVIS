@@ -19,8 +19,8 @@ from pyqtgraph.widgets.MatplotlibWidget import MatplotlibWidget
 from ecogvis.functions.subFunctions import ecogVIS
 from ecogvis.functions.subDialogs import (CustomIntervalDialog, SelectChannelsDialog,
     SpectralChoiceDialog, NoHighGammaDialog, NoPreprocessedDialog, NoTrialsDialog,
-    ExitDialog, ERPDialog, HighGammaDialog, Periodograms,
-    PreprocessingDialog, NoRawDialog, NoSpectrumDialog)
+    ExitDialog, ERPDialog, HighGammaDialog, Periodograms, AudioEventDetection,
+    PreprocessingDialog, NoRawDialog, NoSpectrumDialog, NoAudioDialog)
 from ndx_spectrum import Spectrum
 
 intervalAdd_ = False
@@ -128,8 +128,6 @@ class Application(QMainWindow):
         fileMenu.addAction(action_save_file)
         action_save_file.triggered.connect(self.save_file)
 
-        editMenu = mainMenu.addMenu('Edit')
-
         toolsMenu = mainMenu.addMenu('Tools')
         action_load_annotations = QAction('Load Annotations', self)
         toolsMenu.addAction(action_load_annotations)
@@ -154,6 +152,9 @@ class Application(QMainWindow):
         action_erp = QAction('ERP', self)
         analysis_tools_menu.addAction(action_erp)
         action_erp.triggered.connect(self.event_related_potential)
+        action_event_detection = QAction('Event Detection', self)
+        toolsMenu.addAction(action_event_detection)
+        action_event_detection.triggered.connect(self.audio_event_detection)
 
         helpMenu = mainMenu.addMenu('Help')
         action_about = QAction('About', self)
@@ -535,6 +536,15 @@ class Application(QMainWindow):
             NoTrialsDialog()
         else:
             w = ERPDialog(parent=self)
+
+
+    def audio_event_detection(self):
+        """Opens Audio Event Detection window."""
+        # If file contains audio signals
+        if self.model.nStim > 0:
+            w = AudioEventDetection(parent=self)
+        else:
+            NoAudioDialog()
 
 
     def about(self):
