@@ -1498,13 +1498,12 @@ class AudioEventDetection(QtGui.QDialog):
         #Left panel - Plot Preview ---------------------------------------------
         self.push0_0 = QPushButton('Draw')
         self.push0_0.clicked.connect(self.reset_draw)
+        labelSpeaker = QLabel('Speaker:')
         self.combo0 = QComboBox()
         self.combo0.activated.connect(self.reset_draw)
-        self.nStim = len(self.parent.model.nwb.stimulus)
-        self.stimList = list(self.parent.model.nwb.stimulus.keys())
-        for stim in self.stimList:
-            self.combo0.addItem(stim)
-        self.combo0.setCurrentIndex(0)
+        labelMic = QLabel('Mic:')
+        self.combo1 = QComboBox()
+        self.combo1.activated.connect(self.reset_draw)
         labelStart = QLabel('Start [sec]:')
         self.qline1 = QLineEdit('0')
         self.qline1.returnPressed.connect(self.reset_draw)
@@ -1514,14 +1513,17 @@ class AudioEventDetection(QtGui.QDialog):
 
         grid0 = QGridLayout()
         grid0.addWidget(self.push0_0, 0, 0, 1, 6)
-        grid0.addWidget(self.combo0, 1, 0, 1, 6)
-        grid0.addWidget(labelStart, 2, 0, 1, 4)
-        grid0.addWidget(self.qline1, 2, 4, 1, 2)
-        grid0.addWidget(labelStop, 3, 0, 1, 4)
-        grid0.addWidget(self.qline2, 3, 4, 1, 2)
+        grid0.addWidget(labelSpeaker, 1, 0, 1, 3)
+        grid0.addWidget(self.combo0, 1, 3, 1, 3)
+        grid0.addWidget(labelMic, 2, 0, 1, 3)
+        grid0.addWidget(self.combo1, 2, 3, 1, 3)
+        grid0.addWidget(labelStart, 3, 0, 1, 4)
+        grid0.addWidget(self.qline1, 3, 4, 1, 2)
+        grid0.addWidget(labelStop, 4, 0, 1, 4)
+        grid0.addWidget(self.qline2, 4, 4, 1, 2)
         grid0.setAlignment(QtCore.Qt.AlignTop)
         panel0 = QGroupBox('Plot')
-        panel0.setFixedWidth(180)
+        panel0.setFixedWidth(200)
         panel0.setLayout(grid0)
 
         #Left panel - Detection ------------------------------------------------
@@ -1551,7 +1553,7 @@ class AudioEventDetection(QtGui.QDialog):
         grid1.addWidget(self.push1_0, 3, 0, 1, 6)
         grid1.setAlignment(QtCore.Qt.AlignTop)
         panel1 = QGroupBox('Detection Parameters')
-        panel1.setFixedWidth(180)
+        panel1.setFixedWidth(200)
         panel1.setLayout(grid1)
 
         self.push2_0 = QPushButton('Run Detection')
@@ -1559,7 +1561,7 @@ class AudioEventDetection(QtGui.QDialog):
         grid2 = QGridLayout()
         grid2.addWidget(self.push2_0)
         panel2 = QGroupBox('Run for whole signal')
-        panel2.setFixedWidth(180)
+        panel2.setFixedWidth(200)
         panel2.setLayout(grid2)
 
         self.leftbox = QVBoxLayout()
@@ -1570,7 +1572,7 @@ class AudioEventDetection(QtGui.QDialog):
 
         #Right panel -----------------------------------------------------------
         self.win = pg.PlotWidget()
-        self.win.resize(1020,300)
+        self.win.resize(1000,300)
         background_color = self.palette().color(QtGui.QPalette.Background)
         self.win.setBackground(background_color)
 
@@ -1585,18 +1587,41 @@ class AudioEventDetection(QtGui.QDialog):
         self.setLayout(self.hbox)
         self.setWindowTitle('Audio Event Detection')
         self.resize(1100,300)
+        self.find_signals()
         self.reset_draw()
         self.exec_()
 
+    def find_signals(self):
+        #Find speaker signals
+        self.stimuli = {}  #Dictionary {'stimName':stim.source}
+        for stim in list(self.parent.model.nwb.stimulus.keys()):
+            self.combo0.addItem(stim)
+            self.stimuli[stim] = self.parent.model.nwb.stimulus[stim]
+        self.combo0.setCurrentIndex(0)
+        #Find microphone signals
+        self.responses = {}  #Dictionary {'respName':resp.source}
+        for resp in list(self.parent.model.nwb.acquisition.keys()):
+            if type(self.parent.model.nwb.acquisition[resp]).__name__ == 'TimeSeries':
+                self.combo1.addItem(resp)
+                self.responses[resp] = self.parent.model.nwb.acquisition[resp]
+        self.combo1.setCurrentIndex(0)
+
     def reset_draw(self):
         """Reset draw."""
-        self.sourceName = self.combo0.currentText()
-        self.source = self.parent.model.nwb.stimulus[self.sourceName]
-        self.signal =self.source.data
-        self.fs = self.source.rate
-        self.nTotalBins = self.signal.shape[0]
-        self.maxTime = self.nTotalBins/self.fs
+        #Stimuli variables
+        stim = self.combo0.currentText()
+        self.source_stim = self.stimuli[stim]
+        self.signal_stim = self.source_stim.data
         self.stimTimes = []  #clears any previous stim times
+        #Response variables
+        resp = self.combo1.currentText()
+        self.source_resp = self.responses[resp]
+        self.signal_resp = self.source_resp.data
+        self.respTimes = []  #clears any previous resp times
+        #Common to both stim and resp
+        self.fs = self.source_stim.rate
+        self.nTotalBins = self.signal_stim.shape[0]
+        self.maxTime = self.nTotalBins/self.fs
         self.draw_scene()
 
     def set_interval(self):
@@ -1619,14 +1644,18 @@ class AudioEventDetection(QtGui.QDialog):
         """Draws signal and detection points."""
         self.set_interval()
         self.win.clear()
-        y = self.signal[self.plotBins[0]:self.plotBins[-1]+1]
-        y /= np.max(np.abs(y))
-        self.win.plot(self.x, y, pen='b', width=.9)
-        for st in self.stimTimes:
-            self.win.plot([st, st], [-2, 2], pen='k', width=2.)
+        #self.win.addLegend()
+        #Plot stimuli
+        y0 = self.signal_stim[self.plotBins[0]:self.plotBins[-1]+1].astype(float)
+        y0 /= np.max(np.abs(y0))
+        self.win.plot(self.x, y0+2, pen=pg.mkPen((0,0,200), width=1.), name='Speaker')
+        #Plot responses
+        y1 = self.signal_resp[self.plotBins[0]:self.plotBins[-1]+1].astype(float)
+        y1 /= np.max(np.abs(y1))
+        self.win.plot(self.x, y1+1, pen=pg.mkPen((200,0,0), width=1.), name='Mic')
+        #Axes parameters
         self.win.setXRange(self.startTime, self.stopTime)
-        self.win.setYRange(-1, 1)
-        #self.win.getAxis('left').setWidth(w=53)
+        self.win.setYRange(0, 3)
         self.win.getAxis('left').setStyle(showValues=False)
         self.win.getAxis('left').setTicks([])
         self.win.getAxis('left').setPen(pg.mkPen(color=(50,50,50)))
@@ -1635,14 +1664,38 @@ class AudioEventDetection(QtGui.QDialog):
 
     def run_test(self):
         speakerDS, speakerEventDS, micDS, micEventDS = detect_events(
-                                      speaker_data=self.source,
-                                      mic_data=None,
+                                      speaker_data=self.source_stim,
+                                      mic_data=self.source_resp,
                                       interval=[self.plotBins[0],self.plotBins[-1]+1],
                                       dfact=self.fs/float(self.qline3.text()),
                                       stimtime=float(self.qline4.text()),
                                       threshold=float(self.qline5.text()))
         self.stimTimes = speakerEventDS + self.startTime
-        self.draw_scene()
+        self.respTimes = micEventDS + self.startTime
+        #self.draw_scene()
+        self.xx = self.startTime + np.arange(len(speakerDS))/float(self.qline3.text())
+        self.win.clear()
+        #self.win.addLegend()
+        #Plot speaker
+        y0 = speakerDS
+        y0 /= np.max(np.abs(y0))
+        self.win.plot(self.xx, y0+2, pen=pg.mkPen((0,0,200), width=1.), name='Speaker')
+        for st in self.stimTimes:
+            self.win.plot([st, st], [0, 3], pen=pg.mkPen((0,0,200), width=2.))
+        #Plot responses
+        y1 = micDS
+        y1 /= np.max(np.abs(y1))
+        self.win.plot(self.xx, y1+1, pen=pg.mkPen((200,0,0), width=1.), name='Mic')
+        for rt in self.respTimes:
+            self.win.plot([rt, rt], [0, 3], pen=pg.mkPen((200,0,0), width=2.))
+        #Axes parameters
+        self.win.setXRange(self.startTime, self.stopTime)
+        self.win.setYRange(0, 3)
+        self.win.getAxis('left').setStyle(showValues=False)
+        self.win.getAxis('left').setTicks([])
+        self.win.getAxis('left').setPen(pg.mkPen(color=(50,50,50)))
+        self.win.setLabel('bottom', 'Time', units = 'sec')
+        self.win.getAxis('bottom').setPen(pg.mkPen(color=(50,50,50)))
 
     def run_detection(self):
         self.run = 1

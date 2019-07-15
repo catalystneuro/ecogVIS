@@ -130,32 +130,32 @@ def make_new_nwb(old_file, new_file):
                                     unit=stim.unit)
                     nwb_new.add_stimulus(ts)
             #Subject
-            if nwb.subject is not None:
-                try:
-                    cortical_surfaces = CorticalSurfaces()
-                    surfaces = nwb.subject.cortical_surfaces.surfaces
-                    for sfc in list(surfaces.keys()):
-                        cortical_surfaces.create_surface(name=surfaces[sfc].name,
-                                                         faces=surfaces[sfc].faces,
-                                                         vertices=surfaces[sfc].vertices)
-                    nwb_new.subject = ECoGSubject(cortical_surfaces=cortical_surfaces,
-                                                  subject_id=nwb.subject.subject_id,
-                                                  age=nwb.subject.age,
-                                                  description=nwb.subject.description,
-                                                  genotype=nwb.subject.genotype,
-                                                  sex=nwb.subject.sex,
-                                                  species=nwb.subject.species,
-                                                  weight=nwb.subject.weight,
-                                                  date_of_birth=nwb.subject.date_of_birth)
-                except:
-                    nwb_new.subject = Subject(age=nwb.subject.age,
-                                              description=nwb.subject.description,
-                                              genotype=nwb.subject.genotype,
-                                              sex=nwb.subject.sex,
-                                              species=nwb.subject.species,
-                                              subject_id=nwb.subject.subject_id,
-                                              weight=nwb.subject.weight,
-                                              date_of_birth=nwb.subject.date_of_birth)
+            # if nwb.subject is not None:
+            #     try:
+            #         cortical_surfaces = CorticalSurfaces()
+            #         surfaces = nwb.subject.cortical_surfaces.surfaces
+            #         for sfc in list(surfaces.keys()):
+            #             cortical_surfaces.create_surface(name=surfaces[sfc].name,
+            #                                              faces=surfaces[sfc].faces,
+            #                                              vertices=surfaces[sfc].vertices)
+            #         nwb_new.subject = ECoGSubject(cortical_surfaces=cortical_surfaces,
+            #                                       subject_id=nwb.subject.subject_id,
+            #                                       age=nwb.subject.age,
+            #                                       description=nwb.subject.description,
+            #                                       genotype=nwb.subject.genotype,
+            #                                       sex=nwb.subject.sex,
+            #                                       species=nwb.subject.species,
+            #                                       weight=nwb.subject.weight,
+            #                                       date_of_birth=nwb.subject.date_of_birth)
+            #     except:
+            #         nwb_new.subject = Subject(age=nwb.subject.age,
+            #                                   description=nwb.subject.description,
+            #                                   genotype=nwb.subject.genotype,
+            #                                   sex=nwb.subject.sex,
+            #                                   species=nwb.subject.species,
+            #                                   subject_id=nwb.subject.subject_id,
+            #                                   weight=nwb.subject.weight,
+            #                                   date_of_birth=nwb.subject.date_of_birth)
 
             #Write new file with copied fields
             io2.write(nwb_new, link_data=False)

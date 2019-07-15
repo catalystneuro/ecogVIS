@@ -30,29 +30,27 @@ class ecogVIS:
         self.io = pynwb.NWBHDF5IO(self.fullpath,'r+')
         self.nwb = self.io.read()      #reads NWB file
 
-        # Searches for signal source on file
-        if (len(self.nwb.acquisition)>0):
+        #Tries to load Raw data
+        try:
             lis = list(self.nwb.acquisition.keys())
             for i in lis:  # Check if there is ElectricalSeries in acquisition group
                 if type(self.nwb.acquisition[i]).__name__ == 'ElectricalSeries':
                     self.source = self.nwb.acquisition[i]
                     self.parent.combo3.setCurrentIndex(self.parent.combo3.findText('raw'))
-                    self.parent.push5_0.setEnabled(True)
-                    self.parent.push6_0.setEnabled(True)
-                    self.parent.push7_0.setEnabled(True)
-        elif len(self.nwb.modules)>0:
-            if 'LFP' in self.nwb.modules['ecephys'].data_interfaces:
-                self.source = self.nwb.modules['ecephys'].data_interfaces['LFP'].electrical_series['preprocessed']
-                self.parent.combo3.setCurrentIndex(self.parent.combo3.findText('preprocessed'))
-                self.parent.push5_0.setEnabled(True)
-                self.parent.push6_0.setEnabled(False)
-                self.parent.push7_0.setEnabled(True)
-            elif 'high_gamma' in self.nwb.modules['ecephys'].data_interfaces:
-                self.source = self.nwb.modules['ecephys'].data_interfaces['high_gamma']
-                self.parent.combo3.setCurrentIndex(self.parent.combo3.findText('high gamma'))
-                self.parent.push5_0.setEnabled(False)
-                self.parent.push6_0.setEnabled(False)
-                self.parent.push7_0.setEnabled(False)
+        except:
+            print("No 'ElectricalSeries' object in 'acquisition' group.")
+        #Tries to load preprocessed data
+        try:
+            self.source = self.nwb.modules['ecephys'].data_interfaces['LFP'].electrical_series['preprocessed']
+            self.parent.combo3.setCurrentIndex(self.parent.combo3.findText('preprocessed'))
+        except:
+            print("No 'preprocessed' data in 'modules' group.")
+        #Tries to load High Gamma data
+        try:
+            self.source = self.nwb.modules['ecephys'].data_interfaces['high_gamma']
+            self.parent.combo3.setCurrentIndex(self.parent.combo3.findText('high gamma'))
+        except:
+            print("No 'high_gamma' data in 'modules' group.")
         self.plotData = self.source.data
         self.fs_signal = self.source.rate     #sampling frequency [Hz]
         self.tbin_signal = 1/self.fs_signal #time bin duration [seconds]
@@ -290,11 +288,18 @@ class ecogVIS:
         plt3 = self.parent.win3
         plt3.clear()
         if self.parent.combo4.currentText() is not '':
-            xmask = (self.stimX > timebaseGuiUnits[0]) * (self.stimX < timebaseGuiUnits[-1])
-            stimName = self.parent.combo4.currentText()
-            stimData = self.stimY[stimName]
-            plt3.plot(self.stimX[xmask], stimData[xmask], pen='k', width=1)
-            plt3.setXLink(plt2)
+            try:
+                xmask = (self.stimX > timebaseGuiUnits[0]) * (self.stimX < timebaseGuiUnits[-1])
+                stimName = self.parent.combo4.currentText()
+                stimData = self.stimY[stimName]
+                plt3.plot(self.stimX[xmask], stimData[xmask], pen='k', width=1)
+                plt3.setXLink(plt2)
+            except:  #THIS IS MOMENTARY TO PLOT ARTIFICIAL DATA-- REMOVE LATER
+                stimName = self.parent.combo4.currentText()
+                stimData = self.stimY[stimName]
+                plt3.plot(stimData, pen='k', width=1)
+                # remove this later -------------------------------------------
+
         plt3.setLabel('left', 'Stim')
         plt3.getAxis('left').setWidth(w=53)
         plt3.getAxis('left').setStyle(showValues=False)
