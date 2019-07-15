@@ -534,7 +534,11 @@ class Application(QMainWindow):
         if len(self.model.nwb.intervals)==0: # If file contains trials information
             NoTrialsDialog()
         else:
-            w = ERPDialog(parent=self)
+            try:  #Tries to load High Gamma data
+                hg = self.nwb.modules['ecephys'].data_interfaces['high_gamma']
+                w = ERPDialog(parent=self)
+            except:
+                NoHighGammaDialog()
 
 
     def audio_event_detection(self):
