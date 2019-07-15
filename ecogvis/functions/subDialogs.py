@@ -13,6 +13,8 @@ from ecogvis.signal_processing.periodogram import psd_estimate
 from ecogvis.signal_processing.detect_events import detect_events
 from .FS_colorLUT import get_lut
 from threading import Event, Thread
+from pynwb import NWBHDF5IO
+from pynwb.epoch import TimeIntervals
 import numpy as np
 import os
 import time
@@ -107,6 +109,25 @@ class NoTrialsDialog(QtGui.QDialog):
         vbox.addWidget(self.okButton)
         self.setLayout(vbox)
         self.setWindowTitle('No trial data')
+        self.exec_()
+
+    def onAccepted(self):
+        self.accept()
+
+
+# Warning that Trials data already exists in the NWB file ----------------------
+class ExistTrialsDialog(QtGui.QDialog):
+    def __init__(self):
+        super().__init__()
+        self.text = QLabel("There is already Trials data saved in the current NWB file.\n"+
+                           "It is not possible to substitute it.")
+        self.okButton = QtGui.QPushButton("OK")
+        self.okButton.clicked.connect(self.onAccepted)
+        vbox = QtGui.QVBoxLayout()
+        vbox.addWidget(self.text)
+        vbox.addWidget(self.okButton)
+        self.setLayout(vbox)
+        self.setWindowTitle('Trial data already exists')
         self.exec_()
 
     def onAccepted(self):
@@ -1063,12 +1084,17 @@ class ERPDialog(QMainWindow):#QtGui.QDialog):
         self.parent = parent
         self.nCols = 16
         self.alignment = 'start_time'
+        self.interval_type = 'speaker'
         self.grid_order = np.arange(256)
         self.transparent = []
-        self.Y_start_mean = {}
-        self.Y_start_sem = {}
-        self.Y_stop_mean = {}
-        self.Y_stop_sem = {}
+        self.Y_start_speaker_mean = {}
+        self.Y_start_speaker_sem = {}
+        self.Y_stop_speaker_mean = {}
+        self.Y_stop_speaker_sem = {}
+        self.Y_start_mic_mean = {}
+        self.Y_start_mic_sem = {}
+        self.Y_stop_mic_mean = {}
+        self.Y_stop_mic_sem = {}
         self.X = []
         self.Yscale = {}
 
@@ -1084,6 +1110,14 @@ class ERPDialog(QMainWindow):#QtGui.QDialog):
         self.push1_1.setCheckable(True)
         self.push1_1.setChecked(False)
         self.push1_1.clicked.connect(self.set_offset)
+        self.push1_2 = QPushButton('Stimulus')
+        self.push1_2.setCheckable(True)
+        self.push1_2.setChecked(True)
+        self.push1_2.clicked.connect(self.set_stim)
+        self.push1_3 = QPushButton('Response')
+        self.push1_3.setCheckable(True)
+        self.push1_3.setChecked(False)
+        self.push1_3.clicked.connect(self.set_resp)
         label2 = QLabel('Width (sec):')
         self.qline2 = QLineEdit('2')
         self.qline2.returnPressed.connect(self.set_width)
@@ -1110,6 +1144,8 @@ class ERPDialog(QMainWindow):#QtGui.QDialog):
 
         self.push1_0.setEnabled(False)
         self.push1_1.setEnabled(False)
+        self.push1_2.setEnabled(False)
+        self.push1_3.setEnabled(False)
         self.qline2.setEnabled(False)
         self.combo1.setEnabled(False)
         self.push2_0.setEnabled(False)
@@ -1123,21 +1159,23 @@ class ERPDialog(QMainWindow):#QtGui.QDialog):
         grid0.addWidget(label1, 0, 0, 1, 6)
         grid0.addWidget(self.push1_0, 1, 0, 1, 3)
         grid0.addWidget(self.push1_1, 1, 3, 1, 3)
-        grid0.addWidget(QHLine(), 2, 0, 1, 6)
-        grid0.addWidget(label2, 3, 0, 1, 6)
-        grid0.addWidget(self.qline2, 4, 0, 1, 6)
-        grid0.addWidget(QHLine(), 5, 0, 1, 6)
-        grid0.addWidget(label3, 6, 0, 1, 6)
-        grid0.addWidget(self.combo1, 7, 0, 1, 6)
-        grid0.addWidget(QHLine(), 8, 0, 1, 6)
-        grid0.addWidget(self.push2_0, 9, 0, 1, 6)
-        grid0.addWidget(self.push3_0, 10, 0, 1, 6)
-        grid0.addWidget(self.push4_0, 11, 0, 1, 6)
-        grid0.addWidget(QHLine(), 12, 0, 1, 6)
-        grid0.addWidget(label4, 13, 0, 1, 6)
-        grid0.addWidget(self.push5_0, 14, 0, 1, 2)
-        grid0.addWidget(self.push5_1, 14, 2, 1, 2)
-        grid0.addWidget(self.push5_2, 14, 4, 1, 2)
+        grid0.addWidget(self.push1_2, 2, 0, 1, 3)
+        grid0.addWidget(self.push1_3, 2, 3, 1, 3)
+        grid0.addWidget(QHLine(), 3, 0, 1, 6)
+        grid0.addWidget(label2, 4, 0, 1, 6)
+        grid0.addWidget(self.qline2, 5, 0, 1, 6)
+        grid0.addWidget(QHLine(), 6, 0, 1, 6)
+        grid0.addWidget(label3, 7, 0, 1, 6)
+        grid0.addWidget(self.combo1, 8, 0, 1, 6)
+        grid0.addWidget(QHLine(), 9, 0, 1, 6)
+        grid0.addWidget(self.push2_0, 10, 0, 1, 6)
+        grid0.addWidget(self.push3_0, 11, 0, 1, 6)
+        grid0.addWidget(self.push4_0, 12, 0, 1, 6)
+        grid0.addWidget(QHLine(), 13, 0, 1, 6)
+        grid0.addWidget(label4, 14, 0, 1, 6)
+        grid0.addWidget(self.push5_0, 15, 0, 1, 2)
+        grid0.addWidget(self.push5_1, 15, 2, 1, 2)
+        grid0.addWidget(self.push5_2, 15, 4, 1, 2)
         grid0.setAlignment(QtCore.Qt.AlignTop)
 
         panel0 = QGroupBox('Controls:')
@@ -1188,11 +1226,25 @@ class ERPDialog(QMainWindow):#QtGui.QDialog):
         self.push1_0.setChecked(False)
         self.draw_erp()
 
+    def set_stim(self):
+        self.interval_type = 'speaker'
+        self.push1_3.setChecked(False)
+        self.draw_erp()
+
+    def set_resp(self):
+        self.interval_type = 'mic'
+        self.push1_2.setChecked(False)
+        self.draw_erp()
+
     def set_width(self):
-        self.Y_start_mean = {}
-        self.Y_start_sem = {}
-        self.Y_stop_mean = {}
-        self.Y_stop_sem = {}
+        self.Y_start_speaker_mean = {}
+        self.Y_start_speaker_sem = {}
+        self.Y_stop_speaker_mean = {}
+        self.Y_stop_speaker_sem = {}
+        self.Y_start_mic_mean = {}
+        self.Y_start_mic_sem = {}
+        self.Y_stop_mic_mean = {}
+        self.Y_stop_mic_sem = {}
         self.X = []
         self.draw_erp()
 
@@ -1225,36 +1277,58 @@ class ERPDialog(QMainWindow):#QtGui.QDialog):
                 if curr_txt!='individual':
                     p.setYRange(self.Yscale[curr_txt][0], self.Yscale[curr_txt][1])
                 else:
-                    if self.alignment == 'start_time':
-                        yrng = max(abs(self.Y_start_mean[str(ch)]))
-                    else:
-                        yrng = max(abs(self.Y_stop_mean[str(ch)]))
+                    if (self.alignment == 'start_time') and (self.interval_type=='speaker'):
+                        yrng = max(abs(self.Y_start_speaker_mean[str(ch)]))
+                    elif (self.alignment == 'start_time') and (self.interval_type=='mic'):
+                        yrng = max(abs(self.Y_start_mic_mean[str(ch)]))
+                    elif (self.alignment == 'stop_time') and (self.interval_type=='speaker'):
+                        yrng = max(abs(self.Y_stop_speaker_mean[str(ch)]))
+                    elif (self.alignment == 'stop_time') and (self.interval_type=='mic'):
+                        yrng = max(abs(self.Y_stop_mic_mean[str(ch)]))
                     p.setYRange(-yrng, yrng)
 
     def get_erp(self, ch):
-        if self.alignment == 'start_time':
-            if str(ch) in self.Y_start_mean:   #If it was calculated already
-                return self.Y_start_mean[str(ch)], self.Y_start_sem[str(ch)], self.X
+        if (self.alignment == 'start_time') and (self.interval_type=='speaker'):
+            if str(ch) in self.Y_start_speaker_mean:   #If it was calculated already
+                return self.Y_start_speaker_mean[str(ch)], self.Y_start_speaker_sem[str(ch)], self.X
             else:                              #If it isn't calculated yet
                 Y_mean, Y_sem, X = self.calc_erp(ch=ch)
-                self.Y_start_mean[str(ch)] = Y_mean
-                self.Y_start_sem[str(ch)] = Y_sem
+                self.Y_start_speaker_mean[str(ch)] = Y_mean
+                self.Y_start_speaker_sem[str(ch)] = Y_sem
                 self.X = X
-                return self.Y_start_mean[str(ch)], self.Y_start_sem[str(ch)], self.X
-        if self.alignment == 'stop_time':
-            if str(ch) in self.Y_stop_mean:
-                return self.Y_stop_mean[str(ch)], self.Y_stop_sem[str(ch)], self.X
-            else:
+                return self.Y_start_speaker_mean[str(ch)], self.Y_start_speaker_sem[str(ch)], self.X
+        if (self.alignment == 'start_time') and (self.interval_type=='mic'):
+            if str(ch) in self.Y_start_mic_mean:   #If it was calculated already
+                return self.Y_start_mic_mean[str(ch)], self.Y_start_mic_sem[str(ch)], self.X
+            else:                              #If it isn't calculated yet
                 Y_mean, Y_sem, X = self.calc_erp(ch=ch)
-                self.Y_stop_mean[str(ch)] = Y_mean
-                self.Y_stop_sem[str(ch)] = Y_sem
+                self.Y_start_mic_mean[str(ch)] = Y_mean
+                self.Y_start_mic_sem[str(ch)] = Y_sem
                 self.X = X
-                return self.Y_stop_mean[str(ch)], self.Y_stop_sem[str(ch)], self.X
+                return self.Y_start_mic_mean[str(ch)], self.Y_start_mic_sem[str(ch)], self.X
+        if (self.alignment == 'stop_time') and (self.interval_type=='speaker'):
+            if str(ch) in self.Y_stop_speaker_mean:  #If it was calculated already
+                return self.Y_stop_speaker_mean[str(ch)], self.Y_stop_speaker_sem[str(ch)], self.X
+            else:                               #If it isn't calculated yet
+                Y_mean, Y_sem, X = self.calc_erp(ch=ch)
+                self.Y_stop_speaker_mean[str(ch)] = Y_mean
+                self.Y_stop_speaker_sem[str(ch)] = Y_sem
+                self.X = X
+                return self.Y_stop_speaker_mean[str(ch)], self.Y_stop_speaker_sem[str(ch)], self.X
+        if (self.alignment == 'stop_time') and (self.interval_type=='mic'):
+            if str(ch) in self.Y_stop_mic_mean:  #If it was calculated already
+                return self.Y_stop_mic_mean[str(ch)], self.Y_stop_mic_sem[str(ch)], self.X
+            else:                               #If it isn't calculated yet
+                Y_mean, Y_sem, X = self.calc_erp(ch=ch)
+                self.Y_stop_mic_mean[str(ch)] = Y_mean
+                self.Y_stop_mic_sem[str(ch)] = Y_sem
+                self.X = X
+                return self.Y_stop_mic_mean[str(ch)], self.Y_stop_mic_sem[str(ch)], self.X
 
     def calc_erp(self, ch):
         data = self.parent.model.nwb.modules['ecephys'].data_interfaces['high_gamma'].data
-        fs = 400.#self.parent.model.fs_signal
-        ref_times = self.parent.model.nwb.trials[self.alignment][:]
+        fs = self.parent.model.nwb.modules['ecephys'].data_interfaces['high_gamma'].rate
+        ref_times = self.parent.model.nwb.intervals['TimeIntervals_'+self.interval_type][self.alignment].data[:]
         ref_bins = (ref_times*fs).astype('int')
         nBinsTr = int(float(self.qline2.text())*fs/2)
         start_bins = ref_bins - nBinsTr
@@ -1271,6 +1345,8 @@ class ERPDialog(QMainWindow):#QtGui.QDialog):
     def draw_erp(self):
         self.push1_0.setEnabled(True)
         self.push1_1.setEnabled(True)
+        self.push1_2.setEnabled(True)
+        self.push1_3.setEnabled(True)
         self.qline2.setEnabled(True)
         self.combo1.setEnabled(True)
         self.push3_0.setEnabled(True)
@@ -1494,6 +1570,7 @@ class AudioEventDetection(QtGui.QDialog):
     def __init__(self, parent):
         super().__init__()
         self.parent = parent
+        self.value = -1
 
         #Left panel - Plot Preview ---------------------------------------------
         self.push0_0 = QPushButton('Draw')
@@ -1577,7 +1654,8 @@ class AudioEventDetection(QtGui.QDialog):
         self.win.setBackground(background_color)
 
         self.rightbox = QVBoxLayout()
-        self.rightbox.addWidget(QLabel('Preview detection results:'))
+        self.plotTitle = QLabel('Preview detection results:')
+        self.rightbox.addWidget(self.plotTitle)
         self.rightbox.addWidget(self.win)
 
         self.hbox = QHBoxLayout()
@@ -1668,7 +1746,7 @@ class AudioEventDetection(QtGui.QDialog):
                                       mic_data=self.source_resp,
                                       interval=[self.plotBins[0],self.plotBins[-1]+1],
                                       dfact=self.fs/float(self.qline3.text()),
-                                      stimtime=float(self.qline4.text()),
+                                      smooth_width=float(self.qline4.text()),
                                       threshold=float(self.qline5.text()))
         self.stimTimes = speakerEventDS + self.startTime
         self.respTimes = micEventDS + self.startTime
@@ -1698,4 +1776,73 @@ class AudioEventDetection(QtGui.QDialog):
         self.win.getAxis('bottom').setPen(pg.mkPen(color=(50,50,50)))
 
     def run_detection(self):
-        self.run = 1
+        self.disable_all()
+        self.plotTitle.setText('Running event detection. Please wait...')
+        self.thread = EventDetectionFunction(speaker_data=self.source_stim,
+                                             mic_data=self.source_resp,
+                                             dfact=self.fs/float(self.qline3.text()),
+                                             smooth_width=float(self.qline4.text()),
+                                             threshold=float(self.qline5.text()))
+        self.thread.finished.connect(lambda: self.out_close(1))
+        self.thread.start()
+
+    def disable_all(self):
+        self.win.clear()
+        self.push0_0.setEnabled(False)
+        self.combo0.setEnabled(False)
+        self.combo1.setEnabled(False)
+        self.qline1.setEnabled(False)
+        self.qline2.setEnabled(False)
+        self.qline3.setEnabled(False)
+        self.qline4.setEnabled(False)
+        self.qline5.setEnabled(False)
+        self.push1_0.setEnabled(False)
+        self.push2_0.setEnabled(False)
+
+    def out_close(self, val):
+        self.value = val
+        if val == 1:  #finished auto-detection of events
+            self.stimTimes = self.thread.stimTimes
+            self.respTimes = self.thread.respTimes
+            fname = self.parent.model.fullpath
+            with NWBHDF5IO(fname, 'r+') as io:
+                nwb = io.read()
+                #Speaker stimuli times
+                ti_stim = TimeIntervals(name='TimeIntervals_speaker')
+                times = self.stimTimes.reshape((-1,2)).astype('float')
+                for start, stop in times:
+                    ti_stim.add_interval(start, stop)
+                #Microphone responses times
+                ti_resp = TimeIntervals(name='TimeIntervals_mic')
+                times = self.respTimes.reshape((-1,2)).astype('float')
+                for start, stop in times:
+                    ti_resp.add_interval(start, stop)
+                #Add both to file
+                nwb.add_time_intervals(ti_stim)
+                nwb.add_time_intervals(ti_resp)
+                #Write file
+                io.write(nwb)
+        self.accept()
+
+
+# Runs 'detect_events' function, useful to wait for thread ---------------------
+class EventDetectionFunction(QtCore.QThread):
+    def __init__(self, speaker_data, mic_data, dfact, smooth_width, threshold):
+        super().__init__()
+        self.source_stim = speaker_data
+        self.source_resp = mic_data
+        self.dfact = dfact
+        self.smooth_width = smooth_width
+        self.threshold = threshold
+
+    def run(self):
+        speakerDS, speakerEventDS, micDS, micEventDS = detect_events(
+                                      speaker_data=self.source_stim,
+                                      mic_data=self.source_resp,
+                                      interval=None,
+                                      dfact=self.dfact,
+                                      smooth_width=self.smooth_width,
+                                      threshold=self.threshold,
+                                      direction='both')
+        self.stimTimes = speakerEventDS
+        self.respTimes = micEventDS

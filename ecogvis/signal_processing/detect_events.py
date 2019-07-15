@@ -2,8 +2,8 @@ import numpy as np
 import scipy.signal as sgn
 from ecogvis.signal_processing.resample import *
 
-def detect_events(speaker_data, mic_data=None, interval=None, dfact=30, stimtime=0.4,
-                  resptime=0.4, threshold=0.05, direction='both'):
+def detect_events(speaker_data, mic_data=None, interval=None, dfact=30,
+                  smooth_width=0.4, threshold=0.05, direction='both'):
     """
     Automatically detects events in audio signals.
 
@@ -17,12 +17,13 @@ def detect_events(speaker_data, mic_data=None, interval=None, dfact=30, stimtime
         Interval to be used [Start_bin, End_bin]. If 'None', the whole signal is used.
     dfact : float
         Downsampling factor. Default 30.
-    stimtime: float
-        Min time for stimulus (default = .4, decent for CVs)
-    resptime : float
-        Min time for response (default = stimtime)
+    smooth_width: float
+        Width scale for median smoothing filter (default = .4, decent for CVs).
     threshold : float
         Sets threshold level.
+    direction : str
+        'Up' detects events start times. 'Down' detects events stop times. 'Both'
+        detects both start and stop times.
     """
 
     # Downsampling Speaker -----------------------------------------------------
@@ -46,7 +47,7 @@ def detect_events(speaker_data, mic_data=None, interval=None, dfact=30, stimtime
 
         #kernel size must be an odd number
         speaker_filt = sgn.medfilt(volume=np.diff(np.append(speakerDS,speakerDS[-1]))**2,
-                                   kernel_size=int((stimtime*ds//2)*2+1))
+                                   kernel_size=int((smooth_width*ds//2)*2+1))
         speaker_thresh = np.std(speaker_filt)*threshold
         #Find threshold crossing times
         stimBinsDS = threshcross(speaker_filt, speaker_thresh, direction)
@@ -78,7 +79,7 @@ def detect_events(speaker_data, mic_data=None, interval=None, dfact=30, stimtime
         # Remove mic response to speaker
         micDS[np.where(speaker_filt > speaker_thresh)[0]] = 0
         mic_filt = sgn.medfilt(volume=np.diff(np.append(micDS,micDS[-1]))**2,
-                               kernel_size=int((resptime*ds//2)*2+1))
+                               kernel_size=int((smooth_width*ds//2)*2+1))
         mic_thresh = np.std(mic_filt)*threshold #2e-4
         #Find threshold crossing times
         micBinsDS = threshcross(mic_filt, mic_thresh, direction)

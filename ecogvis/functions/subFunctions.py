@@ -115,12 +115,21 @@ class ecogVIS:
             c.setBrush(QtGui.QColor(255, 0, 0, 120))
             self.parent.win1.addItem(c)
 
+        # Load stimuli signals (audio)
+        self.load_stimuli()
 
-        # Load stimulus signal (audio)
+        # Initiate plots
+        self.updateCurXAxisPosition()
+        self.refreshScreen()
+
+
+    def load_stimuli(self):
+        # Load stimuli signals (audio)
         self.nStim = len(self.nwb.stimulus)
         self.stimList = list(self.nwb.stimulus.keys())
         self.stimX = []
         self.stimY = {}
+        self.parent.combo4.clear()
         for stim in self.stimList:
             self.parent.combo4.addItem(stim)   #add stimulus name to dropdown button
             dt_stim = 1./self.nwb.stimulus[stim].rate
@@ -141,31 +150,32 @@ class ecogVIS:
             self.disp_audio = 0
 
 
-        # Initiate plots
-        self.updateCurXAxisPosition()
-        self.refreshScreen()
-
-
     def refresh_file(self):
         """Re-opens the current file, for when new data is included"""
         self.io.close()   #closes current NWB file
         self.io = pynwb.NWBHDF5IO(self.fullpath,'r+')
         self.nwb = self.io.read()      #reads NWB file
         # Searches for signal source on file
-        if (len(self.nwb.acquisition)>0):
+        try:   #Tries to load Raw data
             lis = list(self.nwb.acquisition.keys())
             for i in lis:  # Check if there is ElectricalSeries in acquisition group
                 if type(self.nwb.acquisition[i]).__name__ == 'ElectricalSeries':
                     self.source = self.nwb.acquisition[i]
-        elif len(self.nwb.modules)>0:
-            if 'LFP' in self.nwb.modules['ecephys'].data_interfaces:
-                self.source = self.nwb.modules['ecephys'].data_interfaces['LFP'].electrical_series['preprocessed']
-            elif 'high_gamma' in self.model.nwb.modules['ecephys'].data_interfaces:
-                self.source = self.model.nwb.modules['ecephys'].data_interfaces['high_gamma']
+                    self.parent.combo3.setCurrentIndex(self.parent.combo3.findText('raw'))
+        except: None
+        try:  #Tries to load preprocessed data
+            self.source = self.nwb.modules['ecephys'].data_interfaces['LFP'].electrical_series['preprocessed']
+            self.parent.combo3.setCurrentIndex(self.parent.combo3.findText('preprocessed'))
+        except: None
+        try:  #Tries to load High Gamma data
+            self.source = self.nwb.modules['ecephys'].data_interfaces['high_gamma']
+            self.parent.combo3.setCurrentIndex(self.parent.combo3.findText('high gamma'))
+        except: None
         self.plotData = self.source.data
         self.fs_signal = self.source.rate     #sampling frequency [Hz]
         self.tbin_signal = 1/self.fs_signal #time bin duration [seconds]
         self.nBins = self.source.data.shape[0]     #total number of bins
+        self.load_stimuli()  #load stimuli signals (audio)
         self.updateCurXAxisPosition()
 
 

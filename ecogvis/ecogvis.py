@@ -20,7 +20,7 @@ from ecogvis.functions.subFunctions import ecogVIS
 from ecogvis.functions.subDialogs import (CustomIntervalDialog, SelectChannelsDialog,
     SpectralChoiceDialog, NoHighGammaDialog, NoPreprocessedDialog, NoTrialsDialog,
     ExitDialog, ERPDialog, HighGammaDialog, Periodograms, AudioEventDetection,
-    PreprocessingDialog, NoRawDialog, NoSpectrumDialog, NoAudioDialog)
+    PreprocessingDialog, NoRawDialog, NoSpectrumDialog, NoAudioDialog, ExistTrialsDialog)
 from ndx_spectrum import Spectrum
 
 intervalAdd_ = False
@@ -152,7 +152,7 @@ class Application(QMainWindow):
         action_erp = QAction('ERP', self)
         analysis_tools_menu.addAction(action_erp)
         action_erp.triggered.connect(self.event_related_potential)
-        action_event_detection = QAction('Event Detection', self)
+        action_event_detection = QAction('CV Event Detection', self)
         toolsMenu.addAction(action_event_detection)
         action_event_detection.triggered.connect(self.audio_event_detection)
 
@@ -531,8 +531,7 @@ class Application(QMainWindow):
 
     def event_related_potential(self):
         """Opens ERP window."""
-        # If file contains trials information
-        if self.model.nwb.trials is None:
+        if len(self.model.nwb.intervals)==0: # If file contains trials information
             NoTrialsDialog()
         else:
             w = ERPDialog(parent=self)
@@ -540,11 +539,15 @@ class Application(QMainWindow):
 
     def audio_event_detection(self):
         """Opens Audio Event Detection window."""
-        # If file contains audio signals
-        if self.model.nStim > 0:
-            w = AudioEventDetection(parent=self)
+        if len(self.model.nwb.intervals)==0: #Test if trials already exist
+            if self.model.nStim > 0:  # Test if file contains audio signals
+                w = AudioEventDetection(parent=self)
+                if w.value == 1:  #Trial times were detected
+                    self.model.refresh_file()  # re-opens the file, now with new data
+            else:
+                NoAudioDialog()
         else:
-            NoAudioDialog()
+            ExistTrialsDialog()
 
 
     def about(self):
