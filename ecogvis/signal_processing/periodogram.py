@@ -23,7 +23,7 @@ def psd_estimate(src_file, type):
         if type=='raw':
             data_obj = nwb.acquisition['ElectricalSeries']
         elif type=='preprocessed':
-            data_obj = nwb.modules['ecephys'].data_interfaces['LFP'].electrical_series['preprocessed']
+            data_obj = nwb.processing['ecephys'].data_interfaces['LFP'].electrical_series['preprocessed']
 
         nChannels = data_obj.data.shape[1]
         nSamples = data_obj.data.shape[0]
@@ -49,7 +49,7 @@ def psd_estimate(src_file, type):
                                    source_timeseries=data_obj)
         # Processing module
         try:      # if ecephys module already exists
-            ecephys_module = nwb.modules['ecephys']
+            ecephys_module = nwb.processing['ecephys']
         except:   # creates ecephys ProcessingModule
             ecephys_module = ProcessingModule(name='ecephys',
                                               description='Extracellular electrophysiology data.')

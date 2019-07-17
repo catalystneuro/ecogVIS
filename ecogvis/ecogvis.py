@@ -535,7 +535,7 @@ class Application(QMainWindow):
             NoTrialsDialog()
         else:
             try:  #Tries to load High Gamma data
-                hg = self.nwb.modules['ecephys'].data_interfaces['high_gamma']
+                hg = self.model.nwb.processing['ecephys'].data_interfaces['high_gamma']
                 w = ERPDialog(parent=self)
             except:
                 NoHighGammaDialog()
@@ -724,25 +724,25 @@ class Application(QMainWindow):
     def PeriodogramSelect(self):
         if self.combo3.currentText()=='raw':
             try:
-                psd = self.model.nwb.modules['ecephys'].data_interfaces['Spectrum_raw']
+                psd = self.model.nwb.processing['ecephys'].data_interfaces['Spectrum_raw']
                 Periodograms(self, psd=psd)
             except:
                 w = NoSpectrumDialog(self, 'raw')
                 if w.val == 1:  #PSD was calculated
                     self.model.refresh_file()  # re-opens the file, now with new data
                     self.combo3.setCurrentIndex(self.combo3.findText('raw'))
-                    psd = self.model.nwb.modules['ecephys'].data_interfaces['Spectrum_raw']
+                    psd = self.model.nwb.processing['ecephys'].data_interfaces['Spectrum_raw']
                     Periodograms(self, psd=psd)
         elif self.combo3.currentText()=='preprocessed':
             try:
-                psd = self.model.nwb.modules['ecephys'].data_interfaces['Spectrum_preprocessed']
+                psd = self.model.nwb.processing['ecephys'].data_interfaces['Spectrum_preprocessed']
                 Periodograms(self, psd=psd)
             except:
                 w = NoSpectrumDialog(self, 'preprocessed')
                 if w.val == 1:  #PSD was calculated
                     self.model.refresh_file()  # re-opens the file, now with new data
                     self.combo3.setCurrentIndex(self.combo3.findText('preprocessed'))
-                    psd = self.model.nwb.modules['ecephys'].data_interfaces['Spectrum_preprocessed']
+                    psd = self.model.nwb.processing['ecephys'].data_interfaces['Spectrum_preprocessed']
                     Periodograms(self, psd=psd)
 
         #global periodogram_
@@ -791,7 +791,7 @@ class Application(QMainWindow):
                 NoRawDialog()
         elif self.combo3.currentText()=='preprocessed':
             try:   #if preprocessed signals already exist on NWB file
-                self.model.source = self.model.nwb.modules['ecephys'].data_interfaces['LFP'].electrical_series['preprocessed']
+                self.model.source = self.model.nwb.processing['ecephys'].data_interfaces['LFP'].electrical_series['preprocessed']
                 self.model.plotData = self.model.source.data
                 self.model.plot_panel = 'voltage_preprocessed'
                 self.model.nBins = self.model.source.data.shape[0]
@@ -804,7 +804,7 @@ class Application(QMainWindow):
                 NoPreprocessedDialog()
         elif self.combo3.currentText()=='high gamma':
             try:     #if decomposition already exists on NWB file
-                self.model.source = self.model.nwb.modules['ecephys'].data_interfaces['high_gamma']
+                self.model.source = self.model.nwb.processing['ecephys'].data_interfaces['high_gamma']
                 self.model.plotData = self.model.source.data
                 self.model.plot_panel = 'spectral_power'
                 self.model.nBins = self.model.source.data.shape[0]

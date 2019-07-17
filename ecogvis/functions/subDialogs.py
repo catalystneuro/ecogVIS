@@ -319,16 +319,16 @@ class SpectralChoiceDialog(QtGui.QDialog, Ui_SpectralChoice):
         self.runButton.clicked.connect(self.run_decomposition)
         self.cancelButton.clicked.connect(lambda: self.out_close(val=-1))
 
-        if 'ecephys' in parent.model.nwb.modules:
+        if 'ecephys' in parent.model.nwb.processing:
             # If there's no preprocessed data in NWB file
-            if 'LFP' not in parent.model.nwb.modules['ecephys'].data_interfaces:
+            if 'LFP' not in parent.model.nwb.processing['ecephys'].data_interfaces:
                 self.disable_all()
                 text = "There's no preprocessed data in the current file.\n" \
                        "Run 'Preprocess' to generate it."
                 self.label_1.setText(text)
                 self.cancelButton.setEnabled(True)
             # If there's already Bandpower data in NWB file
-            if 'Bandpower' in self.nwb.modules['ecephys'].data_interfaces:
+            if 'Bandpower' in self.nwb.processing['ecephys'].data_interfaces:
                 self.disable_all()
                 text = "Frequency decomposition data already exists in current file."
                 self.label_1.setText(text)
@@ -467,9 +467,9 @@ class HighGammaDialog(QtGui.QDialog, Ui_HighGamma):
         self.exec_()
 
     def check_hg_exists(self):
-        if 'ecephys' in self.parent.model.nwb.modules:
+        if 'ecephys' in self.parent.model.nwb.processing:
             # If there's no preprocessed data in NWB file
-            if 'LFP' not in self.parent.model.nwb.modules['ecephys'].data_interfaces:
+            if 'LFP' not in self.parent.model.nwb.processing['ecephys'].data_interfaces:
                 self.disable_all()
                 text = "There's no preprocessed data in the current file.\n" \
                        "Run 'Preprocess' to generate it."
@@ -477,7 +477,7 @@ class HighGammaDialog(QtGui.QDialog, Ui_HighGamma):
                 self.radioButton_4.setEnabled(False)
                 self.cancelButton.setEnabled(True)
             # If there's already Bandpower data in NWB file
-            elif 'high_gamma' in self.nwb.modules['ecephys'].data_interfaces:
+        elif 'high_gamma' in self.nwb.processing['ecephys'].data_interfaces:
                 self.disable_all()
                 text = "High Gamma data already exists in current file."
                 self.label_1.setText(text)
@@ -665,10 +665,10 @@ class PreprocessingDialog(QtGui.QDialog, Ui_Preprocessing):
         self.fname = parent.model.fileName
         self.fpath = parent.model.pathName
         #if preprocessed signals already exist on NWB file
-        if 'ecephys' in parent.model.nwb.modules:
-            if 'LFP' in parent.model.nwb.modules['ecephys'].data_interfaces:
+        if 'ecephys' in parent.model.nwb.processing:
+            if 'LFP' in parent.model.nwb.processing['ecephys'].data_interfaces:
                 self.disable_all()
-                aux = parent.model.nwb.modules['ecephys'].data_interfaces['LFP'].electrical_series['preprocessed']
+                aux = parent.model.nwb.processing['ecephys'].data_interfaces['LFP'].electrical_series['preprocessed']
                 car, notch, downs = aux.comments.split(',')
                 _, car = car.split(':')
                 _, notch = notch.split(':')
@@ -1098,6 +1098,13 @@ class ERPDialog(QMainWindow):#QtGui.QDialog):
         self.X = []
         self.Yscale = {}
 
+        self.source = self.parent.model.nwb.processing['ecephys'].data_interfaces['high_gamma'].data
+        self.fs = self.parent.model.nwb.processing['ecephys'].data_interfaces['high_gamma'].rate
+        self.speaker_start_times = self.parent.model.nwb.intervals['TimeIntervals_speaker']['start_time'].data[:]
+        self.speaker_stop_times = self.parent.model.nwb.intervals['TimeIntervals_speaker']['stop_time'].data[:]
+        self.mic_start_times = self.parent.model.nwb.intervals['TimeIntervals_mic']['start_time'].data[:]
+        self.mic_stop_times = self.parent.model.nwb.intervals['TimeIntervals_mic']['stop_time'].data[:]
+
         #Left panel
         self.push0_0 = QPushButton('Calc ERP')
         self.push0_0.clicked.connect(self.draw_erp)
@@ -1326,20 +1333,25 @@ class ERPDialog(QMainWindow):#QtGui.QDialog):
                 return self.Y_stop_mic_mean[str(ch)], self.Y_stop_mic_sem[str(ch)], self.X
 
     def calc_erp(self, ch):
-        data = self.parent.model.nwb.modules['ecephys'].data_interfaces['high_gamma'].data
-        fs = self.parent.model.nwb.modules['ecephys'].data_interfaces['high_gamma'].rate
-        ref_times = self.parent.model.nwb.intervals['TimeIntervals_'+self.interval_type][self.alignment].data[:]
-        ref_bins = (ref_times*fs).astype('int')
-        nBinsTr = int(float(self.qline2.text())*fs/2)
+        if (self.alignment == 'start_time') and (self.interval_type=='speaker'):
+            ref_times = self.speaker_start_times
+        if (self.alignment == 'stop_time') and (self.interval_type=='speaker'):
+            ref_times = self.speaker_stop_times
+        if (self.alignment == 'start_time') and (self.interval_type=='mic'):
+            ref_times = self.mic_start_times
+        if (self.alignment == 'stop_time') and (self.interval_type=='mic'):
+            ref_times = self.mic_stop_times
+        ref_bins = (ref_times*self.fs).astype('int')
+        nBinsTr = int(float(self.qline2.text())*self.fs/2)
         start_bins = ref_bins - nBinsTr
         stop_bins = ref_bins + nBinsTr
         nTrials = len(ref_times)
         Y = np.zeros((nTrials,2*nBinsTr))+np.nan
         for tr in np.arange(nTrials):
-            Y[tr,:] = data[start_bins[tr]:stop_bins[tr], ch]
+            Y[tr,:] = self.source[start_bins[tr]:stop_bins[tr], ch]
         Y_mean = np.nanmean(Y, 0)
         Y_sem = np.nanstd(Y, 0)/np.sqrt(Y.shape[0])
-        X = np.arange(0, 2*nBinsTr)/fs
+        X = np.arange(0, 2*nBinsTr)/self.fs
         return Y_mean, Y_sem, X
 
     def draw_erp(self):
@@ -1510,7 +1522,7 @@ class IndividualERPDialog(QtGui.QDialog):
         self.exec_()
 
     def calc_erp(self, ch):
-        data = self.parent.parent.parent.model.nwb.modules['ecephys'].data_interfaces['high_gamma'].data
+        data = self.parent.parent.parent.model.nwb.processing['ecephys'].data_interfaces['high_gamma'].data
         fs = 400.#self.parent.model.fs_signal
         ref_times = self.parent.parent.parent.model.nwb.trials[self.alignment][:]
         ref_bins = (ref_times*fs).astype('int')

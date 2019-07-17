@@ -41,16 +41,16 @@ class ecogVIS:
             print("No 'ElectricalSeries' object in 'acquisition' group.")
         #Tries to load preprocessed data
         try:
-            self.source = self.nwb.modules['ecephys'].data_interfaces['LFP'].electrical_series['preprocessed']
+            self.source = self.nwb.processing['ecephys'].data_interfaces['LFP'].electrical_series['preprocessed']
             self.parent.combo3.setCurrentIndex(self.parent.combo3.findText('preprocessed'))
         except:
-            print("No 'preprocessed' data in 'modules' group.")
+            print("No 'preprocessed' data in 'processing' group.")
         #Tries to load High Gamma data
         try:
-            self.source = self.nwb.modules['ecephys'].data_interfaces['high_gamma']
+            self.source = self.nwb.processing['ecephys'].data_interfaces['high_gamma']
             self.parent.combo3.setCurrentIndex(self.parent.combo3.findText('high gamma'))
         except:
-            print("No 'high_gamma' data in 'modules' group.")
+            print("No 'high_gamma' data in 'processing' group.")
         self.plotData = self.source.data
         self.fs_signal = self.source.rate     #sampling frequency [Hz]
         self.tbin_signal = 1/self.fs_signal #time bin duration [seconds]
@@ -164,11 +164,11 @@ class ecogVIS:
                     self.parent.combo3.setCurrentIndex(self.parent.combo3.findText('raw'))
         except: None
         try:  #Tries to load preprocessed data
-            self.source = self.nwb.modules['ecephys'].data_interfaces['LFP'].electrical_series['preprocessed']
+            self.source = self.nwb.processing['ecephys'].data_interfaces['LFP'].electrical_series['preprocessed']
             self.parent.combo3.setCurrentIndex(self.parent.combo3.findText('preprocessed'))
         except: None
         try:  #Tries to load High Gamma data
-            self.source = self.nwb.modules['ecephys'].data_interfaces['high_gamma']
+            self.source = self.nwb.processing['ecephys'].data_interfaces['high_gamma']
             self.parent.combo3.setCurrentIndex(self.parent.combo3.findText('high gamma'))
         except: None
         self.plotData = self.source.data

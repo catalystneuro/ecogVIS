@@ -191,7 +191,7 @@ def preprocess_raw_data(block_path, config):
 
         # Storage of processed signals on NWB file -----------------------------
         try:      # if ecephys module already exists
-            ecephys_module = nwb.modules['ecephys']
+            ecephys_module = nwb.processing['ecephys']
         except:   # creates ecephys ProcessingModule
             ecephys_module = ProcessingModule(name='ecephys',
                                               description='Extracellular electrophysiology data.')
@@ -200,9 +200,9 @@ def preprocess_raw_data(block_path, config):
             print('Created ecephys')
 
         # LFP: Downsampled and power line signal removed -----------------------
-        if 'LFP' in nwb.modules['ecephys'].data_interfaces:    # if LFP already exists
-            lfp = nwb.modules['ecephys'].data_interfaces['LFP']
-            lfp_ts = nwb.modules['ecephys'].data_interfaces['LFP'].electrical_series['preprocessed']
+        if 'LFP' in nwb.processing['ecephys'].data_interfaces:    # if LFP already exists
+            lfp = nwb.processing['ecephys'].data_interfaces['LFP']
+            lfp_ts = nwb.processing['ecephys'].data_interfaces['LFP'].electrical_series['preprocessed']
         else: # creates LFP data interface container
             lfp = LFP()
 
@@ -326,7 +326,7 @@ def spectral_decomposition(block_path, bands_vals):
 
     with NWBHDF5IO(block_path, 'r+') as io:
         nwb = io.read()
-        lfp = nwb.modules['ecephys'].data_interfaces['LFP'].electrical_series['preprocessed']
+        lfp = nwb.processing['ecephys'].data_interfaces['LFP'].electrical_series['preprocessed']
         rate = lfp.rate
 
         nBands = len(band_param_0)
@@ -373,7 +373,7 @@ def spectral_decomposition(block_path, bands_vals):
                                     source_timeseries=lfp)
 
         # Storage of spectral decomposition on NWB file ------------------------
-        ecephys_module = nwb.modules['ecephys']
+        ecephys_module = nwb.processing['ecephys']
         ecephys_module.add_data_interface(decs)
         io.write(nwb)
         print('Spectral decomposition saved in '+block_path)
@@ -408,7 +408,7 @@ def high_gamma_estimation(block_path, bands_vals, new_file=''):
 
     with NWBHDF5IO(block_path, 'r+') as io:
         nwb = io.read()
-        lfp = nwb.modules['ecephys'].data_interfaces['LFP'].electrical_series['preprocessed']
+        lfp = nwb.processing['ecephys'].data_interfaces['LFP'].electrical_series['preprocessed']
         rate = lfp.rate
 
         nBands = len(band_param_0)
@@ -442,7 +442,7 @@ def high_gamma_estimation(block_path, bands_vals, new_file=''):
 
         # Storage of High Gamma on NWB file -----------------------------
         if new_file=='':  #on current file
-            ecephys_module = nwb.modules['ecephys']
+            ecephys_module = nwb.processing['ecephys']
             ecephys_module.add_data_interface(hg)
             io.write(nwb)
             print('High Gamma power saved in '+block_path)
