@@ -1,7 +1,7 @@
 from PyQt5 import QtGui, QtCore, uic
 from PyQt5.QtWidgets import (QTableWidgetItem, QGridLayout, QGroupBox, QLineEdit,
     QWidget, QLabel, QPushButton, QVBoxLayout, QHBoxLayout, QComboBox, QScrollArea,
-    QFileDialog, QHeaderView, QMainWindow)
+    QFileDialog, QHeaderView, QMainWindow, QCheckBox)
 import pyqtgraph as pg
 import pyqtgraph.exporters as pgexp
 import pyqtgraph.opengl as gl
@@ -116,10 +116,10 @@ class NoTrialsDialog(QtGui.QDialog):
 
 
 # Warning that Trials data already exists in the NWB file ----------------------
-class ExistTrialsDialog(QtGui.QDialog):
+class ExistIntervalsDialog(QtGui.QDialog):
     def __init__(self):
         super().__init__()
-        self.text = QLabel("There is already Trials data saved in the current NWB file.\n"+
+        self.text = QLabel("There is already Intervals data saved in the current NWB file.\n"+
                            "It is not possible to substitute it.")
         self.okButton = QtGui.QPushButton("OK")
         self.okButton.clicked.connect(self.onAccepted)
@@ -127,7 +127,7 @@ class ExistTrialsDialog(QtGui.QDialog):
         vbox.addWidget(self.text)
         vbox.addWidget(self.okButton)
         self.setLayout(vbox)
-        self.setWindowTitle('Trial data already exists')
+        self.setWindowTitle('Intervals data already exists')
         self.exec_()
 
     def onAccepted(self):
@@ -477,7 +477,7 @@ class HighGammaDialog(QtGui.QDialog, Ui_HighGamma):
                 self.radioButton_4.setEnabled(False)
                 self.cancelButton.setEnabled(True)
             # If there's already Bandpower data in NWB file
-        elif 'high_gamma' in self.nwb.processing['ecephys'].data_interfaces:
+            elif 'high_gamma' in self.nwb.processing['ecephys'].data_interfaces:
                 self.disable_all()
                 text = "High Gamma data already exists in current file."
                 self.label_1.setText(text)
@@ -726,9 +726,356 @@ class PreprocessingDialog(QtGui.QDialog, Ui_Preprocessing):
         self.pushButton_2.setEnabled(False)
 
 
+# Creates Periodogram Grid window ----------------------------------------------
+class PeriodogramGridDialog(QMainWindow):
+    def __init__(self, parent):
+        super().__init__()
+        self.setWindowTitle('Periodograms')
+        self.resize(1250,500)
 
-# Creates Group Periodograms window --------------------------------------------
-class Periodograms(QtGui.QDialog):
+        self.parent = parent
+        self.nCols = 16
+        self.grid_order = np.arange(256)
+        self.parent = parent
+        self.freqMax = 200.
+        self.transparent = []
+        self.Ymax = {}
+
+        #Left panel
+        self.push0_0 = QPushButton('Draw')
+        self.push0_0.clicked.connect(self.draw_periodograms)
+        qlabelSignal = QLabel('Signal:')
+        self.combo0 = QComboBox()
+        self.combo0.activated.connect(self.change_source)
+        qlabelMethod = QLabel('Method:')
+        self.b1 = QCheckBox("FFT")
+        self.b1.setChecked(True)
+        self.b2 = QCheckBox("Welch")
+        self.b2.setChecked(True)
+        qlabelYscale = QLabel('Y scale:')
+        self.qline1 = QLineEdit('1')
+        self.qline1.returnPressed.connect(self.scale_plots)
+        qlabelXrng = QLabel('X range:')
+        self.qline2_0 = QLineEdit('0')
+        self.qline2_0.returnPressed.connect(self.set_xrange)
+        self.qline2_1 = QLineEdit('200')
+        self.qline2_1.returnPressed.connect(self.set_xrange)
+        self.push3_0 = QPushButton('Brain areas')
+        self.push3_0.clicked.connect(self.areas_select)
+        self.push4_0 = QPushButton('Save image')
+        self.push4_0.clicked.connect(self.save_image)
+        label4 = QLabel('Rotate grid:')
+        self.push5_0 = QPushButton('90°')
+        self.push5_0.clicked.connect(lambda: self.rearrange_grid(90))
+        self.push5_1 = QPushButton('-90°')
+        self.push5_1.clicked.connect(lambda: self.rearrange_grid(-90))
+        self.push5_2 = QPushButton('T')
+        self.push5_2.clicked.connect(lambda: self.rearrange_grid('T'))
+
+        grid0 = QGridLayout()
+        grid0.addWidget(qlabelSignal, 0, 0, 1, 2)
+        grid0.addWidget(self.combo0, 0, 2, 1, 4)
+        grid0.addWidget(qlabelMethod, 1, 0, 1, 2)
+        grid0.addWidget(self.b1, 1, 2, 1, 4)
+        grid0.addWidget(QLabel(' '), 2, 0, 1, 2)
+        grid0.addWidget(self.b2, 2, 2, 1, 4)
+        grid0.addWidget(qlabelYscale, 3, 0, 1, 2)
+        grid0.addWidget(self.qline1, 3, 2, 1, 2)
+        grid0.addWidget(qlabelXrng, 4, 0, 1, 2)
+        grid0.addWidget(self.qline2_0, 4, 2, 1, 2)
+        grid0.addWidget(self.qline2_1, 4, 4, 1, 2)
+        grid0.addWidget(QHLine(), 13, 0, 1, 6)
+        grid0.addWidget(label4, 14, 0, 1, 6)
+        grid0.addWidget(self.push5_0, 15, 0, 1, 2)
+        grid0.addWidget(self.push5_1, 15, 2, 1, 2)
+        grid0.addWidget(self.push5_2, 15, 4, 1, 2)
+        grid0.addWidget(self.push3_0, 16, 0, 1, 6)
+        grid0.addWidget(self.push4_0, 17, 0, 1, 6)
+        grid0.setAlignment(QtCore.Qt.AlignTop)
+
+        panel0 = QGroupBox('Controls:')
+        panel0.setFixedWidth(180)
+        panel0.setLayout(grid0)
+
+        self.leftbox = QVBoxLayout()
+        self.leftbox.addWidget(self.push0_0)
+        self.leftbox.addWidget(panel0)
+
+        self.push3_0.setEnabled(False)
+        self.push4_0.setEnabled(False)
+        self.push5_0.setEnabled(False)
+        self.push5_1.setEnabled(False)
+        self.push5_2.setEnabled(False)
+
+        # Right panel
+        self.win = pg.GraphicsLayoutWidget()
+        item_width = 80
+        self.win.resize(item_width*16+60, item_width*16+60)
+        background_color = self.palette().color(QtGui.QPalette.Background)
+        self.win.setBackground(background_color)
+        for j in range(16):
+            self.win.ci.layout.setRowFixedHeight(j, item_width)
+            self.win.ci.layout.setColumnFixedWidth(j, item_width)
+            self.win.ci.layout.setColumnSpacing(j, 3)
+            self.win.ci.layout.setRowSpacing(j, 3)
+            #this is to avoid the error:
+            #RuntimeError: wrapped C/C++ object of type GraphicsScene has been deleted
+            vb = CustomViewBoxPeriodogram(self, j*16)
+            p = self.win.addPlot(j, j, viewBox = vb)
+            p.hideAxis('left')
+            p.hideAxis('bottom')
+        #Scroll Area Properties
+        self.scroll = QScrollArea()
+        self.scroll.setVerticalScrollBarPolicy(QtCore.Qt.ScrollBarAsNeeded)
+        self.scroll.setHorizontalScrollBarPolicy(QtCore.Qt.ScrollBarAsNeeded)
+        self.scroll.setWidgetResizable(False)
+        self.scroll.setWidget(self.win)
+
+        self.centralwidget = QWidget()
+        self.setCentralWidget(self.centralwidget)
+        self.hbox = QHBoxLayout(self.centralwidget)
+        self.hbox.addLayout(self.leftbox)    #add panels first
+        self.hbox.addWidget(self.scroll)
+
+        self.initiate_sources()
+        self.show()
+
+    def initiate_sources(self):
+        """Check sources available on file, 'raw' and 'preprocessed'."""
+        #Populate combo box
+        if 'Spectrum_fft_raw' in self.parent.model.nwb.modules['ecephys'].data_interfaces:
+            self.combo0.addItem('raw')
+        if 'Spectrum_fft_preprocessed' in self.parent.model.nwb.modules['ecephys'].data_interfaces:
+            self.combo0.addItem('preprocessed')
+        self.change_source()
+
+    def change_source(self):
+        if self.combo0.currentText()=='raw':
+            #PSD shape: ('frequency', 'channel')
+            self.psd_fft = self.parent.model.nwb.modules['ecephys'].data_interfaces['Spectrum_fft_raw'].power
+            self.xf_fft = self.parent.model.nwb.modules['ecephys'].data_interfaces['Spectrum_fft_raw'].frequencies[:]
+            self.psd_welch = self.parent.model.nwb.modules['ecephys'].data_interfaces['Spectrum_welch_raw'].power
+            self.xf_welch = self.parent.model.nwb.modules['ecephys'].data_interfaces['Spectrum_welch_raw'].frequencies[:]
+        elif self.combo0.currentText()=='preprocessed':
+            #PSD shape: ('frequency', 'channel')
+            self.psd_fft = self.parent.model.nwb.modules['ecephys'].data_interfaces['Spectrum_fft_preprocessed'].power
+            self.xf_fft = self.parent.model.nwb.modules['ecephys'].data_interfaces['Spectrum_fft_preprocessed'].frequencies[:]
+            self.psd_welch = self.parent.model.nwb.modules['ecephys'].data_interfaces['Spectrum_welch_preprocessed'].power
+            self.xf_welch = self.parent.model.nwb.modules['ecephys'].data_interfaces['Spectrum_welch_preprocessed'].frequencies[:]
+
+    def scale_plots(self):
+        scale = float(self.qline1.text())
+        for ind, ch in enumerate(self.grid_order):
+            row = np.floor(ind/self.nCols)
+            col = ind%self.nCols
+            p = self.win.getItem(row=row, col=col)
+            if p == None:
+                return
+            else:
+                xrng, yrng = p.viewRange()   #list: [[xmin, xmax], [ymin, ymax]]
+                ylim = scale*yrng[1]
+                p.setYRange(0, ylim)
+
+    def set_xrange(self):
+        x0 = np.abs( float(self.qline2_0.text()) )
+        x0 = min(max(x0, 0), 200)   #hard limits
+        x1 = np.abs( float(self.qline2_1.text()) )
+        x1 = min(max(x1, 0), 200)   #hard limits
+        for ind, ch in enumerate(self.grid_order):
+            row = np.floor(ind/self.nCols)
+            col = ind%self.nCols
+            p = self.win.getItem(row=row, col=col)
+            if p == None:
+                return
+            else:
+                p.setXRange(x0, x1)
+                tks = np.linspace(x0, x1, 3).astype('int')
+                ticks = list(zip(tks, [str(tks[0]), str(tks[1]), str(tks[2])]))
+                bottom = p.getAxis('bottom')
+                bottom.setTicks([ticks])
+
+    def rearrange_grid(self, angle):
+        grid = self.grid_order.reshape(16,16)  #re-arranges as 2D array
+        if angle == 90:     #90 degrees clockwise
+            grid = np.rot90(grid, axes=(1,0))
+        elif angle == -90:  #90 degrees counterclockwise
+            grid = np.rot90(grid, axes=(0,1))
+        else:       #transpose
+            grid = grid.T
+        self.grid_order = grid.flatten()    #re-arranges as 1D array
+        self.draw_periodograms()
+
+    def areas_select(self):
+        # Dialog to choose channels from specific brain regions
+        w = SelectChannelsDialog(self.parent.model.all_regions, self.parent.model.regions_mask)
+        self.transparent = []
+        for ind, ch in enumerate(self.grid_order):
+            loc = self.parent.model.nwb.electrodes['location'][ch]
+            if loc not in w.choices:
+                self.transparent.append(ch)
+        self.draw_periodograms()
+
+    def save_image(self):
+        #a = exportDialog.ExportDialog(self.win.sceneObj)
+        p = self.win.getItem(row=0, col=0)
+        self.win.sceneObj.contextMenuItem = p
+        self.win.sceneObj.showExportDialog()
+
+    def draw_periodograms(self):
+        self.push3_0.setEnabled(True)
+        self.push4_0.setEnabled(True)
+        self.push5_0.setEnabled(True)
+        self.push5_1.setEnabled(True)
+        self.push5_2.setEnabled(True)
+        cmap = get_lut()
+        # X limits and ticks
+        x0 = np.abs( float(self.qline2_0.text()) )
+        x0 = min(max(x0, 0), 200)   #hard limits
+        x1 = np.abs( float(self.qline2_1.text()) )
+        x1 = min(max(x1, 0), 200)   #hard limits
+        tks = np.linspace(x0, x1, 3).astype('int')
+        ticks = list(zip(tks, [str(tks[0]), str(tks[1]), str(tks[2])]))
+        for ind, ch in enumerate(self.grid_order):
+            if ch in self.transparent: #if it should be made transparent
+                elem_alpha = 30
+            else:
+                elem_alpha = 255
+            row = np.floor(ind/self.nCols)
+            col = ind%self.nCols
+            p = self.win.getItem(row=row, col=col)
+            if p == None:
+                vb = CustomViewBoxPeriodogram(self, ch)
+                p = self.win.addPlot(row=row, col=col, viewBox = vb)
+            p.showAxis('left', False)
+            p.showAxis('bottom', True)
+            #p.hideAxis('left')
+            #p.hideAxis('bottom')
+            p.clear()
+            p.setMouseEnabled(x=False, y=False)
+            p.setToolTip('Ch '+str(ch+1)+'\n'+str(self.parent.model.nwb.electrodes['location'][ch]))
+            #Background
+            loc = 'ctx-lh-'+self.parent.model.nwb.electrodes['location'][ch]
+            vb = p.getViewBox()
+            color = tuple(cmap[loc])
+            vb.setBackgroundColor((*color,min(elem_alpha,70)))  # append alpha to color tuple
+            #Main plots
+            if self.b1.isChecked() == True:
+                Yp_fft = self.psd_fft[:, ch]
+                mean_fft = p.plot(x=self.xf_fft, y=Yp_fft, pen=pg.mkPen((50,50,50,min(elem_alpha,255)), width=1.))
+            if self.b2.isChecked() == True:
+                Yp_welch = self.psd_welch[:, ch]
+                mean_welch = p.plot(x=self.xf_welch, y=Yp_welch, pen=pg.mkPen((17,102,0,min(elem_alpha,255)), width=1.))
+            p.hideButtons()
+            #Axis control
+            left = p.getAxis('left')
+            left.setStyle(showValues=False)
+            left.setTicks([])
+            p.setXRange(x0, x1)
+            bottom = p.getAxis('bottom')
+            bottom.setStyle(showValues=True)
+            bottom.setTicks([ticks])
+
+
+## Viewbox for Periodogram plots ----------------------------------------------
+class CustomViewBoxPeriodogram(pg.ViewBox):
+    def __init__(self, parent, ch):
+        pg.ViewBox.__init__(self)
+        self.parent = parent
+        self.ch = ch
+
+    def mouseDoubleClickEvent(self, ev):
+        IndividualPeriodogramDialog(self)
+
+
+# Individual Event-Related Potential dialog ------------------------------------
+class IndividualPeriodogramDialog(QtGui.QDialog):
+    def __init__(self, parent):
+        super().__init__()
+        # Enable antialiasing for prettier plots
+        pg.setConfigOptions(antialias=True)
+        self.parent = parent
+        self.ch = parent.ch
+        self.psd_fft = parent.parent.psd_fft
+        self.xf_fft = parent.parent.xf_fft
+        self.psd_welch = parent.parent.psd_welch
+        self.xf_welch = parent.parent.xf_welch
+
+        #Left panel
+        self.b1 = QCheckBox("FFT")
+        self.b1.setChecked(True)
+        self.b1.stateChanged.connect(self.draw_periodograms)
+        self.b2 = QCheckBox("Welch")
+        self.b2.setChecked(True)
+        self.b2.stateChanged.connect(self.draw_periodograms)
+
+        grid0 = QGridLayout()
+        grid0.addWidget(self.b1, 0, 0, 1, 2)
+        grid0.addWidget(self.b2, 1, 0, 1, 2)
+        grid0.setAlignment(QtCore.Qt.AlignTop)
+
+        panel0 = QGroupBox('Controls:')
+        panel0.setFixedWidth(120)
+        panel0.setLayout(grid0)
+
+        self.leftbox = QVBoxLayout()
+        self.leftbox.addWidget(panel0)
+
+        # Right panel
+        self.win = pg.GraphicsLayoutWidget()
+        self.win.resize(900,600)
+        background_color = self.palette().color(QtGui.QPalette.Background)
+        self.win.setBackground(background_color)
+
+        self.hbox = QHBoxLayout()
+        #self.hbox.addWidget(panel0)
+        self.hbox.addLayout(self.leftbox)
+        self.hbox.addWidget(self.win)
+        self.setLayout(self.hbox)
+        self.setWindowTitle('Individual Periodogram - Ch '+str(self.ch+1))
+        self.resize(900, 600)
+
+        self.draw_periodograms()
+        self.exec_()
+
+    def draw_periodograms(self):
+        cmap = get_lut()
+        p = self.win.getItem(row=0, col=0)
+        if p == None:
+            p = self.win.addPlot(row=0, col=0)
+        p.hideAxis('left')
+        #p.hideAxis('bottom')
+        p.clear()
+        #p.setMouseEnabled(x=False, y=False)
+        #Background
+        loc = 'ctx-lh-'+self.parent.parent.parent.model.nwb.electrodes['location'][self.ch]
+        vb = p.getViewBox()
+        color = tuple(cmap[loc])
+        vb.setBackgroundColor((*color,70))  # append alpha to color tuple
+        #Main plots
+        if self.b1.isChecked() == True:
+            Yp_fft = self.psd_fft[:,self.ch]
+            mean_fft = p.plot(x=self.xf_fft, y=Yp_fft, pen=pg.mkPen((50,50,50,255), width=1.))
+        if self.b2.isChecked() == True:
+            Yp_welch = self.psd_welch[:,self.ch]
+            mean_welch = p.plot(x=self.xf_welch, y=Yp_welch, pen=pg.mkPen((17,112,0,255), width=1.))
+        #p.hideButtons()
+        #Axis control
+        left = p.getAxis('left')
+        left.setStyle(showValues=False)
+        left.setTicks([])
+        bottom = p.getAxis('bottom')
+        bottom.setStyle(showValues=True)
+        p.setLabel('bottom', 'Frequency', units = 'Hz')
+        #ticks = list(zip([0, 100, 200], ['0', '100', '200']))
+        #bottom.setTicks([ticks])
+        p.setLimits(xMin=0)
+        p.setLimits(xMax=200)
+        p.setLimits(yMin=0)
+
+
+
+# Creates 3D Periodograms window --------------------------------------------
+class Periodograms3D(QtGui.QDialog):
     def __init__(self, parent, psd):
         super().__init__()
         self.parent = parent
@@ -1524,7 +1871,7 @@ class IndividualERPDialog(QtGui.QDialog):
     def calc_erp(self, ch):
         data = self.parent.parent.parent.model.nwb.processing['ecephys'].data_interfaces['high_gamma'].data
         fs = 400.#self.parent.model.fs_signal
-        ref_times = self.parent.parent.parent.model.nwb.trials[self.alignment][:]
+        ref_times = self.parent.parent.parent.model.nwb.intervals[self.alignment][:]
         ref_bins = (ref_times*fs).astype('int')
         nBinsTr = int(float(self.qline2.text())*fs/2)
         start_bins = ref_bins - nBinsTr

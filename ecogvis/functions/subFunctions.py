@@ -49,6 +49,7 @@ class ecogVIS:
         try:
             self.source = self.nwb.processing['ecephys'].data_interfaces['high_gamma']
             self.parent.combo3.setCurrentIndex(self.parent.combo3.findText('high gamma'))
+            self.parent.push5_0.setEnabled(False)
         except:
             print("No 'high_gamma' data in 'processing' group.")
         self.plotData = self.source.data

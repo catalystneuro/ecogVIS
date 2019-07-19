@@ -19,8 +19,8 @@ from pyqtgraph.widgets.MatplotlibWidget import MatplotlibWidget
 from ecogvis.functions.subFunctions import ecogVIS
 from ecogvis.functions.subDialogs import (CustomIntervalDialog, SelectChannelsDialog,
     SpectralChoiceDialog, NoHighGammaDialog, NoPreprocessedDialog, NoTrialsDialog,
-    ExitDialog, ERPDialog, HighGammaDialog, Periodograms, AudioEventDetection,
-    PreprocessingDialog, NoRawDialog, NoSpectrumDialog, NoAudioDialog, ExistTrialsDialog)
+    ExitDialog, ERPDialog, HighGammaDialog, PeriodogramGridDialog, AudioEventDetection,
+    PreprocessingDialog, NoRawDialog, NoSpectrumDialog, NoAudioDialog, ExistIntervalsDialog)
 from ndx_spectrum import Spectrum
 
 intervalAdd_ = False
@@ -224,7 +224,7 @@ class Application(QMainWindow):
         # Get channel by brain region
         self.push4_0 = QPushButton('Select regions')
         self.push4_0.clicked.connect(self.ChannelSelect)
-        # One-click Periodogram
+        #Periodogram
         self.push5_0 = QPushButton('Periodogram')
         self.push5_0.clicked.connect(self.PeriodogramSelect)
         # One-click preprocess signals
@@ -551,7 +551,7 @@ class Application(QMainWindow):
             else:
                 NoAudioDialog()
         else:
-            ExistTrialsDialog()
+            ExistIntervalsDialog()
 
 
     def about(self):
@@ -720,30 +720,34 @@ class Application(QMainWindow):
         self.model.refreshScreen()
 
 
-    # Select channel for Periodogram display -----------------------------------
+    # Opens Periodogram grid window --------------------------------------------
     def PeriodogramSelect(self):
         if self.combo3.currentText()=='raw':
-            try:
-                psd = self.model.nwb.processing['ecephys'].data_interfaces['Spectrum_raw']
-                Periodograms(self, psd=psd)
+            try:  #tries to read fft and welch spectral data
+                psd_fft = self.model.nwb.modules['ecephys'].data_interfaces['Spectrum_fft_raw']
+                psd_welch = self.model.nwb.modules['ecephys'].data_interfaces['Spectrum_welch_raw']
+                PeriodogramGridDialog(self)
             except:
                 w = NoSpectrumDialog(self, 'raw')
                 if w.val == 1:  #PSD was calculated
                     self.model.refresh_file()  # re-opens the file, now with new data
                     self.combo3.setCurrentIndex(self.combo3.findText('raw'))
-                    psd = self.model.nwb.processing['ecephys'].data_interfaces['Spectrum_raw']
-                    Periodograms(self, psd=psd)
+                    psd_fft = self.model.nwb.modules['ecephys'].data_interfaces['Spectrum_fft_raw']
+                    psd_welch = self.model.nwb.modules['ecephys'].data_interfaces['Spectrum_welch_raw']
+                    PeriodogramGridDialog(self)
         elif self.combo3.currentText()=='preprocessed':
-            try:
-                psd = self.model.nwb.processing['ecephys'].data_interfaces['Spectrum_preprocessed']
-                Periodograms(self, psd=psd)
+            try:  #tries to read fft and welch spectral data
+                psd_fft = self.model.nwb.modules['ecephys'].data_interfaces['Spectrum_fft_preprocessed']
+                psd_welch = self.model.nwb.modules['ecephys'].data_interfaces['Spectrum_welch_preprocessed']
+                PeriodogramGridDialog(self)
             except:
                 w = NoSpectrumDialog(self, 'preprocessed')
                 if w.val == 1:  #PSD was calculated
                     self.model.refresh_file()  # re-opens the file, now with new data
                     self.combo3.setCurrentIndex(self.combo3.findText('preprocessed'))
-                    psd = self.model.nwb.processing['ecephys'].data_interfaces['Spectrum_preprocessed']
-                    Periodograms(self, psd=psd)
+                    psd_fft = self.model.nwb.modules['ecephys'].data_interfaces['Spectrum_fft_preprocessed']
+                    psd_welch = self.model.nwb.modules['ecephys'].data_interfaces['Spectrum_welch_preprocessed']
+                    PeriodogramGridDialog(self)
 
         #global periodogram_
         #if self.push5_0.isChecked():  #if button is pressed down

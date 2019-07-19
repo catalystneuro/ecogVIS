@@ -16,7 +16,7 @@ def psd_estimate(src_file, type):
     """
 
     #Open file
-    with NWBHDF5IO(src_file, mode='r+') as io:
+    with NWBHDF5IO(src_file, mode='r+', load_namespaces=True) as io:
         nwb = io.read()
 
         #Source ElectricalSeries
@@ -27,26 +27,40 @@ def psd_estimate(src_file, type):
 
         nChannels = data_obj.data.shape[1]
         nSamples = data_obj.data.shape[0]
-        # Using a power of 2 number of samples improves performance
-        nBinsToUse = 2**(np.floor(np.log2(nSamples)).astype('int'))
         fs = data_obj.rate
-        dF = .8            #Frequency bin size
-        #Window length as power of 2 and keeps dF~0.05 Hz
-        win_len = 2**(np.ceil(np.log2(fs/dF)).astype('int'))   #dF = fs/nfft
+        #Welch - window length as power of 2 and keeps dF~0.05 Hz
+        dF = .05            #Frequency bin size
+        win_len_welch = 2**(np.ceil(np.log2(fs/dF)).astype('int'))   #dF = fs/nfft
+        #FFT - using a power of 2 number of samples improves performance
+        nfft = int(2**(np.floor(np.log2(nSamples)).astype('int')))
+        fx_lim = 200.
         for ch in np.arange(nChannels):  # Iterate over channels
             trace = data_obj.data[:, ch]
-            fx, py = sgn.welch(trace, fs=fs, nperseg=win_len)
+            fx_w, py_w = sgn.welch(trace, fs=fs, nperseg=win_len_welch)
+            fx_f, py_f = sgn.periodogram(trace, fs=fs, nfft=nfft)
+            #saves PSD up to 200 Hz
+            py_w = py_w[fx_w < fx_lim]
+            fx_w = fx_w[fx_w < fx_lim]
+            py_f = py_f[fx_f < fx_lim]
+            fx_f = fx_f[fx_f < fx_lim]
             if ch==0:
-                PY = py.reshape(-1,1)
+                PY_welch = py_w.reshape(-1,1)
+                PY_fft = py_f.reshape(-1,1)
             else:
-                PY = np.append(PY, py.reshape(-1,1), axis=1)
+                PY_welch = np.append(PY_welch, py_w.reshape(-1,1), axis=1)
+                PY_fft = np.append(PY_fft, py_f.reshape(-1,1), axis=1)
 
 
         #PSD shape: ('frequency', 'channel')
-        spectrum_module = Spectrum(name='Spectrum_'+type,
-                                   frequencies=fx,
-                                   power=PY,
-                                   source_timeseries=data_obj)
+        spectrum_module_welch = Spectrum(name='Spectrum_welch_'+type,
+                                         frequencies=fx_w,
+                                         power=PY_welch,
+                                         source_timeseries=data_obj)
+
+        spectrum_module_fft = Spectrum(name='Spectrum_fft_'+type,
+                                       frequencies=fx_f,
+                                       power=PY_fft,
+                                       source_timeseries=data_obj)
         # Processing module
         try:      # if ecephys module already exists
             ecephys_module = nwb.processing['ecephys']
@@ -56,7 +70,9 @@ def psd_estimate(src_file, type):
             # Add module to NWB file
             nwb.add_processing_module(ecephys_module)
             print('Created ecephys')
-        ecephys_module.add_data_interface(spectrum_module)
+        ecephys_module.add_data_interface(spectrum_module_welch)
+        ecephys_module.add_data_interface(spectrum_module_fft)
 
         io.write(nwb)
-        print('Spectrum_'+type+' added to file.')
+        print('Spectrum_welch_'+type+' added to file.')
+        print('Spectrum_fft_'+type+' added to file.')
