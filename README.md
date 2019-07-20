@@ -26,6 +26,7 @@ main(fpath)
 
 ## Features
 **ecogVIS** makes it intuitive and simple to viualize and process ECoG signals. It currently features:
+
 **Navigation:** Seamless visual navigation through long signals from large arrays of electrodes, by mouse-dragging visualization window, control buttons, value fields and keyboard keys.
 
 ![](media/gif_time_navigation.gif)
