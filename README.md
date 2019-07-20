@@ -23,10 +23,6 @@ fpath = os.path.join('path_to','file.nwb')
 main(fpath)
 ```
 
-## Features
-
-![screenshot1](media/screenshot_1.png)
-
 
 ## Features
 **ecogVIS** makes it intuitive and simple to viualize and process ECoG signals. It currently features:
@@ -37,12 +33,12 @@ main(fpath)
 ![](media/gif_channel_navigation.gif)
 
 
-**Annotations:** Add, delete and save annotations for meaningful comments anywhere in the visualization.
+**Annotations:** Add, delete, save and load annotations for meaningful comments anywhere in the visualization.
 
 ![](media/gif_annotations.gif)
 
 
-**Intervals:** Add, delete, save and create custom intervals types to mark specific points in time, with simple click-drag-release mouse movements.
+**Intervals:** Add, delete, save, load and create custom intervals types to mark specific points in time, with simple click-drag-release mouse movements.
 
 ![](media/gif_intervals.gif)
 
@@ -57,7 +53,7 @@ main(fpath)
 ![](media/gif_preprocessing.gif)
 
 
-**Event detection:** Automatic detection of events in audio recordings for Consonant-Vowel tasks. The resulting detected intervals are saved in the current NWB file and can be used later for ERP analysis.
+**Event detection:** Automatic detection of events in audio recordings for Consonant-Vowel tasks. The resulting detected intervals are saved in the current NWB file and can be used later for ERP analysis. A preview allows for testing of the detection parameters before running it for the whole duration of the audio signals. 
 
 ![](media/gif_event_detection.gif)
 
