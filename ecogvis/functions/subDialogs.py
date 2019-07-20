@@ -482,6 +482,7 @@ class HighGammaDialog(QtGui.QDialog, Ui_HighGamma):
                 text = "High Gamma data already exists in current file."
                 self.label_1.setText(text)
                 self.cancelButton.setEnabled(True)
+            # If preprocessed data exists and Bandpower data does nt exist
             else:
                 self.radioButton_1.setChecked(True)
                 self.choice_default()
