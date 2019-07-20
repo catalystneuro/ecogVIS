@@ -52,13 +52,13 @@ def make_new_nwb(old_file, new_file):
     manager = get_manager()
 
     # Open original signal file
-    with NWBHDF5IO(old_file, 'r', manager=manager) as io1:
+    with NWBHDF5IO(old_file, 'r', manager=manager, load_namespaces=True) as io1:
         nwb = io1.read()
         # Creates new file
         nwb_new = NWBFile(session_description=str(nwb.session_description),
                           identifier='high gamma data',
                           session_start_time=datetime.now(tzlocal()))
-        with NWBHDF5IO(new_file, mode='w', manager=manager) as io2:
+        with NWBHDF5IO(new_file, mode='w', manager=manager, load_namespaces=True) as io2:
             # Copy relevant fields, except Acquisition and DecompositionSeries
             #Devices
             if nwb.devices is not None:
@@ -186,7 +186,7 @@ def preprocess_raw_data(block_path, config):
     block_name = os.path.splitext(block_path)[0]
     start = time.time()
 
-    with NWBHDF5IO(block_path, 'r+') as io:
+    with NWBHDF5IO(block_path, 'r+', load_namespaces=True) as io:
         nwb = io.read()
 
         # Storage of processed signals on NWB file -----------------------------
@@ -324,7 +324,7 @@ def spectral_decomposition(block_path, bands_vals):
     band_param_0 = bands_vals[0,:]
     band_param_1 = bands_vals[1,:]
 
-    with NWBHDF5IO(block_path, 'r+') as io:
+    with NWBHDF5IO(block_path, 'r+', load_namespaces=True) as io:
         nwb = io.read()
         lfp = nwb.processing['ecephys'].data_interfaces['LFP'].electrical_series['preprocessed']
         rate = lfp.rate
@@ -363,11 +363,11 @@ def spectral_decomposition(block_path, bands_vals):
                                   description='Series of filters used for Hilbert transform.',
                                   columns=[band_param_0V,band_param_1V],
                                   colnames=['filter_param_0','filter_param_1'])
-        decs = DecompositionSeries(name='Bandpower',
+        decs = DecompositionSeries(name='Analytic amplitude',
                                     data=Xp,
-                                    description='Band power estimated with Hilbert transform.',
+                                    description='Analytic amplitude estimated with Hilbert transform.',
                                     metric='power',
-                                    unit='V**2/Hz',
+                                    unit='V',
                                     bands=bandsTable,
                                     rate=rate,
                                     source_timeseries=lfp)
@@ -406,7 +406,7 @@ def high_gamma_estimation(block_path, bands_vals, new_file=''):
     band_param_0 = bands_vals[0,:]
     band_param_1 = bands_vals[1,:]
 
-    with NWBHDF5IO(block_path, 'r+') as io:
+    with NWBHDF5IO(block_path, 'r+', load_namespaces=True) as io:
         nwb = io.read()
         lfp = nwb.processing['ecephys'].data_interfaces['LFP'].electrical_series['preprocessed']
         rate = lfp.rate
@@ -437,7 +437,7 @@ def high_gamma_estimation(block_path, bands_vals, new_file=''):
         hg = TimeSeries(name='high_gamma',
                         data=HG,
                         rate=rate,
-                        unit='V**2/Hz',
+                        unit='V',
                         description='')
 
         # Storage of High Gamma on NWB file -----------------------------
@@ -447,7 +447,7 @@ def high_gamma_estimation(block_path, bands_vals, new_file=''):
             io.write(nwb)
             print('High Gamma power saved in '+block_path)
         else:           #on new file
-            with NWBHDF5IO(new_file, 'r+') as io_new:
+            with NWBHDF5IO(new_file, 'r+', load_namespaces=True) as io_new:
                 nwb_new = io_new.read()
                 # creates ecephys ProcessingModule
                 ecephys_module = ProcessingModule(name='ecephys',
