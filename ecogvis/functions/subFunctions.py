@@ -27,7 +27,7 @@ class ecogVIS:
         self.fileName = os.path.split(os.path.abspath(par.file))[1] #file
         self.parent.setWindowTitle('ecogVIS - '+self.fileName+' - '+self.parent.current_session)
 
-        self.io = pynwb.NWBHDF5IO(self.fullpath,'r+')
+        self.io = pynwb.NWBHDF5IO(self.fullpath, 'r+', load_namespaces=True)
         self.nwb = self.io.read()      #reads NWB file
 
         #Tries to load Raw data
@@ -154,7 +154,7 @@ class ecogVIS:
     def refresh_file(self):
         """Re-opens the current file, for when new data is included"""
         self.io.close()   #closes current NWB file
-        self.io = pynwb.NWBHDF5IO(self.fullpath,'r+')
+        self.io = pynwb.NWBHDF5IO(self.fullpath, 'r+', load_namespaces=True)
         self.nwb = self.io.read()      #reads NWB file
         # Searches for signal source on file
         try:   #Tries to load Raw data

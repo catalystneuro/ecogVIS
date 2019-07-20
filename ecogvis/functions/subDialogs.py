@@ -119,7 +119,7 @@ class NoTrialsDialog(QtGui.QDialog):
 class ExistIntervalsDialog(QtGui.QDialog):
     def __init__(self):
         super().__init__()
-        self.text = QLabel("There is already Intervals data saved in the current NWB file.\n"+
+        self.text = QLabel("Speaker intervals data already exists in the current NWB file.\n"+
                            "It is not possible to substitute it.")
         self.okButton = QtGui.QPushButton("OK")
         self.okButton.clicked.connect(self.onAccepted)
@@ -127,7 +127,7 @@ class ExistIntervalsDialog(QtGui.QDialog):
         vbox.addWidget(self.text)
         vbox.addWidget(self.okButton)
         self.setLayout(vbox)
-        self.setWindowTitle('Intervals data already exists')
+        self.setWindowTitle('Speaker intervals already exist')
         self.exec_()
 
     def onAccepted(self):
@@ -994,6 +994,7 @@ class IndividualPeriodogramDialog(QtGui.QDialog):
         # Enable antialiasing for prettier plots
         pg.setConfigOptions(antialias=True)
         self.parent = parent
+        self.ancestor = parent.parent.parent
         self.ch = parent.ch
         self.psd_fft = parent.parent.psd_fft
         self.xf_fft = parent.parent.xf_fft
@@ -1001,6 +1002,10 @@ class IndividualPeriodogramDialog(QtGui.QDialog):
         self.xf_welch = parent.parent.xf_welch
 
         #Left panel
+        qlabelSignal = QLabel('Signal:')
+        self.combo0 = QComboBox()
+        self.combo0.activated.connect(self.change_source)
+        qlabelMethod = QLabel('Method:')
         self.b1 = QCheckBox("FFT")
         self.b1.setChecked(True)
         self.b1.stateChanged.connect(self.draw_periodograms)
@@ -1009,12 +1014,16 @@ class IndividualPeriodogramDialog(QtGui.QDialog):
         self.b2.stateChanged.connect(self.draw_periodograms)
 
         grid0 = QGridLayout()
-        grid0.addWidget(self.b1, 0, 0, 1, 2)
-        grid0.addWidget(self.b2, 1, 0, 1, 2)
+        grid0.addWidget(qlabelSignal, 0, 0, 1, 2)
+        grid0.addWidget(self.combo0, 0, 2, 1, 4)
+        grid0.addWidget(qlabelMethod, 1, 0, 1, 2)
+        grid0.addWidget(self.b1, 1, 2, 1, 4)
+        grid0.addWidget(QLabel(' '), 2, 0, 1, 2)
+        grid0.addWidget(self.b2, 2, 2, 1, 4)
         grid0.setAlignment(QtCore.Qt.AlignTop)
 
         panel0 = QGroupBox('Controls:')
-        panel0.setFixedWidth(120)
+        panel0.setFixedWidth(180)
         panel0.setLayout(grid0)
 
         self.leftbox = QVBoxLayout()
@@ -1034,8 +1043,33 @@ class IndividualPeriodogramDialog(QtGui.QDialog):
         self.setWindowTitle('Individual Periodogram - Ch '+str(self.ch+1))
         self.resize(900, 600)
 
+        self.initiate_sources()
         self.draw_periodograms()
         self.exec_()
+
+    def initiate_sources(self):
+        """Check sources available on file, 'raw' and 'preprocessed'."""
+        #Populate combo box
+        if 'Spectrum_fft_raw' in self.ancestor.model.nwb.modules['ecephys'].data_interfaces:
+            self.combo0.addItem('raw')
+        if 'Spectrum_fft_preprocessed' in self.ancestor.model.nwb.modules['ecephys'].data_interfaces:
+            self.combo0.addItem('preprocessed')
+        self.change_source()
+
+    def change_source(self):
+        if self.combo0.currentText()=='raw':
+            #PSD shape: ('frequency', 'channel')
+            self.psd_fft = self.ancestor.model.nwb.modules['ecephys'].data_interfaces['Spectrum_fft_raw'].power
+            self.xf_fft = self.ancestor.model.nwb.modules['ecephys'].data_interfaces['Spectrum_fft_raw'].frequencies[:]
+            self.psd_welch = self.ancestor.model.nwb.modules['ecephys'].data_interfaces['Spectrum_welch_raw'].power
+            self.xf_welch = self.ancestor.model.nwb.modules['ecephys'].data_interfaces['Spectrum_welch_raw'].frequencies[:]
+        elif self.combo0.currentText()=='preprocessed':
+            #PSD shape: ('frequency', 'channel')
+            self.psd_fft = self.ancestor.model.nwb.modules['ecephys'].data_interfaces['Spectrum_fft_preprocessed'].power
+            self.xf_fft = self.ancestor.model.nwb.modules['ecephys'].data_interfaces['Spectrum_fft_preprocessed'].frequencies[:]
+            self.psd_welch = self.ancestor.model.nwb.modules['ecephys'].data_interfaces['Spectrum_welch_preprocessed'].power
+            self.xf_welch = self.ancestor.model.nwb.modules['ecephys'].data_interfaces['Spectrum_welch_preprocessed'].frequencies[:]
+        self.draw_periodograms()
 
     def draw_periodograms(self):
         cmap = get_lut()
@@ -1047,7 +1081,7 @@ class IndividualPeriodogramDialog(QtGui.QDialog):
         p.clear()
         #p.setMouseEnabled(x=False, y=False)
         #Background
-        loc = 'ctx-lh-'+self.parent.parent.parent.model.nwb.electrodes['location'][self.ch]
+        loc = 'ctx-lh-'+self.ancestor.model.nwb.electrodes['location'][self.ch]
         vb = p.getViewBox()
         color = tuple(cmap[loc])
         vb.setBackgroundColor((*color,70))  # append alpha to color tuple
@@ -1070,7 +1104,7 @@ class IndividualPeriodogramDialog(QtGui.QDialog):
         #bottom.setTicks([ticks])
         p.setLimits(xMin=0)
         p.setLimits(xMax=200)
-        p.setLimits(yMin=0)
+        #p.setLimits(yMin=0)
 
 
 
@@ -2164,7 +2198,7 @@ class AudioEventDetection(QtGui.QDialog):
             self.stimTimes = self.thread.stimTimes
             self.respTimes = self.thread.respTimes
             fname = self.parent.model.fullpath
-            with NWBHDF5IO(fname, 'r+') as io:
+            with NWBHDF5IO(fname, 'r+', load_namespaces=True) as io:
                 nwb = io.read()
                 #Speaker stimuli times
                 ti_stim = TimeIntervals(name='TimeIntervals_speaker')
