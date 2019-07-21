@@ -511,7 +511,7 @@ class ecogVIS:
         obj.color = color
         obj.text = text
         obj.session = self.parent.current_session
-        self.AnnotationsList.append(obj)
+        self.AnnotationsList = np.append(self.AnnotationsList,obj)
         # List of positions (to calculate distances)
         if len(self.AnnotationsPosAV) > 0:
             self.AnnotationsPosAV = np.concatenate((self.AnnotationsPosAV,
