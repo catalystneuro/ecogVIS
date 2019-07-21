@@ -60,9 +60,9 @@ Preprocessing of raw voltage signals, including user-defined Downsampling, CAR a
 
 
 ### Event detection
-Automatic detection of events in audio recordings for Consonant-Vowel tasks. The audio data should be stored in the NWB file in the following way: <br>
-- Speaker audio - As a [TimeSeries](https://pynwb.readthedocs.io/en/stable/pynwb.base.html#pynwb.base.TimeSeries) object, named 'Speaker CV', in the `stimulus` group. <br>
-- Microphone audio - As a [TimeSeries](https://pynwb.readthedocs.io/en/stable/pynwb.base.html#pynwb.base.TimeSeries) object, named 'Microphone CV', in the `acquisition` group. <br>
+Automatic detection of events in audio recordings for Consonant-Vowel tasks. The audio data should be stored in the NWB file in the following way: 
+- Speaker audio - As a [TimeSeries](https://pynwb.readthedocs.io/en/stable/pynwb.base.html#pynwb.base.TimeSeries) object, named 'Speaker CV', in the `stimulus` group. 
+- Microphone audio - As a [TimeSeries](https://pynwb.readthedocs.io/en/stable/pynwb.base.html#pynwb.base.TimeSeries) object, named 'Microphone CV', in the `acquisition` group.
 
 The resulting detected intervals, 'TimeIntervals_mic' and 'TimeIntervals_speaker', are saved as [TimeIntervals](https://pynwb.readthedocs.io/en/stable/pynwb.epoch.html#pynwb.epoch.TimeIntervals) objects in the `intervals` group of the current NWB file and can be used later for ERP analysis. A preview allows for testing of the detection parameters before running it for the whole duration of the audio signals. 
 
@@ -70,14 +70,16 @@ The resulting detected intervals, 'TimeIntervals_mic' and 'TimeIntervals_speaker
 
 
 ### High Gamma
-Estimation of high gamma analytic amplitude, with user-defined specific bands. 
+Estimation of high gamma analytic amplitude, with the average of user-defined specific bands. The results are saved as a [TimeSeries](https://pynwb.readthedocs.io/en/stable/pynwb.base.html#pynwb.base.TimeSeries) object, named 'high_gamma', in the `processing` group of the current or of a new NWB file.
+
 
 
 ### Event-Related Potential
 Grid visualization of ERP calculated in reference to:
 - Stimulus (speaker) or response (microphone) time intervals
 - Onset or offset points 
-The grid item are coloured to mark specific cortical areas and can be rotated to correspond anatomically to them. Emphasis can be given to specific areas of interest and double-clicking an item allows for fast inspection of the single electrode's ERP in detail.
+
+The grid items are coloured to mark specific cortical areas and can be rotated to correspond anatomically to them. Emphasis can be given to specific areas of interest and double-clicking an item allows for fast inspection of the single electrode's ERP in detail.
 
 
 ### Periodograms
