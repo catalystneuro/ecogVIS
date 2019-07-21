@@ -27,65 +27,92 @@ main(fpath)
 ## Features
 **ecogVIS** makes it intuitive and simple to viualize and process ECoG signals. It currently features:
 
-### Navigation
-Seamless visual navigation through long signals from large arrays of electrodes, by mouse-dragging visualization window, control buttons, value fields and keyboard keys.
+<details>
+  <summary> 
+    <strong>Navigation</strong> 
+  </summary>
+  Seamless visual navigation through long signals from large arrays of electrodes, by mouse-dragging visualization window, control buttons, value fields and keyboard keys.
 
-![](media/gif_time_navigation.gif)
+  ![](media/gif_time_navigation.gif)
 
-![](media/gif_channel_navigation.gif)
+  ![](media/gif_channel_navigation.gif)
+</details>
 
+<details>
+  <summary> 
+    <strong>Annotations</strong> 
+  </summary>
+  Add, delete, save and load annotations for meaningful comments anywhere in the visualization.
 
-### Annotations
-Add, delete, save and load annotations for meaningful comments anywhere in the visualization.
+  ![](media/gif_annotations.gif)
+</details>
 
-![](media/gif_annotations.gif)
+<details>
+  <summary> 
+    <strong>Intervals</strong> 
+  </summary>
+  Add, delete, save, load and create custom intervals types to mark specific points in time, with simple click-drag-release mouse movements.
 
+  ![](media/gif_intervals.gif)
+</details>
 
-### Intervals
-Add, delete, save, load and create custom intervals types to mark specific points in time, with simple click-drag-release mouse movements.
+<details>
+  <summary> 
+    <strong>Bad Channels</strong> 
+  </summary>
+  Mark and un-mark bad channels. Choices are saved in the `electrodes` group of the current NWB file.
 
-![](media/gif_intervals.gif)
+  ![](media/gif_badchannels.gif)
+</details>
 
+<details>
+  <summary> 
+    <strong>Signal preprocessing</strong> 
+  </summary>
+  Preprocessing of raw voltage signals, including user-defined Downsampling, CAR and Notch filtering. The resulting processed signals are stored as an [LFP](https://pynwb.readthedocs.io/en/stable/pynwb.ecephys.html#pynwb.ecephys.LFP) object, in the `processing` group of the current NWB file.
 
-### Bad Channels
-Mark and un-mark bad channels. Choices are saved in the `electrodes` group of the current NWB file.
+  ![](media/gif_preprocessing.gif)
+</details>
 
-![](media/gif_badchannels.gif)
+<details>
+  <summary> 
+    <strong>Events detection</strong> 
+  </summary>
+  Automatic detection of events in audio recordings for Consonant-Vowel tasks. The audio data should be stored in the NWB file in the following way: 
+  - Speaker audio - As a [TimeSeries](https://pynwb.readthedocs.io/en/stable/pynwb.base.html#pynwb.base.TimeSeries) object, named 'Speaker CV', in the `stimulus` group. 
+  - Microphone audio - As a [TimeSeries](https://pynwb.readthedocs.io/en/stable/pynwb.base.html#pynwb.base.TimeSeries) object, named 'Microphone CV', in the `acquisition` group.
 
+  The resulting detected intervals, 'TimeIntervals_mic' and 'TimeIntervals_speaker', are saved as [TimeIntervals](https://pynwb.readthedocs.io/en/stable/pynwb.epoch.html#pynwb.epoch.TimeIntervals) objects in the `intervals` group of the current NWB file and can be used later for ERP analysis. A preview allows for testing of the detection parameters before running it for the whole duration of the audio signals. 
 
-### Signal preprocessing
-Preprocessing of raw voltage signals, including user-defined Downsampling, CAR and Notch filtering. The resulting processed signals are stored as an [LFP](https://pynwb.readthedocs.io/en/stable/pynwb.ecephys.html#pynwb.ecephys.LFP) object, in the `processing` group of the current NWB file.
+  ![](media/gif_event_detection.gif)
+</details>
 
-![](media/gif_preprocessing.gif)
+<details>
+  <summary> 
+    <strong>High Gamma</strong> 
+  </summary>
+  Estimation of high gamma analytic amplitude, with the average of user-defined specific bands. The results are saved as a [TimeSeries](https://pynwb.readthedocs.io/en/stable/pynwb.base.html#pynwb.base.TimeSeries) object, named 'high_gamma', in the `processing` group of the current or of a new NWB file.
 
+  ![](media/gif_highgamma.gif)
+</details>
 
-### Event detection
-Automatic detection of events in audio recordings for Consonant-Vowel tasks. The audio data should be stored in the NWB file in the following way: 
-- Speaker audio - As a [TimeSeries](https://pynwb.readthedocs.io/en/stable/pynwb.base.html#pynwb.base.TimeSeries) object, named 'Speaker CV', in the `stimulus` group. 
-- Microphone audio - As a [TimeSeries](https://pynwb.readthedocs.io/en/stable/pynwb.base.html#pynwb.base.TimeSeries) object, named 'Microphone CV', in the `acquisition` group.
+<details>
+  <summary> 
+    <strong>Event-Related Potentials</strong> 
+  </summary>
+  Grid visualization of high gamma ERP calculated in reference to:
+  - Stimulus (speaker) or response (microphone) time intervals
+  - Onset or offset points 
 
-The resulting detected intervals, 'TimeIntervals_mic' and 'TimeIntervals_speaker', are saved as [TimeIntervals](https://pynwb.readthedocs.io/en/stable/pynwb.epoch.html#pynwb.epoch.TimeIntervals) objects in the `intervals` group of the current NWB file and can be used later for ERP analysis. A preview allows for testing of the detection parameters before running it for the whole duration of the audio signals. 
+  The grid items are coloured to mark specific cortical areas and can be rotated to correspond anatomically to them. Emphasis can be given to specific areas of interest and double-clicking an item allows for fast inspection of the single electrode's ERP in detail.
+</details>
 
-![](media/gif_event_detection.gif)
-
-
-### High Gamma
-Estimation of high gamma analytic amplitude, with the average of user-defined specific bands. The results are saved as a [TimeSeries](https://pynwb.readthedocs.io/en/stable/pynwb.base.html#pynwb.base.TimeSeries) object, named 'high_gamma', in the `processing` group of the current or of a new NWB file.
-
-![](media/gif_highgamma.gif)
-
-
-### Event-Related Potentials
-Grid visualization of high gamma ERP calculated in reference to:
-- Stimulus (speaker) or response (microphone) time intervals
-- Onset or offset points 
-
-The grid items are coloured to mark specific cortical areas and can be rotated to correspond anatomically to them. Emphasis can be given to specific areas of interest and double-clicking an item allows for fast inspection of the single electrode's ERP in detail.
-
-
-### Periodograms
-Grid visualization of Periodograms.
-
+<details>
+  <summary> 
+    <strong>Periodograms</strong> 
+  </summary>
+  Grid visualization of Periodograms.
+</details>
 
 ### Plus
 - Select electrodes from specific brain areas
