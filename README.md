@@ -72,10 +72,11 @@ The resulting detected intervals, 'TimeIntervals_mic' and 'TimeIntervals_speaker
 ### High Gamma
 Estimation of high gamma analytic amplitude, with the average of user-defined specific bands. The results are saved as a [TimeSeries](https://pynwb.readthedocs.io/en/stable/pynwb.base.html#pynwb.base.TimeSeries) object, named 'high_gamma', in the `processing` group of the current or of a new NWB file.
 
+![](media/gif_highgamma.gif)
 
 
-### Event-Related Potential
-Grid visualization of ERP calculated in reference to:
+### Event-Related Potentials
+Grid visualization of high gamma ERP calculated in reference to:
 - Stimulus (speaker) or response (microphone) time intervals
 - Onset or offset points 
 
@@ -88,4 +89,5 @@ Grid visualization of Periodograms.
 
 ### Plus
 - Select electrodes from specific brain areas
+- Easy moving between block files for the same subject
 - Spectral Decomposition
