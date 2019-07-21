@@ -1461,7 +1461,7 @@ class ERPDialog(QMainWindow):#QtGui.QDialog):
     def __init__(self, parent):
         super().__init__()
         self.setWindowTitle('Event-Related Potentials')
-        self.resize(1250,500)
+        self.resize(1300,600)
 
         self.parent = parent
         self.nCols = 16
@@ -1587,7 +1587,8 @@ class ERPDialog(QMainWindow):#QtGui.QDialog):
             self.win.ci.layout.setRowSpacing(j, 3)
             #this is to avoid the error:
             #RuntimeError: wrapped C/C++ object of type GraphicsScene has been deleted
-            p = self.win.addPlot(j,j)
+            vb = CustomViewBox(self, j*16)
+            p = self.win.addPlot(j, j, viewBox = vb)
             p.hideAxis('left')
             p.hideAxis('bottom')
         #Scroll Area Properties
@@ -1846,44 +1847,48 @@ class IndividualERPDialog(QtGui.QDialog):
         self.parent = parent
         self.ch = parent.ch
         self.alignment = 'start_time'
-        self.Yscale = {}
+        self.interval_type = 'speaker'
+        self.source = self.parent.parent.source
+        self.fs = self.parent.parent.fs
+        self.speaker_start_times = self.parent.parent.speaker_start_times
+        self.speaker_stop_times = self.parent.parent.speaker_stop_times
+        self.mic_start_times = self.parent.parent.mic_start_times
+        self.mic_stop_times = self.parent.parent.mic_stop_times
 
         #Left panel
         label1 = QLabel('Alignment:')
         self.push1_0 = QPushButton('Onset')
         self.push1_0.setCheckable(True)
         self.push1_0.setChecked(True)
-        #self.push1_0.clicked.connect(self.set_onset)
+        self.push1_0.clicked.connect(self.set_onset)
         self.push1_1 = QPushButton('Offset')
         self.push1_1.setCheckable(True)
         self.push1_1.setChecked(False)
-        #self.push1_1.clicked.connect(self.set_offset)
+        self.push1_1.clicked.connect(self.set_offset)
+        self.push1_2 = QPushButton('Stimulus')
+        self.push1_2.setCheckable(True)
+        self.push1_2.setChecked(True)
+        self.push1_2.clicked.connect(self.set_stim)
+        self.push1_3 = QPushButton('Response')
+        self.push1_3.setCheckable(True)
+        self.push1_3.setChecked(False)
+        self.push1_3.clicked.connect(self.set_resp)
         label2 = QLabel('Width (sec):')
         self.qline2 = QLineEdit('2')
-        #self.qline2.returnPressed.connect(self.set_width)
-        label3 = QLabel('Y scale:')
-        self.combo1 = QComboBox()
-        self.combo1.addItem('individual')
-        self.combo1.addItem('global max')
-        self.combo1.addItem('global std')
-        #self.combo1.activated.connect(self.scale_plots)
+        self.qline2.returnPressed.connect(self.draw_erp)
 
         grid0 = QGridLayout()
         grid0.addWidget(label1, 0, 0, 1, 2)
         grid0.addWidget(self.push1_0, 1, 0, 1, 1)
         grid0.addWidget(self.push1_1, 1, 1, 1, 1)
-        grid0.addWidget(QHLine(), 2, 0, 1, 2)
-        grid0.addWidget(label2, 3, 0, 1, 2)
-        grid0.addWidget(self.qline2, 4, 0, 1, 2)
-        grid0.addWidget(QHLine(), 5, 0, 1, 2)
-        grid0.addWidget(label3, 6, 0, 1, 2)
-        grid0.addWidget(self.combo1, 7, 0, 1, 2)
+        grid0.addWidget(self.push1_2, 2, 0, 1, 1)
+        grid0.addWidget(self.push1_3, 2, 1, 1, 1)
+        grid0.addWidget(label2, 3, 0, 1, 1)
+        grid0.addWidget(self.qline2, 3, 1, 1, 1)
         grid0.setAlignment(QtCore.Qt.AlignTop)
-
         panel0 = QGroupBox('Controls:')
-        panel0.setFixedWidth(120)
+        panel0.setFixedWidth(180)
         panel0.setLayout(grid0)
-
         self.leftbox = QVBoxLayout()
         self.leftbox.addWidget(panel0)
 
@@ -1891,7 +1896,6 @@ class IndividualERPDialog(QtGui.QDialog):
         self.win = pg.GraphicsLayoutWidget()
         self.win.resize(900,600)
         self.win.setBackground('w')
-
         self.hbox = QHBoxLayout()
         #self.hbox.addWidget(panel0)
         self.hbox.addLayout(self.leftbox)
@@ -1903,21 +1907,47 @@ class IndividualERPDialog(QtGui.QDialog):
         self.draw_erp()
         self.exec_()
 
+    def set_onset(self):
+        self.alignment = 'start_time'
+        self.push1_1.setChecked(False)
+        self.draw_erp()
+
+    def set_offset(self):
+        self.alignment = 'stop_time'
+        self.push1_0.setChecked(False)
+        self.draw_erp()
+
+    def set_stim(self):
+        self.interval_type = 'speaker'
+        self.push1_3.setChecked(False)
+        self.draw_erp()
+
+    def set_resp(self):
+        self.interval_type = 'mic'
+        self.push1_2.setChecked(False)
+        self.draw_erp()
+
     def calc_erp(self, ch):
-        data = self.parent.parent.parent.model.nwb.processing['ecephys'].data_interfaces['high_gamma'].data
-        fs = 400.#self.parent.model.fs_signal
-        ref_times = self.parent.parent.parent.model.nwb.intervals[self.alignment][:]
-        ref_bins = (ref_times*fs).astype('int')
-        nBinsTr = int(float(self.qline2.text())*fs/2)
+        if (self.alignment == 'start_time') and (self.interval_type=='speaker'):
+            ref_times = self.speaker_start_times
+        if (self.alignment == 'stop_time') and (self.interval_type=='speaker'):
+            ref_times = self.speaker_stop_times
+        if (self.alignment == 'start_time') and (self.interval_type=='mic'):
+            ref_times = self.mic_start_times
+        if (self.alignment == 'stop_time') and (self.interval_type=='mic'):
+            ref_times = self.mic_stop_times
+        ref_bins = (ref_times*self.fs).astype('int')
+        nBinsTr = int(float(self.qline2.text())*self.fs/2)
         start_bins = ref_bins - nBinsTr
         stop_bins = ref_bins + nBinsTr
         nTrials = len(ref_times)
         Y = np.zeros((nTrials,2*nBinsTr))+np.nan
         for tr in np.arange(nTrials):
-            Y[tr,:] = data[start_bins[tr]:stop_bins[tr], ch]
+            Y[tr,:] = self.source[start_bins[tr]:stop_bins[tr], ch]
         Y_mean = np.nanmean(Y, 0)
         Y_sem = np.nanstd(Y, 0)/np.sqrt(Y.shape[0])
-        X = np.arange(0, 2*nBinsTr)/fs
+        X = np.arange(0, 2*nBinsTr)/self.fs
+        X -= X[-1]/2
         return Y_mean, Y_sem, X
 
     def draw_erp(self):
@@ -1954,8 +1984,8 @@ class IndividualERPDialog(QtGui.QDialog):
         left.setStyle(showValues=False)
         left.setTicks([])
         bottom = p.getAxis('bottom')
-        bottom.setStyle(showValues=False)
-        bottom.setTicks([])
+        bottom.setStyle(showValues=True)
+        p.setLabel('bottom', 'Time', units = 'sec')
 
 
 
