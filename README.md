@@ -107,7 +107,9 @@ main(fpath)
     <li>Stimulus (speaker) or response (microphone) time intervals</li>
     <li>Onset or offset points</li>
   </ul> 
-  The grid items are coloured to mark specific cortical areas and can be rotated to correspond anatomically to them. Emphasis can be given to specific areas of interest and double-clicking an item allows for fast inspection of the single electrode's ERP in detail.
+  The grid items are coloured to mark specific cortical areas and can be rotated to correspond anatomically to them. Emphasis can be given to specific areas of interest and double-clicking an item allows for fast inspection of the single electrode's ERP in detail. <br></br>
+  
+  ![](media/gif_erp.gif)
 </details>
 
 <details>
