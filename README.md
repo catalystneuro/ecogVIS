@@ -48,13 +48,13 @@ Add, delete, save, load and create custom intervals types to mark specific point
 
 
 **Bad Channels** <br>
-Mark and un-mark bad channels, saves choices in the current NWB file.
+Mark and un-mark bad channels. Choices are saved in the `electrodes` group of the current NWB file.
 
 ![](media/gif_badchannels.gif)
 
 
 **Signal preprocessing** <br>
-Preprocessing of raw voltage signals, including Downsampling, CAR and Notch filtering. The resulting processed signal is saved in the current NWB file.
+Preprocessing of raw voltage signals, including user-defined Downsampling, CAR and Notch filtering. The resulting processed signals are stored as an [LFP](https://pynwb.readthedocs.io/en/stable/pynwb.ecephys.html#pynwb.ecephys.LFP) object, in the `processing` group of the current NWB file.
 
 ![](media/gif_preprocessing.gif)
 
@@ -64,7 +64,7 @@ Automatic detection of events in audio recordings for Consonant-Vowel tasks. The
   Speaker audio - As a [TimeSeries](https://pynwb.readthedocs.io/en/stable/pynwb.base.html#pynwb.base.TimeSeries) object, named 'Speaker CV', in the `stimulus` group. <br>
   Microphone audio - As a [TimeSeries](https://pynwb.readthedocs.io/en/stable/pynwb.base.html#pynwb.base.TimeSeries) object, named 'Microphone CV', in the `acquisition` group. <br>
 
-The resulting detected intervals, 'TimeIntervals_mic' and 'TimeIntervals_speaker', are saved in the `intervals` group of the current NWB file as [TimeIntervals](https://pynwb.readthedocs.io/en/stable/pynwb.epoch.html#pynwb.epoch.TimeIntervals) objects and can be used later for ERP analysis. A preview allows for testing of the detection parameters before running it for the whole duration of the audio signals. 
+The resulting detected intervals, 'TimeIntervals_mic' and 'TimeIntervals_speaker', are saved as [TimeIntervals](https://pynwb.readthedocs.io/en/stable/pynwb.epoch.html#pynwb.epoch.TimeIntervals) objects in the `intervals` group of the current NWB file and can be used later for ERP analysis. A preview allows for testing of the detection parameters before running it for the whole duration of the audio signals. 
 
 ![](media/gif_event_detection.gif)
 
