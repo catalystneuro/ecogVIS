@@ -119,7 +119,16 @@ main(fpath)
   Grid visualization of Periodograms.
 </details>
 
+<details>
+  <summary> 
+    <strong>Spectral Decomposition</strong> 
+  </summary>
+  Analytic signal amplitude estimation by Hilbert transform of user-defined frequency bands. <br></br>
+  WARNING: This function will manipulate an array of size (nSamples, nChannels, nBands), which might be in the order of gigabytes and demand a large memory to operate and is likely to produce a large file. <br></br>
+  
+  ![](media/gif_decomposition.gif)
+</details>
+
 ### Plus
 - Select electrodes from specific brain areas
 - Easy moving between block files for the same subject
-- Spectral Decomposition
