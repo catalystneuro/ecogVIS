@@ -145,9 +145,9 @@ class Application(QMainWindow):
         action_save_badchannel = QAction('Save Bad Channels', self)
         channels_tools_menu.addAction(action_save_badchannel)
         action_save_badchannel.triggered.connect(self.save_badchannel)
-        action_spectral_analysis = QAction('Spectral Analysis', self)
-        toolsMenu.addAction(action_spectral_analysis)
-        action_spectral_analysis.triggered.connect(self.spectral_analysis)
+        action_spectral_decomposition = QAction('Spectral Decomposition', self)
+        toolsMenu.addAction(action_spectral_decomposition)
+        action_spectral_decomposition.triggered.connect(self.spectral_decomposition)
         action_erp = QAction('ERP', self)
         toolsMenu.addAction(action_erp)
         action_erp.triggered.connect(self.event_related_potential)
@@ -521,7 +521,7 @@ class Application(QMainWindow):
         self.model.BadChannelSave()
 
 
-    def spectral_analysis(self):
+    def spectral_decomposition(self):
         """Opens Spectral decomposition dialog."""
         w = SpectralChoiceDialog(self)
         if w.value==1:       # If new data was created
@@ -545,7 +545,7 @@ class Application(QMainWindow):
          #Test if trials already exist
         if 'TimeIntervals_speaker' not in self.model.nwb.intervals:
             #Test if file contains audio signals
-            if ('Microphone CV' in self.model.nwb.acquisition) and ('Speaker CV' in self.model.nwb.stimulus):  
+            if ('Microphone CV' in self.model.nwb.acquisition) and ('Speaker CV' in self.model.nwb.stimulus):
                 w = AudioEventDetection(parent=self)
                 if w.value == 1:  #Trial times were detected
                     self.model.refresh_file()  # re-opens the file, now with new data
