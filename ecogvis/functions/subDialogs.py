@@ -328,7 +328,7 @@ class SpectralChoiceDialog(QtGui.QDialog, Ui_SpectralChoice):
                 self.label_1.setText(text)
                 self.cancelButton.setEnabled(True)
             # If there's already Bandpower data in NWB file
-            if 'Bandpower' in self.nwb.processing['ecephys'].data_interfaces:
+            if 'Analytic amplitude' in self.nwb.processing['ecephys'].data_interfaces:
                 self.disable_all()
                 text = "Frequency decomposition data already exists in current file."
                 self.label_1.setText(text)
