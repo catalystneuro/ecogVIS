@@ -2,7 +2,7 @@
 from setuptools import setup, find_packages
 
 setup(name = 'ecogvis',
-      version = '0.0.1',
+      version = '1.0.0',
       description = 'ecog gui interface for python',
       author = 'Luiz Tauffer and Ben Dichter',
       email = 'ben.dichter@gmail.com',
@@ -10,5 +10,6 @@ setup(name = 'ecogvis',
       include_package_data = True,
       install_requires = ['PyQt5', 'matplotlib', 'cycler', 'scipy', 'numpy',
                           'h5py', 'pyqtgraph', 'pandas', 'pynwb',
-                          'nwbext_ecog', 'pyopengl'],
+                          'nwbext_ecog', 'pyopengl', 'nomkl', 'scikit-learn',
+                          'numexpr'],
       )
