@@ -24,6 +24,17 @@ def detect_events(speaker_data, mic_data=None, interval=None, dfact=30,
     direction : str
         'Up' detects events start times. 'Down' detects events stop times. 'Both'
         detects both start and stop times.
+
+    Returns
+    -------
+    speakerDS : 1D array of floats
+        Downsampled speaker signal.
+    speakerEventDS : 1D array of floats
+        Event times for speaker signal.
+    micDS : 1D array of floats
+        Downsampled microphone signal.
+    micEventDS : 1D array of floats
+        Event times for microphone signal.
     """
 
     # Downsampling Speaker -----------------------------------------------------
