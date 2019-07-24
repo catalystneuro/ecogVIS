@@ -21,7 +21,6 @@ from ecogvis.functions.subDialogs import (CustomIntervalDialog, SelectChannelsDi
     SpectralChoiceDialog, NoHighGammaDialog, NoPreprocessedDialog, NoTrialsDialog,
     ExitDialog, ERPDialog, HighGammaDialog, PeriodogramGridDialog, AudioEventDetection,
     PreprocessingDialog, NoRawDialog, NoSpectrumDialog, NoAudioDialog, ExistIntervalsDialog)
-from ndx_spectrum import Spectrum
 
 intervalAdd_ = False
 intervalDel_ = False
