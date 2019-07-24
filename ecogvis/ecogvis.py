@@ -548,7 +548,7 @@ class Application(QMainWindow):
          #Test if trials already exist
         if 'TimeIntervals_speaker' not in self.model.nwb.intervals:
             #Test if file contains audio signals
-            if ('Microphone CV' in self.model.nwb.acquisition) and ('Speaker CV' in self.model.nwb.stimulus):
+            if ('microphone' in self.model.nwb.acquisition) and ('speaker1' in self.model.nwb.stimulus):
                 w = AudioEventDetection(parent=self)
                 if w.value == 1:  #Trial times were detected
                     self.model.refresh_file()  # re-opens the file, now with new data
