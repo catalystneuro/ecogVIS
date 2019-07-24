@@ -1,25 +1,20 @@
-#!/usr/bin/env python
-# -*- coding: utf-8 -*-
-"""
-Created on Fri Jul 13 21:32:20 2018
-
-@author: lenovo_i5
-"""
 import os
-import scipy.io
 from scipy import signal
 import numpy as np
 import pandas as pd
-import h5py
-from ast import literal_eval as make_tuple
-from PyQt5.QtWidgets import QInputDialog, QLineEdit, QFileDialog, QMessageBox
-from PyQt5 import QtGui, QtCore
+from PyQt5.QtWidgets import QMessageBox
+from PyQt5 import QtGui
 import pyqtgraph as pg
 import datetime
 import pynwb
 import nwbext_ecog
 
 class TimeSeriesPlotter:
+    """
+    This class holds the 3 time series subplots in the main window.
+    It also holds information of the currently open NWB file, as well as user
+    annotations and intervals.
+    """
     def __init__(self, par):
         self.parent = par
         self.fullpath = par.file
@@ -125,7 +120,7 @@ class TimeSeriesPlotter:
 
 
     def load_stimuli(self):
-        # Load stimuli signals (audio)
+        """Loads stimuli signals (speaker audio)."""
         self.nStim = len(self.nwb.stimulus)
         self.stimList = list(self.nwb.stimulus.keys())
         self.stimX = []
@@ -137,16 +132,6 @@ class TimeSeriesPlotter:
             nb_stim = self.nwb.stimulus[stim].data.shape[0]
             self.stimX = np.linspace(dt_stim, nb_stim*dt_stim, nb_stim)
             self.stimY[stim] = self.nwb.stimulus[stim].data
-
-            #nb_stim = self.nwb.stimulus[stim].data.shape[0]
-            #output = self.stimResample(self.nwb.stimulus[stim], int(nb_stim/100))
-            #self.stimY[stim] = output[0]
-            #self.stimX = output[1]
-
-            #self.downsampled = self.audio_resample(10)
-            #self.audio['sampling_rate'] = self.audio['sampling_rate']/10000
-            #self.fs_audio = self.audio['sampling_rate']/10
-            #self.taudio = np.arange(1, np.shape(self.downsampled)[0])/self.fs_audio
         else:
             self.disp_audio = 0
 
@@ -397,14 +382,6 @@ class TimeSeriesPlotter:
         self.intervalEndGuiUnits = self.intervalEndSamples*self.tbin_signal
         self.parent.qline2.setText(str(self.intervalStartGuiUnits))
         self.refreshScreen()
-
-
-    def stimResample(self, stim, num=100):
-        dt_stim = 1./stim.rate
-        nb_stim = stim.data.shape[0]
-        x = np.linspace(dt_stim, nb_stim*dt_stim, nb_stim)
-        yrs, xrs = signal.resample(stim.data[:], num, t=x)
-        return yrs, xrs
 
 
     def channel_Scroll_Up(self, opt='unit'):
