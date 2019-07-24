@@ -1,27 +1,32 @@
-# -*- coding: utf-8 -*-
+# ecogVIS
+# Timeseries visualizer for Electrocorticography (ECoG) signals stored in NWB files.
+# Developed by:
+# Luiz Tauffer, Ben Dichter
+# https://github.com/bendichter/ecogVIS
+#
 import sys
 import os
 import time
 import numpy as np
 import datetime
-import re
 import glob
 
 from PyQt5 import QtCore, QtGui, Qt
 from PyQt5.QtCore import QCoreApplication
 from PyQt5.QtWidgets import (QWidget, QLabel, QLineEdit, QMessageBox, QHBoxLayout,
-    QTextEdit, QApplication, QPushButton, QVBoxLayout, QGroupBox, QFormLayout, QDialog,
-    QRadioButton, QGridLayout, QComboBox, QInputDialog, QFileDialog, QMainWindow,
-    QAction, QStackedLayout)
+    QApplication, QPushButton, QVBoxLayout, QGroupBox, QGridLayout, QComboBox,
+    QInputDialog, QFileDialog, QMainWindow, QAction, QStackedLayout)
 import pyqtgraph as pg
-from pyqtgraph.widgets.MatplotlibWidget import MatplotlibWidget
 
-from ecogvis.functions.subFunctions import ecogVIS
+from ecogvis.functions.subFunctions import TimeSeriesPlotter
 from ecogvis.functions.subDialogs import (CustomIntervalDialog, SelectChannelsDialog,
     SpectralChoiceDialog, NoHighGammaDialog, NoPreprocessedDialog, NoTrialsDialog,
     ExitDialog, ERPDialog, HighGammaDialog, PeriodogramGridDialog, AudioEventDetection,
     PreprocessingDialog, NoRawDialog, NoSpectrumDialog, NoAudioDialog, ExistIntervalsDialog)
 
+annotationAdd_ = False
+annotationDel_ = False
+annotationColor_ = 'red'
 intervalAdd_ = False
 intervalDel_ = False
 intervalType_ = 'invalid'
@@ -29,10 +34,6 @@ intervalsDict_ = {'invalid':{'type':'invalid',
                              'session':'',
                              'color':'red',
                              'counts':0}}
-annotationAdd_ = False
-annotationDel_ = False
-annotationColor_ = 'red'
-periodogram_ = False
 
 class Application(QMainWindow):
     keyPressed = QtCore.pyqtSignal(QtCore.QEvent)
@@ -67,10 +68,11 @@ class Application(QMainWindow):
             self.current_session = 'default'
 
         # Run the main function
-        self.model = ecogVIS(self)
+        self.model = TimeSeriesPlotter(self)
 
 
     def closeEvent(self, event):
+        """Before exiting, checks if there are any unsaved changes and inform the user."""
         w = ExitDialog(self)
         if w.value == -1: #just exit
             event.accept()
@@ -81,7 +83,9 @@ class Application(QMainWindow):
         elif w.value == 0: #ignore
             event.ignore()
 
+
     def log_error(self, error):
+        """Error logging"""
         pwd = os.getcwd()
         folder = os.path.join(pwd, 'error_log')
         if not os.path.exists(folder):
@@ -97,6 +101,7 @@ class Application(QMainWindow):
 
 
     def on_key(self, event):
+        """Actions to be taken when user presses keys."""
         if event.key() == QtCore.Qt.Key_Up:
             self.model.channel_Scroll_Up('page')
         elif event.key() == QtCore.Qt.Key_PageUp:
@@ -159,10 +164,7 @@ class Application(QMainWindow):
         helpMenu.addAction(action_about)
         action_about.triggered.connect(self.about)
 
-
-        '''
-        Buttons and controls vertical box layout
-        '''
+        # Buttons and controls vertical box layout -----------------------------
         #Block change buttons
         self.qlabelBlocks = QLabel('Move Block')
         self.pushBlock_0 = QPushButton('<')
@@ -173,7 +175,6 @@ class Application(QMainWindow):
         grid0.addWidget(self.pushBlock_0, 0, 0, 1, 1)
         grid0.addWidget(self.qlabelBlocks, 0, 1, 1, 3)
         grid0.addWidget(self.pushBlock_1, 0, 4, 1, 1)
-
 
         panel1 = QGroupBox('Panel')
         panel1.setFixedWidth(250)
@@ -358,16 +359,11 @@ class Application(QMainWindow):
         self.vbox1.addWidget(panel3)
 
 
-        '''
-        Time series plots Vertical Box
-        '''
+        # Time series plots Vertical Box ---------------------------------------
         vb = CustomViewBox(self)
         self.win1 = pg.PlotWidget(viewBox = vb)   #middle signals plot
         self.win2 = pg.PlotWidget()               #upper horizontal bar
         self.win3 = pg.PlotWidget()               #lower audio plot
-        #self.win1.setBackground('w')
-        #self.win2.setBackground('w')
-        #self.win3.setBackground('w')
         self.win1.setBackground(self.palette().color(QtGui.QPalette.Background))
         self.win2.setBackground(self.palette().color(QtGui.QPalette.Background))
         self.win3.setBackground(self.palette().color(QtGui.QPalette.Background))
@@ -382,7 +378,7 @@ class Application(QMainWindow):
         #self.win3.hideAxis('left')
         self.win3.hideAxis('bottom')
 
-        form_3 = QGridLayout() #QVBoxLayout()
+        form_3 = QGridLayout()
         form_3.setSpacing(0.0)
         form_3.setRowStretch(0, 1)
         form_3.setRowStretch(1, 8)
@@ -398,16 +394,14 @@ class Application(QMainWindow):
         self.vbox2.addWidget(self.groupbox1)
         self.vbox2.setCurrentIndex(0)
 
-
-        '''
-        Create a horizontal box layout and populate it with panels
-        '''
+        # Creates a horizontal box layout and populate it with panels ----------
         self.hbox = QHBoxLayout(self.centralwidget)
         self.hbox.addLayout(self.vbox1)    #add panels first
         self.hbox.addLayout(self.vbox2)    #add plots second
 
 
     def change_block(self, move):
+        """Move between Block files for the same subject."""
         fpath = os.path.split(os.path.abspath(self.file))[0] #file directory
         fname = os.path.split(os.path.abspath(self.file))[1] #current file
         pre, _ = fname.split('_B')
@@ -419,7 +413,9 @@ class Application(QMainWindow):
             new_file = flist[curr_ind+move]
         self.open_another_file(filename=new_file)
 
+
     def open_file(self):
+        """Opens initial file."""
         filename, _ = QFileDialog.getOpenFileName(None, 'Open file', '', "(*.nwb)")
         return filename
 
@@ -442,11 +438,11 @@ class Application(QMainWindow):
             self.win2.clear()
             self.win3.clear()
             # Rebuild the model
-            self.model = ecogVIS(self)
+            self.model = TimeSeriesPlotter(self)
 
 
-    #TODO - save alterations to NWB file
     def save_file(self):
+        """Saves latest alterations to NWB file. TO BE IMPLEMENTED."""
         print('Save file to NWB - to be implemented')
 
 
@@ -461,13 +457,14 @@ class Application(QMainWindow):
 
 
     def load_annotations(self):
-        # opens annotations file dialog, calls function to paint them
+        """Loads annotations from file, calls function to paint them."""
         fname, aux = QFileDialog.getOpenFileName(self, 'Open file', '', "(*.csv)")
         if fname!='':
             self.model.AnnotationLoad(fname=fname)
 
+
     def load_intervals(self):
-        # opens intervals file dialog, calls function to paint them
+        """Loads intervals from file, calls function to paint them."""
         fname, aux = QFileDialog.getOpenFileName(self, 'Open file', '', "(*.csv)")
         if fname!='':
             self.model.IntervalLoad(fname=fname)
@@ -567,13 +564,13 @@ class Application(QMainWindow):
 
 
     def reset_buttons(self):
+        """Controls appearance and active state of panel buttons."""
         global intervalAdd_
         global intervalDel_
         global annotationAdd_
         global annotationDel_
-        global periodogram_
 
-        #self.active_mode = 'default', 'intervalAdd', 'intervalDel', 'periodogram'
+        #self.active_mode = 'default', 'intervalAdd', 'intervalDel'
         if self.active_mode != 'intervalAdd':
             self.push2_1.setChecked(False)
             intervalAdd_ = False
@@ -590,17 +587,12 @@ class Application(QMainWindow):
             self.push1_2.setChecked(False)
             annotationDel_ = False
 
-        if self.active_mode != 'periodogram':
-            self.push5_0.setChecked(False)
-            periodogram_ = False
-
 
     ## Annotation functions ----------------------------------------------------
     def AnnotationColor(self):
         """Selects annotation color."""
         global annotationColor_
         annotationColor_ = str(self.combo1.currentText())
-
 
     def AnnotationAdd(self):
         """Add new annotation at point selected with mouse right-click."""
@@ -613,7 +605,6 @@ class Application(QMainWindow):
             self.active_mode = 'default'
             self.reset_buttons()
 
-
     def AnnotationDel(self):
         """Deletes annotations chosen with mouse right-click."""
         global annotationDel_
@@ -624,7 +615,6 @@ class Application(QMainWindow):
         else:
             self.active_mode = 'default'
             self.reset_buttons()
-
 
     def AnnotationSave(self):
         """Saves current set of annotations to file."""
@@ -720,8 +710,9 @@ class Application(QMainWindow):
         self.model.refreshScreen()
 
 
-    # Opens Periodogram grid window --------------------------------------------
     def PeriodogramSelect(self):
+        """Opens Periodogram grid window. Checks if PSD data is present on file
+        and, if not, asks the user if it should be calculated."""
         if self.combo3.currentText()=='raw':
             try:  #tries to read fft and welch spectral data
                 psd_fft = self.model.nwb.modules['ecephys'].data_interfaces['Spectrum_fft_raw']
@@ -749,15 +740,6 @@ class Application(QMainWindow):
                     psd_welch = self.model.nwb.modules['ecephys'].data_interfaces['Spectrum_welch_preprocessed']
                     PeriodogramGridDialog(self)
 
-        #global periodogram_
-        #if self.push5_0.isChecked():  #if button is pressed down
-    #        self.active_mode = 'periodogram'
-    #        self.reset_buttons()
-    #        periodogram_ = True
-    #    else:
-    #        self.active_mode = 'default'
-    #        self.reset_buttons()
-
 
     def Preprocess(self):
         """Opens Preprocessing dialog."""
@@ -776,7 +758,12 @@ class Application(QMainWindow):
 
 
     def voltage_time_series(self):
-        """Selects the time series data to be ploted on main window."""
+        """
+        Selects the time series data to be ploted on main window. The options are:
+        - 'voltage_raw': Raw voltage traces, stored in nwb.acquisition['ElectricalSeries']
+        - 'preprocessed': Preprocessed voltage traces, stored in nwb.processing['ecephys'].data_interfaces['LFP'].electrical_series['preprocessed']
+        - 'high gamma': High Gamma estimation traces, stored in nwb.processing['ecephys'].data_interfaces['high_gamma']
+        """
         if self.combo3.currentText()=='raw':
             try:
                 lis = list(self.model.nwb.acquisition.keys())
@@ -807,7 +794,7 @@ class Application(QMainWindow):
                 self.voltage_time_series()
                 NoPreprocessedDialog()
         elif self.combo3.currentText()=='high gamma':
-            try:     #if decomposition already exists on NWB file
+            try:     #if high gamma already exists on NWB file
                 self.model.source = self.model.nwb.processing['ecephys'].data_interfaces['high_gamma']
                 self.model.plotData = self.model.source.data
                 self.model.plot_panel = 'spectral_power'
@@ -894,8 +881,8 @@ class Application(QMainWindow):
 
 
 
-## Viewbox for signal plots ----------------------------------------------------
 class CustomViewBox(pg.ViewBox):
+    """Customized ViewBox to add/del Annotations and Intervals."""
     def __init__(self, parent):
         pg.ViewBox.__init__(self)
         self.parent = parent
@@ -905,7 +892,6 @@ class CustomViewBox(pg.ViewBox):
         global annotationAdd_
         global annotationDel_
         global annotationColor_
-        global periodogram_
 
         if intervalDel_:
             mousePoint = self.mapSceneToView(ev.scenePos())
@@ -933,16 +919,6 @@ class CustomViewBox(pg.ViewBox):
                 self.parent.model.AnnotationDel(x=x, y=y)
             except Exception as ex:
                 print(str(ex))
-
-        #if periodogram_:
-        #    mousePoint = self.mapSceneToView(ev.scenePos())
-        #    x = mousePoint.x()
-        #    y = mousePoint.y()
-        #    try:
-        #        PeriodogramDialog(model=self.parent.model, x=x, y=y)
-        #        #GroupPeriodogramDialog(model=self.parent.model, x=x, y=y)
-        #    except Exception as ex:
-        #        print(str(ex))
 
 
     def mouseDragEvent(self, ev):
@@ -976,22 +952,10 @@ class CustomViewBox(pg.ViewBox):
 
 
 
-## Main file definitions -------------------------------------------------------
-# If it was imported as a module
-def main(filename):
+def main(filename):  # If it was imported as a module
+    """Sets up QT application."""
     app = QCoreApplication.instance()
     if app is None:
         app = QApplication(sys.argv)  #instantiate a QtGui (holder for the app)
     ex = Application(filename=filename)
     sys.exit(app.exec_())
-
-# If called from a command line, e.g.: $ python ecog_ts_gui.py
-# NOT WORKING ANYMORE
-# if __name__ == '__main__':
-#     app = QApplication(sys.argv)  #instantiate a QtGui (holder for the app)
-#     if len(sys.argv)==1:
-#         fname = ''
-#     else:
-#         fname = sys.argv[1]
-#     ex = Application(filename=fname)
-#     sys.exit(app.exec_())

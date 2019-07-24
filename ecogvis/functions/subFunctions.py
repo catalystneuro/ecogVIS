@@ -19,7 +19,7 @@ import datetime
 import pynwb
 import nwbext_ecog
 
-class ecogVIS:
+class TimeSeriesPlotter:
     def __init__(self, par):
         self.parent = par
         self.fullpath = par.file
