@@ -118,6 +118,7 @@ class Application(QMainWindow):
 
 
     def init_gui(self):
+        """Initiates GUI elements."""
         mainMenu = self.menuBar()
         # File menu
         fileMenu = mainMenu.addMenu('File')
@@ -276,6 +277,7 @@ class Application(QMainWindow):
         grid2.addWidget(self.combo3, 0, 1, 1, 1)
         grid2.addWidget(qlabelStimuli, 1, 0, 1, 1)
         grid2.addWidget(self.combo4, 1, 1, 1, 1)
+        grid2.setAlignment(QtCore.Qt.AlignTop)
         panel2.setLayout(grid2)
 
 
@@ -357,6 +359,7 @@ class Application(QMainWindow):
         self.vbox1.addWidget(panel1)
         self.vbox1.addWidget(panel2)
         self.vbox1.addWidget(panel3)
+        self.vbox1.addStretch()
 
 
         # Time series plots Vertical Box ---------------------------------------
