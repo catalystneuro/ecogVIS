@@ -3,22 +3,21 @@ from PyQt5.QtWidgets import (QTableWidgetItem, QGridLayout, QGroupBox, QLineEdit
     QWidget, QLabel, QPushButton, QVBoxLayout, QHBoxLayout, QComboBox, QScrollArea,
     QFileDialog, QHeaderView, QMainWindow, QCheckBox)
 import pyqtgraph as pg
-import pyqtgraph.exporters as pgexp
 import pyqtgraph.opengl as gl
 import OpenGL.GL as ogl
-from pyqtgraph.GraphicsScene import exportDialog
+
 from ecogvis.signal_processing import bands as default_bands
 from ecogvis.signal_processing.processing_data import processing_data
 from ecogvis.signal_processing.periodogram import psd_estimate
 from ecogvis.signal_processing.detect_events import detect_events
 from .FS_colorLUT import get_lut
-from threading import Event, Thread
 from pynwb import NWBHDF5IO
 from pynwb.epoch import TimeIntervals
+from threading import Event, Thread
 import numpy as np
 import os
-import time
 
+#Path where UI files are
 ui_path = os.path.join(os.path.dirname(__file__), '..', 'ui')
 
 # Creates custom interval type -------------------------------------------------
@@ -917,7 +916,6 @@ class PeriodogramGridDialog(QMainWindow):
         self.draw_periodograms()
 
     def save_image(self):
-        #a = exportDialog.ExportDialog(self.win.sceneObj)
         p = self.win.getItem(row=0, col=0)
         self.win.sceneObj.contextMenuItem = p
         self.win.sceneObj.showExportDialog()
@@ -1457,7 +1455,7 @@ class CustomTextItem(gl.GLGraphicsItem.GLGraphicsItem):
 
 
 # Creates Event-Related Potential dialog ---------------------------------------
-class ERPDialog(QMainWindow):#QtGui.QDialog):
+class ERPDialog(QMainWindow):
     def __init__(self, parent):
         super().__init__()
         self.setWindowTitle('Event-Related Potentials')
@@ -1650,7 +1648,6 @@ class ERPDialog(QMainWindow):#QtGui.QDialog):
         self.draw_erp()
 
     def save_image(self):
-        #a = exportDialog.ExportDialog(self.win.sceneObj)
         p = self.win.getItem(row=0, col=0)
         self.win.sceneObj.contextMenuItem = p
         self.win.sceneObj.showExportDialog()
@@ -1818,15 +1815,14 @@ class ERPDialog(QMainWindow):#QtGui.QDialog):
 
 
 
-
-
+# Gray line for visual separation of buttons -----------------------------------
 class QHLine(QtGui.QFrame):
     def __init__(self):
         super().__init__()
         self.setFrameShape(QtGui.QFrame.HLine)
         self.setFrameShadow(QtGui.QFrame.Sunken)
 
-## Viewbox for ERP plots -------------------------------------------------------
+# Viewbox for ERP plots --------------------------------------------------------
 class CustomViewBox(pg.ViewBox):
     def __init__(self, parent, ch):
         pg.ViewBox.__init__(self)
@@ -1837,7 +1833,7 @@ class CustomViewBox(pg.ViewBox):
         IndividualERPDialog(self)
 
 
-# Individual Event-Related Potential dialog ---------------------------------------
+# Individual Event-Related Potential dialog ------------------------------------
 class IndividualERPDialog(QtGui.QDialog):
     def __init__(self, parent):
         super().__init__()
