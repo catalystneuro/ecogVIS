@@ -15,19 +15,12 @@ dependencies:
 - cycler
 - h5py
 - pyqtgraph
-#- pynwb
+- pynwb
 - pyopengl
-#- hdmf=1.0.3
-#because of process_ecog
-- nomkl
-- scikit-learn
-- numexpr
+- hdmf
 - pip:
-  #devs version pynwb
-  - git+https://github.com/NeurodataWithoutBorders/pynwb.git
-  - PyQt5
-  - nwbext_ecog==0.7.2
+#  - PyQt5
+#  - nwbext_ecog==0.7.2
   - -e .
   #extension Spectrum
-  - git+https://github.com/hdmf-dev/hdmf.git
   - git+https://github.com/bendichter/ndx-spectrum.git
