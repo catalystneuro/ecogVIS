@@ -1,5 +1,5 @@
 # ecogVIS
-Timeseries visualizer for Electrocorticography (ECoG) signals stored in [NWB](https://neurodatawithoutborders.github.io/) files. 
+Timeseries visualizer for Electrocorticography (ECoG) signals stored in [NWB](https://neurodatawithoutborders.github.io/) files, for Python.
 
 ## Installation
 To clone the repository and set up a conda environment, do:
