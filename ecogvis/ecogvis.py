@@ -526,14 +526,18 @@ class Application(QMainWindow):
 
     def event_related_potential(self):
         """Opens ERP window."""
-        if len(self.model.nwb.intervals)==0: # If file contains trials information
-            NoTrialsDialog()
-        else:
-            try:  #Tries to load High Gamma data
+        try: #Checks if file contains proper intervals information
+            speaker_start_times = self.model.nwb.intervals['TimeIntervals_speaker']['start_time'].data
+            speaker_stop_times = self.model.nwb.intervals['TimeIntervals_speaker']['stop_time'].data
+            mic_start_times = self.model.nwb.intervals['TimeIntervals_mic']['start_time'].data
+            mic_stop_times = self.model.nwb.intervals['TimeIntervals_mic']['stop_time'].data
+            try:  #Tries to load High Gamma and intervals data
                 hg = self.model.nwb.processing['ecephys'].data_interfaces['high_gamma']
                 w = ERPDialog(parent=self)
-            except:
+            except: #if it fails, raises a no high gamma message
                 NoHighGammaDialog()
+        except: #if it fails, raises a no intervals data message
+            NoTrialsDialog()
 
 
     def audio_event_detection(self):
