@@ -2099,7 +2099,8 @@ class AudioEventDetection(QtGui.QDialog):
         #Find microphone signals
         self.responses = {}  #Dictionary {'respName':resp.source}
         for resp in list(self.parent.model.nwb.acquisition.keys()):
-            if type(self.parent.model.nwb.acquisition[resp]).__name__ == 'TimeSeries':
+            #if type(self.parent.model.nwb.acquisition[resp]).__name__ == 'TimeSeries':
+            if resp == 'microphone':
                 self.combo1.addItem(resp)
                 self.responses[resp] = self.parent.model.nwb.acquisition[resp]
         self.combo1.setCurrentIndex(0)
