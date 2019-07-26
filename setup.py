@@ -5,7 +5,7 @@ from setuptools import setup, find_packages
 with open('README.md', 'r') as f:
     long_description = f.read()
 
-setup(name = 'ecogvis',
+setup(name = 'ecogVIS',
       version = '1.0.0',
       description = 'Timeseries visualizer for Electrocorticography (ECoG) signals stored in NWB files.',
       long_description = long_description,
