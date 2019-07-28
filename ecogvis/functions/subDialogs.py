@@ -1535,15 +1535,23 @@ class ERPDialog(QMainWindow):
         label4 = QLabel('Rotate grid:')
         self.push5_0 = QPushButton('90°')
         self.push5_0.clicked.connect(lambda: self.rearrange_grid(90))
+        self.push5_0.setToolTip('Counter-clockwise')
         self.push5_1 = QPushButton('-90°')
         self.push5_1.clicked.connect(lambda: self.rearrange_grid(-90))
-        label5 = QLabel('Flip grid:')
+        self.push5_1.setToolTip('Clockwise')
         self.push5_2 = QPushButton('T')
         self.push5_2.clicked.connect(lambda: self.rearrange_grid('T'))
+        self.push5_2.setToolTip('Transpose')
+        label5 = QLabel('Rearrange grid:')
         self.push5_3 = QPushButton('L-R')
         self.push5_3.clicked.connect(lambda: self.rearrange_grid('FLR'))
+        self.push5_3.setToolTip('Flip Left-Right')
         self.push5_4 = QPushButton('U-D')
         self.push5_4.clicked.connect(lambda: self.rearrange_grid('FUD'))
+        self.push5_4.setToolTip('Flip Up-Down')
+        self.push5_5 = QPushButton('2FL')
+        self.push5_5.clicked.connect(lambda: self.rearrange_grid('2FL'))
+        self.push5_5.setToolTip('Double flip')
 
         self.push1_0.setEnabled(False)
         self.push1_1.setEnabled(False)
@@ -1559,6 +1567,7 @@ class ERPDialog(QMainWindow):
         self.push5_2.setEnabled(False)
         self.push5_3.setEnabled(False)
         self.push5_4.setEnabled(False)
+        self.push5_5.setEnabled(False)
 
         grid0 = QGridLayout()
         grid0.addWidget(label0, 0, 0, 1, 2)
@@ -1586,6 +1595,7 @@ class ERPDialog(QMainWindow):
         grid0.addWidget(label5, 17, 0, 1, 6)
         grid0.addWidget(self.push5_3, 18, 0, 1, 2)
         grid0.addWidget(self.push5_4, 18, 2, 1, 2)
+        grid0.addWidget(self.push5_5, 18, 4, 1, 2)
         grid0.setAlignment(QtCore.Qt.AlignTop)
 
         panel0 = QGroupBox('Controls:')
@@ -1692,6 +1702,9 @@ class ERPDialog(QMainWindow):
             grid = np.flip(grid, 1)
         elif angle == 'FUD':       #flip up-down
             grid = np.flip(grid, 0)
+        elif angle == '2FL':       #Double flip
+            grid = np.flip(grid, 1)
+            grid = np.flip(grid, 0)
         self.grid_order = grid.flatten()    #re-arranges as 1D array
         self.draw_erp()
 
@@ -1796,6 +1809,7 @@ class ERPDialog(QMainWindow):
         self.push5_2.setEnabled(True)
         self.push5_3.setEnabled(True)
         self.push5_4.setEnabled(True)
+        self.push5_5.setEnabled(True)
         if self.nCols != self.nRows: #not square matrix
             self.push5_0.setEnabled(False)
             self.push5_1.setEnabled(False)
