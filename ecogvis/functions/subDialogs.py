@@ -1485,6 +1485,12 @@ class ERPDialog(QMainWindow):
         self.speaker_stop_times = self.parent.model.nwb.intervals['TimeIntervals_speaker']['stop_time'].data[:]
         self.mic_start_times = self.parent.model.nwb.intervals['TimeIntervals_mic']['start_time'].data[:]
         self.mic_stop_times = self.parent.model.nwb.intervals['TimeIntervals_mic']['stop_time'].data[:]
+        #Get only reference times smaller than the main signal duration
+        self.maxTime = self.source.shape[0]/self.fs
+        self.speaker_start_times = self.speaker_start_times[self.speaker_start_times<self.maxTime]
+        self.speaker_stop_times = self.speaker_stop_times[self.speaker_stop_times<self.maxTime]
+        self.mic_start_times = self.mic_start_times[self.mic_start_times<self.maxTime]
+        self.mic_stop_times = self.mic_stop_times[self.mic_stop_times<self.maxTime]
 
         #Left panel
         self.push0_0 = QPushButton('Calc ERP')
@@ -1810,7 +1816,7 @@ class ERPDialog(QMainWindow):
             yrng = max(abs(Y_mean))
             p.setYRange(-yrng, yrng)
             xref = [X[int(len(X)/2)], X[int(len(X)/2)]]
-            yref = [-1000, 1000]
+            yref = [-1000*yrng, 1000*yrng]
             p.plot(x=xref, y=yref, pen=(0,0,0,min(elem_alpha,255)))    #reference mark
             p.plot(x=X, y=np.zeros(len(X)), pen=(0,0,0,min(elem_alpha,255)))  #Zero line
             #Axis control

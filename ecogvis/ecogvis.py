@@ -529,7 +529,6 @@ class Application(QMainWindow):
 
     def event_related_potential(self):
         """Opens ERP window."""
-        w = ERPDialog(parent=self)
         try: #Checks if file contains proper intervals information
             speaker_start_times = self.model.nwb.intervals['TimeIntervals_speaker']['start_time'].data
             speaker_stop_times = self.model.nwb.intervals['TimeIntervals_speaker']['stop_time'].data
