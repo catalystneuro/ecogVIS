@@ -71,7 +71,7 @@ def make_new_nwb(old_file, new_file):
                     nwb_new.create_electrode_group(name=nwb.electrode_groups[aux].name,
                                                    description=nwb.electrode_groups[aux].description,
                                                    location=nwb.electrode_groups[aux].location,
-                                                   device=nwb_new.get_device(nwb.electrode_groups[aux].description))
+                                                   device=nwb_new.get_device(nwb.electrode_groups[aux].device.name))
             #Electrodes
             if nwb.electrodes is not None:
                 nElec = len(nwb.electrodes['x'].data[:])
@@ -363,10 +363,10 @@ def spectral_decomposition(block_path, bands_vals):
                                   description='Series of filters used for Hilbert transform.',
                                   columns=[band_param_0V,band_param_1V],
                                   colnames=['filter_param_0','filter_param_1'])
-        decs = DecompositionSeries(name='Analytic amplitude',
+        decs = DecompositionSeries(name='DecompositionSeries',
                                     data=Xp,
                                     description='Analytic amplitude estimated with Hilbert transform.',
-                                    metric='power',
+                                    metric='amplitude',
                                     unit='V',
                                     bands=bandsTable,
                                     rate=rate,

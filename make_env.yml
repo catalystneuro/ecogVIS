@@ -19,8 +19,7 @@ dependencies:
 - pyopengl
 - hdmf
 - pip:
-#  - PyQt5
-#  - nwbext_ecog==0.7.2
+  - PyQt5
+  - nwbext_ecog==0.7.2
+  - ndx-spectrum
   - -e .
-  #extension Spectrum
-  - git+https://github.com/bendichter/ndx-spectrum.git

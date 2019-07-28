@@ -327,7 +327,7 @@ class SpectralChoiceDialog(QtGui.QDialog, Ui_SpectralChoice):
                 self.label_1.setText(text)
                 self.cancelButton.setEnabled(True)
             # If there's already Bandpower data in NWB file
-            if 'Analytic amplitude' in self.nwb.processing['ecephys'].data_interfaces:
+            if 'DecompositionSeries' in self.nwb.processing['ecephys'].data_interfaces:
                 self.disable_all()
                 text = "Frequency decomposition data already exists in current file."
                 self.label_1.setText(text)
@@ -1480,6 +1480,7 @@ class ERPDialog(QMainWindow):
 
         self.source = self.parent.model.nwb.processing['ecephys'].data_interfaces['high_gamma'].data
         self.fs = self.parent.model.nwb.processing['ecephys'].data_interfaces['high_gamma'].rate
+        #self.electrodes = self.parent.model.nwb.processing['ecephys'].data_interfaces['high_gamma'].electrodes
         self.speaker_start_times = self.parent.model.nwb.intervals['TimeIntervals_speaker']['start_time'].data[:]
         self.speaker_stop_times = self.parent.model.nwb.intervals['TimeIntervals_speaker']['stop_time'].data[:]
         self.mic_start_times = self.parent.model.nwb.intervals['TimeIntervals_mic']['start_time'].data[:]
@@ -1488,6 +1489,10 @@ class ERPDialog(QMainWindow):
         #Left panel
         self.push0_0 = QPushButton('Calc ERP')
         self.push0_0.clicked.connect(self.draw_erp)
+        label0 = QLabel('Group:')
+        self.combo0 = QComboBox()
+        self.find_groups()
+        self.combo0.activated.connect(self.set_elec_group)
         label1 = QLabel('Alignment:')
         self.push1_0 = QPushButton('Onset')
         self.push1_0.setCheckable(True)
@@ -1543,26 +1548,28 @@ class ERPDialog(QMainWindow):
         self.push5_2.setEnabled(False)
 
         grid0 = QGridLayout()
-        grid0.addWidget(label1, 0, 0, 1, 6)
-        grid0.addWidget(self.push1_0, 1, 0, 1, 3)
-        grid0.addWidget(self.push1_1, 1, 3, 1, 3)
-        grid0.addWidget(self.push1_2, 2, 0, 1, 3)
-        grid0.addWidget(self.push1_3, 2, 3, 1, 3)
-        grid0.addWidget(QHLine(), 3, 0, 1, 6)
-        grid0.addWidget(label2, 4, 0, 1, 6)
-        grid0.addWidget(self.qline2, 5, 0, 1, 6)
-        grid0.addWidget(QHLine(), 6, 0, 1, 6)
-        grid0.addWidget(label3, 7, 0, 1, 6)
-        grid0.addWidget(self.combo1, 8, 0, 1, 6)
-        grid0.addWidget(QHLine(), 9, 0, 1, 6)
-        grid0.addWidget(self.push2_0, 10, 0, 1, 6)
-        grid0.addWidget(self.push3_0, 11, 0, 1, 6)
-        grid0.addWidget(self.push4_0, 12, 0, 1, 6)
-        grid0.addWidget(QHLine(), 13, 0, 1, 6)
-        grid0.addWidget(label4, 14, 0, 1, 6)
-        grid0.addWidget(self.push5_0, 15, 0, 1, 2)
-        grid0.addWidget(self.push5_1, 15, 2, 1, 2)
-        grid0.addWidget(self.push5_2, 15, 4, 1, 2)
+        grid0.addWidget(label0, 0, 0, 1, 2)
+        grid0.addWidget(self.combo0, 0, 2, 1, 4)
+        grid0.addWidget(label1, 1, 0, 1, 6)
+        grid0.addWidget(self.push1_0, 2, 0, 1, 3)
+        grid0.addWidget(self.push1_1, 2, 3, 1, 3)
+        grid0.addWidget(self.push1_2, 3, 0, 1, 3)
+        grid0.addWidget(self.push1_3, 3, 3, 1, 3)
+        grid0.addWidget(QHLine(), 4, 0, 1, 6)
+        grid0.addWidget(label2, 5, 0, 1, 6)
+        grid0.addWidget(self.qline2, 6, 0, 1, 6)
+        grid0.addWidget(QHLine(), 7, 0, 1, 6)
+        grid0.addWidget(label3, 8, 0, 1, 6)
+        grid0.addWidget(self.combo1, 9, 0, 1, 6)
+        grid0.addWidget(QHLine(), 10, 0, 1, 6)
+        grid0.addWidget(self.push2_0, 11, 0, 1, 6)
+        grid0.addWidget(self.push3_0, 12, 0, 1, 6)
+        grid0.addWidget(self.push4_0, 13, 0, 1, 6)
+        grid0.addWidget(QHLine(), 14, 0, 1, 6)
+        grid0.addWidget(label4, 15, 0, 1, 6)
+        grid0.addWidget(self.push5_0, 16, 0, 1, 2)
+        grid0.addWidget(self.push5_1, 16, 2, 1, 2)
+        grid0.addWidget(self.push5_2, 16, 4, 1, 2)
         grid0.setAlignment(QtCore.Qt.AlignTop)
 
         panel0 = QGroupBox('Controls:')
@@ -1603,6 +1610,20 @@ class ERPDialog(QMainWindow):
         self.hbox.addWidget(self.scroll)
 
         self.show()
+
+    def find_groups(self):
+        """Find electrodes groups present in current file."""
+        elec_groups = list(self.parent.model.nwb.electrode_groups.keys())
+        for grp in elec_groups:
+            self.combo0.addItem(grp)
+
+    def set_elec_group(self):
+        """Sets electrodes group to be plotted, resizes plot grid."""
+        self.elec_group = self.combo1.currentText()
+        self.elecs_plot = np.where(self.electrodes.table['group_name'].data[:]==self.elec_group)[0]
+        self.nElecs = len(self.elecs_plot)
+        #self.grid_order = np.arange(self.nElecs)
+        #self.nCols = np.sqrt(self.nElecs).astype('int')
 
     def set_onset(self):
         self.alignment = 'start_time'
