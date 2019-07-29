@@ -50,17 +50,24 @@ def psd_estimate(src_file, type):
                 PY_welch = np.append(PY_welch, py_w.reshape(-1,1), axis=1)
                 PY_fft = np.append(PY_fft, py_f.reshape(-1,1), axis=1)
 
+        #Electrodes
+        elecs_region = nwb.electrodes.create_region(name='electrodes',
+                                                    region=np.arange(nChannels).tolist(),
+                                                    description='all electrodes')
 
         #PSD shape: ('frequency', 'channel')
         spectrum_module_welch = Spectrum(name='Spectrum_welch_'+type,
                                          frequencies=fx_w,
                                          power=PY_welch,
-                                         source_timeseries=data_obj)
+                                         source_timeseries=data_obj,
+                                         electrodes=elecs_region)
 
         spectrum_module_fft = Spectrum(name='Spectrum_fft_'+type,
                                        frequencies=fx_f,
                                        power=PY_fft,
-                                       source_timeseries=data_obj)
+                                       source_timeseries=data_obj,
+                                       electrodes=elecs_region)
+                                       
         # Processing module
         try:      # if ecephys module already exists
             ecephys_module = nwb.processing['ecephys']
