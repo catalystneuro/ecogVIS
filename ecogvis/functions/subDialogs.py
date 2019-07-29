@@ -743,10 +743,15 @@ class PeriodogramGridDialog(QMainWindow):
 
         #Left panel
         self.push0_0 = QPushButton('Draw')
-        self.push0_0.clicked.connect(self.draw_periodograms)
+        self.push0_0.clicked.connect(self.set_elec_group)
         qlabelSignal = QLabel('Signal:')
         self.combo0 = QComboBox()
+        self.initiate_sources()
         self.combo0.activated.connect(self.change_source)
+        qlabelGroup = QLabel('Group:')
+        self.combo1 = QComboBox()
+        self.find_groups()
+        self.combo1.activated.connect(self.set_elec_group)
         qlabelMethod = QLabel('Method:')
         self.b1 = QCheckBox("FFT")
         self.b1.setChecked(True)
@@ -767,30 +772,50 @@ class PeriodogramGridDialog(QMainWindow):
         label4 = QLabel('Rotate grid:')
         self.push5_0 = QPushButton('90°')
         self.push5_0.clicked.connect(lambda: self.rearrange_grid(90))
+        self.push5_0.setToolTip('Counter-clockwise')
         self.push5_1 = QPushButton('-90°')
         self.push5_1.clicked.connect(lambda: self.rearrange_grid(-90))
+        self.push5_1.setToolTip('Clockwise')
         self.push5_2 = QPushButton('T')
         self.push5_2.clicked.connect(lambda: self.rearrange_grid('T'))
+        self.push5_2.setToolTip('Transpose')
+        label5 = QLabel('Rearrange grid:')
+        self.push5_3 = QPushButton('L-R')
+        self.push5_3.clicked.connect(lambda: self.rearrange_grid('FLR'))
+        self.push5_3.setToolTip('Flip Left-Right')
+        self.push5_4 = QPushButton('U-D')
+        self.push5_4.clicked.connect(lambda: self.rearrange_grid('FUD'))
+        self.push5_4.setToolTip('Flip Up-Down')
+        self.push5_5 = QPushButton('2FL')
+        self.push5_5.clicked.connect(lambda: self.rearrange_grid('2FL'))
+        self.push5_5.setToolTip('Double flip')
 
         grid0 = QGridLayout()
         grid0.addWidget(qlabelSignal, 0, 0, 1, 2)
         grid0.addWidget(self.combo0, 0, 2, 1, 4)
-        grid0.addWidget(qlabelMethod, 1, 0, 1, 2)
-        grid0.addWidget(self.b1, 1, 2, 1, 4)
-        grid0.addWidget(QLabel(' '), 2, 0, 1, 2)
-        grid0.addWidget(self.b2, 2, 2, 1, 4)
-        grid0.addWidget(qlabelYscale, 3, 0, 1, 2)
-        grid0.addWidget(self.qline1, 3, 2, 1, 2)
-        grid0.addWidget(qlabelXrng, 4, 0, 1, 2)
-        grid0.addWidget(self.qline2_0, 4, 2, 1, 2)
-        grid0.addWidget(self.qline2_1, 4, 4, 1, 2)
+        grid0.addWidget(qlabelGroup, 1, 0, 1, 2)
+        grid0.addWidget(self.combo1, 1, 2, 1, 4)
+        grid0.addWidget(qlabelMethod, 2, 0, 1, 2)
+        grid0.addWidget(self.b1, 2, 2, 1, 4)
+        grid0.addWidget(QLabel(' '), 3, 0, 1, 2)
+        grid0.addWidget(self.b2, 3, 2, 1, 4)
+        grid0.addWidget(qlabelYscale, 4, 0, 1, 2)
+        grid0.addWidget(self.qline1, 4, 2, 1, 2)
+        grid0.addWidget(qlabelXrng, 5, 0, 1, 2)
+        grid0.addWidget(self.qline2_0, 5, 2, 1, 2)
+        grid0.addWidget(self.qline2_1, 5, 4, 1, 2)
         grid0.addWidget(QHLine(), 13, 0, 1, 6)
         grid0.addWidget(label4, 14, 0, 1, 6)
         grid0.addWidget(self.push5_0, 15, 0, 1, 2)
         grid0.addWidget(self.push5_1, 15, 2, 1, 2)
         grid0.addWidget(self.push5_2, 15, 4, 1, 2)
-        grid0.addWidget(self.push3_0, 16, 0, 1, 6)
-        grid0.addWidget(self.push4_0, 17, 0, 1, 6)
+        grid0.addWidget(label5, 16, 0, 1, 6)
+        grid0.addWidget(self.push5_3, 17, 0, 1, 2)
+        grid0.addWidget(self.push5_4, 17, 2, 1, 2)
+        grid0.addWidget(self.push5_5, 17, 4, 1, 2)
+        grid0.addWidget(QHLine(), 18, 0, 1, 6)
+        grid0.addWidget(self.push3_0, 19, 0, 1, 6)
+        grid0.addWidget(self.push4_0, 20, 0, 1, 6)
         grid0.setAlignment(QtCore.Qt.AlignTop)
 
         panel0 = QGroupBox('Controls:')
@@ -806,6 +831,9 @@ class PeriodogramGridDialog(QMainWindow):
         self.push5_0.setEnabled(False)
         self.push5_1.setEnabled(False)
         self.push5_2.setEnabled(False)
+        self.push5_0.setEnabled(False)
+        self.push5_1.setEnabled(False)
+        self.push5_2.setEnabled(False)
 
         # Right panel
         self.win = pg.GraphicsLayoutWidget()
@@ -813,17 +841,12 @@ class PeriodogramGridDialog(QMainWindow):
         self.win.resize(item_width*16+60, item_width*16+60)
         background_color = self.palette().color(QtGui.QPalette.Background)
         self.win.setBackground(background_color)
-        for j in range(16):
-            self.win.ci.layout.setRowFixedHeight(j, item_width)
-            self.win.ci.layout.setColumnFixedWidth(j, item_width)
-            self.win.ci.layout.setColumnSpacing(j, 3)
-            self.win.ci.layout.setRowSpacing(j, 3)
-            #this is to avoid the error:
-            #RuntimeError: wrapped C/C++ object of type GraphicsScene has been deleted
-            vb = CustomViewBoxPeriodogram(self, j*16)
-            p = self.win.addPlot(j, j, viewBox = vb)
-            p.hideAxis('left')
-            p.hideAxis('bottom')
+        #this is to avoid the error:
+        #RuntimeError: wrapped C/C++ object of type GraphicsScene has been deleted
+        vb = CustomViewBoxPeriodogram(self, 0)
+        p = self.win.addPlot(0, 0, viewBox = vb)
+        p.hideAxis('left')
+        p.hideAxis('bottom')
         #Scroll Area Properties
         self.scroll = QScrollArea()
         self.scroll.setVerticalScrollBarPolicy(QtCore.Qt.ScrollBarAsNeeded)
@@ -837,7 +860,6 @@ class PeriodogramGridDialog(QMainWindow):
         self.hbox.addLayout(self.leftbox)    #add panels first
         self.hbox.addWidget(self.scroll)
 
-        self.initiate_sources()
         self.show()
 
     def initiate_sources(self):
@@ -852,16 +874,45 @@ class PeriodogramGridDialog(QMainWindow):
     def change_source(self):
         if self.combo0.currentText()=='raw':
             #PSD shape: ('frequency', 'channel')
-            self.psd_fft = self.parent.model.nwb.modules['ecephys'].data_interfaces['Spectrum_fft_raw'].power
-            self.xf_fft = self.parent.model.nwb.modules['ecephys'].data_interfaces['Spectrum_fft_raw'].frequencies[:]
-            self.psd_welch = self.parent.model.nwb.modules['ecephys'].data_interfaces['Spectrum_welch_raw'].power
-            self.xf_welch = self.parent.model.nwb.modules['ecephys'].data_interfaces['Spectrum_welch_raw'].frequencies[:]
+            self.psd_fft = self.parent.model.nwb.processing['ecephys'].data_interfaces['Spectrum_fft_raw'].power
+            self.xf_fft = self.parent.model.nwb.processing['ecephys'].data_interfaces['Spectrum_fft_raw'].frequencies[:]
+            self.psd_welch = self.parent.model.nwb.processing['ecephys'].data_interfaces['Spectrum_welch_raw'].power
+            self.xf_welch = self.parent.model.nwb.processing['ecephys'].data_interfaces['Spectrum_welch_raw'].frequencies[:]
+            self.electrodes = self.parent.model.nwb.processing['ecephys'].data_interfaces['Spectrum_fft_raw'].electrodes
         elif self.combo0.currentText()=='preprocessed':
             #PSD shape: ('frequency', 'channel')
-            self.psd_fft = self.parent.model.nwb.modules['ecephys'].data_interfaces['Spectrum_fft_preprocessed'].power
-            self.xf_fft = self.parent.model.nwb.modules['ecephys'].data_interfaces['Spectrum_fft_preprocessed'].frequencies[:]
-            self.psd_welch = self.parent.model.nwb.modules['ecephys'].data_interfaces['Spectrum_welch_preprocessed'].power
-            self.xf_welch = self.parent.model.nwb.modules['ecephys'].data_interfaces['Spectrum_welch_preprocessed'].frequencies[:]
+            self.psd_fft = self.parent.model.nwb.processing['ecephys'].data_interfaces['Spectrum_fft_preprocessed'].power
+            self.xf_fft = self.parent.model.nwb.processing['ecephys'].data_interfaces['Spectrum_fft_preprocessed'].frequencies[:]
+            self.psd_welch = self.parent.model.nwb.processing['ecephys'].data_interfaces['Spectrum_welch_preprocessed'].power
+            self.xf_welch = self.parent.model.nwb.processing['ecephys'].data_interfaces['Spectrum_welch_preprocessed'].frequencies[:]
+            self.electrodes = self.parent.model.nwb.processing['ecephys'].data_interfaces['Spectrum_fft_preprocessed'].electrodes
+
+    def find_groups(self):
+        """Find electrodes groups present in current file."""
+        elec_groups = list(self.parent.model.nwb.electrode_groups.keys())
+        for grp in elec_groups:
+            self.combo1.addItem(grp)
+
+    def set_elec_group(self):
+        """Sets electrodes group to be plotted, resizes plot grid."""
+        #remove previous items
+        for i in np.arange(16):
+            for j in np.arange(16):
+                it = self.win.getItem(i, j)
+                if it is not None:
+                    self.win.removeItem(it)
+        self.elec_group = self.combo1.currentText()
+        self.grid_order = np.where(self.electrodes.table['group_name'].data[:]==self.elec_group)[0]
+        self.nElecs = len(self.grid_order)
+        self.nCols = 16
+        self.nRows = int(self.nElecs/self.nCols)
+        for j in np.arange(self.nCols):
+            self.win.ci.layout.setColumnFixedWidth(j, 80)
+            self.win.ci.layout.setColumnSpacing(j, 3)
+        for i in np.arange(self.nRows):
+            self.win.ci.layout.setRowFixedHeight(i, 80)
+            self.win.ci.layout.setRowSpacing(i, 3)
+        self.draw_periodograms()
 
     def scale_plots(self):
         scale = float(self.qline1.text())
@@ -895,13 +946,20 @@ class PeriodogramGridDialog(QMainWindow):
                 bottom.setTicks([ticks])
 
     def rearrange_grid(self, angle):
-        grid = self.grid_order.reshape(16,16)  #re-arranges as 2D array
+        grid = self.grid_order.reshape(-1,16)  #re-arranges as 2D array
         if angle == 90:     #90 degrees clockwise
             grid = np.rot90(grid, axes=(1,0))
         elif angle == -90:  #90 degrees counterclockwise
             grid = np.rot90(grid, axes=(0,1))
-        else:       #transpose
+        elif angle == 'T':       #transpose
             grid = grid.T
+        elif angle == 'FLR':       #flip left-right
+            grid = np.flip(grid, 1)
+        elif angle == 'FUD':       #flip up-down
+            grid = np.flip(grid, 0)
+        elif angle == '2FL':       #Double flip
+            grid = np.flip(grid, 1)
+            grid = np.flip(grid, 0)
         self.grid_order = grid.flatten()    #re-arranges as 1D array
         self.draw_periodograms()
 
@@ -926,6 +984,13 @@ class PeriodogramGridDialog(QMainWindow):
         self.push5_0.setEnabled(True)
         self.push5_1.setEnabled(True)
         self.push5_2.setEnabled(True)
+        self.push5_3.setEnabled(True)
+        self.push5_4.setEnabled(True)
+        self.push5_5.setEnabled(True)
+        if self.nCols != self.nRows: #not square matrix
+            self.push5_0.setEnabled(False)
+            self.push5_1.setEnabled(False)
+            self.push5_2.setEnabled(False)
         cmap = get_lut()
         # X limits and ticks
         x0 = np.abs( float(self.qline2_0.text()) )
