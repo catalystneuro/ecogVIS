@@ -58,7 +58,7 @@ def make_new_nwb(old_file, new_file):
         nwb_new = NWBFile(session_description=str(nwb.session_description),
                           identifier='high gamma data',
                           session_start_time=datetime.now(tzlocal()))
-        with NWBHDF5IO(new_file, mode='w', manager=manager, load_namespaces=True) as io2:
+        with NWBHDF5IO(new_file, mode='w', manager=manager) as io2:
             # Copy relevant fields, except Acquisition and DecompositionSeries
             #Devices
             if nwb.devices is not None:
@@ -274,9 +274,6 @@ def preprocess_raw_data(block_path, config):
             X /= 1e6                    # Scales signals back to Volt
 
             # Add preprocessed downsampled signals as an electrical_series
-            elecs_region = nwb.electrodes.create_region(name='electrodes',
-                                                        region=np.arange(nChannels).tolist(),
-                                                        description='')
             if config['CAR'] is None:
                 car = 'None'
             else: car = str(config['CAR'])
@@ -289,7 +286,6 @@ def preprocess_raw_data(block_path, config):
             config_comment = 'CAR:'+car+', Notch:'+notch+', Downsampled:'+downs
             lfp_ts = lfp.create_electrical_series(name='preprocessed',
                                                   data=X.T,
-                                                  #electrodes=elecs_region,
                                                   electrodes=source.electrodes,
                                                   rate=rate,
                                                   description='',
@@ -434,14 +430,20 @@ def high_gamma_estimation(block_path, bands_vals, new_file=''):
         Xp = np.swapaxes(Xp,0,2)
         HG = np.mean(Xp, 2)   #average of high gamma bands
 
-        hg = TimeSeries(name='high_gamma',
-                        data=HG,
-                        rate=rate,
-                        unit='V',
-                        description='')
-
         # Storage of High Gamma on NWB file -----------------------------
         if new_file=='':  #on current file
+            #make electrodes table
+            nElecs = HG.shape[1]
+            elecs_region = nwb.electrodes.create_region(name='electrodes',
+                                                        region=np.arange(nElecs).tolist(),
+                                                        description='all electrodes')
+            hg = ElectricalSeries(name='high_gamma',
+                                  data=HG,
+                                  electrodes=elecs_region,
+                                  rate=rate,
+                                  unit='V',
+                                  description='')
+
             ecephys_module = nwb.processing['ecephys']
             ecephys_module.add_data_interface(hg)
             io.write(nwb)
@@ -449,6 +451,16 @@ def high_gamma_estimation(block_path, bands_vals, new_file=''):
         else:           #on new file
             with NWBHDF5IO(new_file, 'r+', load_namespaces=True) as io_new:
                 nwb_new = io_new.read()
+                #make electrodes table
+                nElecs = HG.shape[1]
+                elecs_region = nwb_new.electrodes.create_region(name='electrodes',
+                                                                region=np.arange(nElecs).tolist(),
+                                                                description='all electrodes')
+                hg = ElectricalSeries(name='high_gamma',
+                                      data=HG,
+                                      electrodes=elecs_region,
+                                      rate=rate,
+                                      description='')
                 # creates ecephys ProcessingModule
                 ecephys_module = ProcessingModule(name='ecephys',
                                                   description='Extracellular electrophysiology data.')

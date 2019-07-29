@@ -1480,15 +1480,21 @@ class ERPDialog(QMainWindow):
 
         self.source = self.parent.model.nwb.processing['ecephys'].data_interfaces['high_gamma'].data
         self.fs = self.parent.model.nwb.processing['ecephys'].data_interfaces['high_gamma'].rate
-        #self.electrodes = self.parent.model.nwb.processing['ecephys'].data_interfaces['high_gamma'].electrodes
+        self.electrodes = self.parent.model.nwb.processing['ecephys'].data_interfaces['high_gamma'].electrodes
         self.speaker_start_times = self.parent.model.nwb.intervals['TimeIntervals_speaker']['start_time'].data[:]
         self.speaker_stop_times = self.parent.model.nwb.intervals['TimeIntervals_speaker']['stop_time'].data[:]
         self.mic_start_times = self.parent.model.nwb.intervals['TimeIntervals_mic']['start_time'].data[:]
         self.mic_stop_times = self.parent.model.nwb.intervals['TimeIntervals_mic']['stop_time'].data[:]
+        #Get only reference times smaller than the main signal duration
+        self.maxTime = self.source.shape[0]/self.fs
+        self.speaker_start_times = self.speaker_start_times[self.speaker_start_times<self.maxTime]
+        self.speaker_stop_times = self.speaker_stop_times[self.speaker_stop_times<self.maxTime]
+        self.mic_start_times = self.mic_start_times[self.mic_start_times<self.maxTime]
+        self.mic_stop_times = self.mic_stop_times[self.mic_stop_times<self.maxTime]
 
         #Left panel
-        self.push0_0 = QPushButton('Calc ERP')
-        self.push0_0.clicked.connect(self.draw_erp)
+        self.push0_0 = QPushButton('Draw ERP')
+        self.push0_0.clicked.connect(self.set_elec_group)
         label0 = QLabel('Group:')
         self.combo0 = QComboBox()
         self.find_groups()
@@ -1529,10 +1535,23 @@ class ERPDialog(QMainWindow):
         label4 = QLabel('Rotate grid:')
         self.push5_0 = QPushButton('90°')
         self.push5_0.clicked.connect(lambda: self.rearrange_grid(90))
+        self.push5_0.setToolTip('Counter-clockwise')
         self.push5_1 = QPushButton('-90°')
         self.push5_1.clicked.connect(lambda: self.rearrange_grid(-90))
+        self.push5_1.setToolTip('Clockwise')
         self.push5_2 = QPushButton('T')
         self.push5_2.clicked.connect(lambda: self.rearrange_grid('T'))
+        self.push5_2.setToolTip('Transpose')
+        label5 = QLabel('Rearrange grid:')
+        self.push5_3 = QPushButton('L-R')
+        self.push5_3.clicked.connect(lambda: self.rearrange_grid('FLR'))
+        self.push5_3.setToolTip('Flip Left-Right')
+        self.push5_4 = QPushButton('U-D')
+        self.push5_4.clicked.connect(lambda: self.rearrange_grid('FUD'))
+        self.push5_4.setToolTip('Flip Up-Down')
+        self.push5_5 = QPushButton('2FL')
+        self.push5_5.clicked.connect(lambda: self.rearrange_grid('2FL'))
+        self.push5_5.setToolTip('Double flip')
 
         self.push1_0.setEnabled(False)
         self.push1_1.setEnabled(False)
@@ -1546,6 +1565,9 @@ class ERPDialog(QMainWindow):
         self.push5_0.setEnabled(False)
         self.push5_1.setEnabled(False)
         self.push5_2.setEnabled(False)
+        self.push5_3.setEnabled(False)
+        self.push5_4.setEnabled(False)
+        self.push5_5.setEnabled(False)
 
         grid0 = QGridLayout()
         grid0.addWidget(label0, 0, 0, 1, 2)
@@ -1570,6 +1592,10 @@ class ERPDialog(QMainWindow):
         grid0.addWidget(self.push5_0, 16, 0, 1, 2)
         grid0.addWidget(self.push5_1, 16, 2, 1, 2)
         grid0.addWidget(self.push5_2, 16, 4, 1, 2)
+        grid0.addWidget(label5, 17, 0, 1, 6)
+        grid0.addWidget(self.push5_3, 18, 0, 1, 2)
+        grid0.addWidget(self.push5_4, 18, 2, 1, 2)
+        grid0.addWidget(self.push5_5, 18, 4, 1, 2)
         grid0.setAlignment(QtCore.Qt.AlignTop)
 
         panel0 = QGroupBox('Controls:')
@@ -1585,17 +1611,12 @@ class ERPDialog(QMainWindow):
         self.win.resize(1020,1020)
         background_color = self.palette().color(QtGui.QPalette.Background)
         self.win.setBackground(background_color)
-        for j in range(16):
-            self.win.ci.layout.setRowFixedHeight(j, 60)
-            self.win.ci.layout.setColumnFixedWidth(j, 60)
-            self.win.ci.layout.setColumnSpacing(j, 3)
-            self.win.ci.layout.setRowSpacing(j, 3)
-            #this is to avoid the error:
-            #RuntimeError: wrapped C/C++ object of type GraphicsScene has been deleted
-            vb = CustomViewBox(self, j*16)
-            p = self.win.addPlot(j, j, viewBox = vb)
-            p.hideAxis('left')
-            p.hideAxis('bottom')
+        #this is to avoid the error:
+        #RuntimeError: wrapped C/C++ object of type GraphicsScene has been deleted
+        vb = CustomViewBox(self, 0)
+        p = self.win.addPlot(0, 0, viewBox = vb)
+        p.hideAxis('left')
+        p.hideAxis('bottom')
         #Scroll Area Properties
         self.scroll = QScrollArea()
         self.scroll.setVerticalScrollBarPolicy(QtCore.Qt.ScrollBarAsNeeded)
@@ -1608,7 +1629,6 @@ class ERPDialog(QMainWindow):
         self.hbox = QHBoxLayout(self.centralwidget)
         self.hbox.addLayout(self.leftbox)    #add panels first
         self.hbox.addWidget(self.scroll)
-
         self.show()
 
     def find_groups(self):
@@ -1619,11 +1639,24 @@ class ERPDialog(QMainWindow):
 
     def set_elec_group(self):
         """Sets electrodes group to be plotted, resizes plot grid."""
-        self.elec_group = self.combo1.currentText()
-        self.elecs_plot = np.where(self.electrodes.table['group_name'].data[:]==self.elec_group)[0]
-        self.nElecs = len(self.elecs_plot)
-        #self.grid_order = np.arange(self.nElecs)
-        #self.nCols = np.sqrt(self.nElecs).astype('int')
+        #remove previous items
+        for i in np.arange(16):
+            for j in np.arange(16):
+                it = self.win.getItem(i, j)
+                if it is not None:
+                    self.win.removeItem(it)
+        self.elec_group = self.combo0.currentText()
+        self.grid_order = np.where(self.electrodes.table['group_name'].data[:]==self.elec_group)[0]
+        self.nElecs = len(self.grid_order)
+        self.nCols = 16
+        self.nRows = int(self.nElecs/self.nCols)
+        for j in np.arange(self.nCols):
+            self.win.ci.layout.setColumnFixedWidth(j, 60)
+            self.win.ci.layout.setColumnSpacing(j, 3)
+        for i in np.arange(self.nRows):
+            self.win.ci.layout.setRowFixedHeight(i, 60)
+            self.win.ci.layout.setRowSpacing(i, 3)
+        self.draw_erp()
 
     def set_onset(self):
         self.alignment = 'start_time'
@@ -1658,13 +1691,20 @@ class ERPDialog(QMainWindow):
         self.draw_erp()
 
     def rearrange_grid(self, angle):
-        grid = self.grid_order.reshape(16,16)  #re-arranges as 2D array
+        grid = self.grid_order.reshape(-1,16)  #re-arranges as 2D array
         if angle == 90:     #90 degrees clockwise
             grid = np.rot90(grid, axes=(1,0))
         elif angle == -90:  #90 degrees counterclockwise
             grid = np.rot90(grid, axes=(0,1))
-        else:       #transpose
+        elif angle == 'T':       #transpose
             grid = grid.T
+        elif angle == 'FLR':       #flip left-right
+            grid = np.flip(grid, 1)
+        elif angle == 'FUD':       #flip up-down
+            grid = np.flip(grid, 0)
+        elif angle == '2FL':       #Double flip
+            grid = np.flip(grid, 1)
+            grid = np.flip(grid, 0)
         self.grid_order = grid.flatten()    #re-arranges as 1D array
         self.draw_erp()
 
@@ -1767,6 +1807,13 @@ class ERPDialog(QMainWindow):
         self.push5_0.setEnabled(True)
         self.push5_1.setEnabled(True)
         self.push5_2.setEnabled(True)
+        self.push5_3.setEnabled(True)
+        self.push5_4.setEnabled(True)
+        self.push5_5.setEnabled(True)
+        if self.nCols != self.nRows: #not square matrix
+            self.push5_0.setEnabled(False)
+            self.push5_1.setEnabled(False)
+            self.push5_2.setEnabled(False)
         self.combo1.setCurrentIndex(self.combo1.findText('individual'))
         cmap = get_lut()
         ymin, ymax = 0, 0
@@ -1810,7 +1857,7 @@ class ERPDialog(QMainWindow):
             yrng = max(abs(Y_mean))
             p.setYRange(-yrng, yrng)
             xref = [X[int(len(X)/2)], X[int(len(X)/2)]]
-            yref = [-1000, 1000]
+            yref = [-1000*yrng, 1000*yrng]
             p.plot(x=xref, y=yref, pen=(0,0,0,min(elem_alpha,255)))    #reference mark
             p.plot(x=X, y=np.zeros(len(X)), pen=(0,0,0,min(elem_alpha,255)))  #Zero line
             #Axis control
