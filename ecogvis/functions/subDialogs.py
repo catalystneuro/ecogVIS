@@ -895,24 +895,27 @@ class PeriodogramGridDialog(QMainWindow):
 
     def set_elec_group(self):
         """Sets electrodes group to be plotted, resizes plot grid."""
+        self.elec_group = self.combo1.currentText()
+        self.grid_order = np.where(self.electrodes.table['group_name'].data[:]==self.elec_group)[0]
+        self.nElecs = len(self.grid_order)
+        self.nCols = 16
+        self.nRows = int(self.nElecs/self.nCols)
+        self.set_grid()
+        self.draw_periodograms()
+
+    def set_grid(self):
         #remove previous items
         for i in np.arange(16):
             for j in np.arange(16):
                 it = self.win.getItem(i, j)
                 if it is not None:
                     self.win.removeItem(it)
-        self.elec_group = self.combo1.currentText()
-        self.grid_order = np.where(self.electrodes.table['group_name'].data[:]==self.elec_group)[0]
-        self.nElecs = len(self.grid_order)
-        self.nCols = 16
-        self.nRows = int(self.nElecs/self.nCols)
         for j in np.arange(self.nCols):
             self.win.ci.layout.setColumnFixedWidth(j, 80)
             self.win.ci.layout.setColumnSpacing(j, 3)
         for i in np.arange(self.nRows):
             self.win.ci.layout.setRowFixedHeight(i, 80)
             self.win.ci.layout.setRowSpacing(i, 3)
-        self.draw_periodograms()
 
     def scale_plots(self):
         scale = float(self.qline1.text())
@@ -946,18 +949,36 @@ class PeriodogramGridDialog(QMainWindow):
                 bottom.setTicks([ticks])
 
     def rearrange_grid(self, angle):
-        grid = self.grid_order.reshape(-1,16)  #re-arranges as 2D array
-        if angle == 90:     #90 degrees clockwise
+        grid = self.grid_order.reshape(-1,self.nCols)  #re-arranges as 2D array
+        #90 degrees clockwise
+        if angle == -90:
             grid = np.rot90(grid, axes=(1,0))
-        elif angle == -90:  #90 degrees counterclockwise
+            if self.nRows!=self.nCols:
+                aux = np.copy(self.nRows)
+                self.nRows = np.copy(self.nCols)
+                self.nCols = aux
+        #90 degrees conter-clockwise
+        elif angle == 90:
             grid = np.rot90(grid, axes=(0,1))
-        elif angle == 'T':       #transpose
+            if self.nRows!=self.nCols:
+                aux = np.copy(self.nRows)
+                self.nRows = np.copy(self.nCols)
+                self.nCols = aux
+        #transpose
+        elif angle == 'T':
             grid = grid.T
-        elif angle == 'FLR':       #flip left-right
+            if self.nRows!=self.nCols:
+                aux = np.copy(self.nRows)
+                self.nRows = np.copy(self.nCols)
+                self.nCols = aux
+        #flip left-right
+        elif angle == 'FLR':
             grid = np.flip(grid, 1)
-        elif angle == 'FUD':       #flip up-down
+        #flip up-down
+        elif angle == 'FUD':
             grid = np.flip(grid, 0)
-        elif angle == '2FL':       #Double flip
+        #Double flip
+        elif angle == '2FL':
             grid = np.flip(grid, 1)
             grid = np.flip(grid, 0)
         self.grid_order = grid.flatten()    #re-arranges as 1D array
@@ -987,11 +1008,8 @@ class PeriodogramGridDialog(QMainWindow):
         self.push5_3.setEnabled(True)
         self.push5_4.setEnabled(True)
         self.push5_5.setEnabled(True)
-        if self.nCols != self.nRows: #not square matrix
-            self.push5_0.setEnabled(False)
-            self.push5_1.setEnabled(False)
-            self.push5_2.setEnabled(False)
         cmap = get_lut()
+        self.set_grid()
         # X limits and ticks
         x0 = np.abs( float(self.qline2_0.text()) )
         x0 = min(max(x0, 0), 200)   #hard limits
@@ -1704,24 +1722,27 @@ class ERPDialog(QMainWindow):
 
     def set_elec_group(self):
         """Sets electrodes group to be plotted, resizes plot grid."""
+        self.elec_group = self.combo0.currentText()
+        self.grid_order = np.where(self.electrodes.table['group_name'].data[:]==self.elec_group)[0]
+        self.nElecs = len(self.grid_order)
+        self.nCols = 16
+        self.nRows = int(self.nElecs/self.nCols)
+        self.set_grid()
+        self.draw_erp()
+
+    def set_grid(self):
         #remove previous items
         for i in np.arange(16):
             for j in np.arange(16):
                 it = self.win.getItem(i, j)
                 if it is not None:
                     self.win.removeItem(it)
-        self.elec_group = self.combo0.currentText()
-        self.grid_order = np.where(self.electrodes.table['group_name'].data[:]==self.elec_group)[0]
-        self.nElecs = len(self.grid_order)
-        self.nCols = 16
-        self.nRows = int(self.nElecs/self.nCols)
         for j in np.arange(self.nCols):
             self.win.ci.layout.setColumnFixedWidth(j, 60)
             self.win.ci.layout.setColumnSpacing(j, 3)
         for i in np.arange(self.nRows):
             self.win.ci.layout.setRowFixedHeight(i, 60)
             self.win.ci.layout.setRowSpacing(i, 3)
-        self.draw_erp()
 
     def set_onset(self):
         self.alignment = 'start_time'
@@ -1756,18 +1777,36 @@ class ERPDialog(QMainWindow):
         self.draw_erp()
 
     def rearrange_grid(self, angle):
-        grid = self.grid_order.reshape(-1,16)  #re-arranges as 2D array
-        if angle == 90:     #90 degrees clockwise
+        grid = self.grid_order.reshape(-1,self.nCols)  #re-arranges as 2D array
+        #90 degrees clockwise
+        if angle == -90:
             grid = np.rot90(grid, axes=(1,0))
-        elif angle == -90:  #90 degrees counterclockwise
+            if self.nRows!=self.nCols:
+                aux = np.copy(self.nRows)
+                self.nRows = np.copy(self.nCols)
+                self.nCols = aux
+        #90 degrees conter-clockwise
+        elif angle == 90:
             grid = np.rot90(grid, axes=(0,1))
-        elif angle == 'T':       #transpose
+            if self.nRows!=self.nCols:
+                aux = np.copy(self.nRows)
+                self.nRows = np.copy(self.nCols)
+                self.nCols = aux
+        #transpose
+        elif angle == 'T':
             grid = grid.T
-        elif angle == 'FLR':       #flip left-right
+            if self.nRows!=self.nCols:
+                aux = np.copy(self.nRows)
+                self.nRows = np.copy(self.nCols)
+                self.nCols = aux
+        #flip left-right
+        elif angle == 'FLR':
             grid = np.flip(grid, 1)
-        elif angle == 'FUD':       #flip up-down
+        #flip up-down
+        elif angle == 'FUD':
             grid = np.flip(grid, 0)
-        elif angle == '2FL':       #Double flip
+        #Double flip
+        elif angle == '2FL':
             grid = np.flip(grid, 1)
             grid = np.flip(grid, 0)
         self.grid_order = grid.flatten()    #re-arranges as 1D array
@@ -1875,11 +1914,8 @@ class ERPDialog(QMainWindow):
         self.push5_3.setEnabled(True)
         self.push5_4.setEnabled(True)
         self.push5_5.setEnabled(True)
-        if self.nCols != self.nRows: #not square matrix
-            self.push5_0.setEnabled(False)
-            self.push5_1.setEnabled(False)
-            self.push5_2.setEnabled(False)
         self.combo1.setCurrentIndex(self.combo1.findText('individual'))
+        self.set_grid()
         cmap = get_lut()
         ymin, ymax = 0, 0
         ystd = 0
@@ -1894,8 +1930,9 @@ class ERPDialog(QMainWindow):
             ymax = max(max(Y_mean), ymax)
             ymin = min(min(Y_mean), ymin)
             ystd = max(np.std(Y_mean), ystd)
-            row = np.floor(ind/self.nCols)
-            col = ind%self.nCols
+            #Include items
+            row = np.floor(ind/self.nCols).astype('int')
+            col = int(ind%self.nCols)
             p = self.win.getItem(row=row, col=col)
             if p == None:
                 vb = CustomViewBox(self, ch)
@@ -1910,7 +1947,6 @@ class ERPDialog(QMainWindow):
             vb = p.getViewBox()
             color = tuple(cmap[loc])
             vb.setBackgroundColor((*color,min(elem_alpha,70)))  # append alpha to color tuple
-            #vb.border = pg.mkPen(color = 'w')
             #Main plots
             mean = p.plot(x=X, y=Y_mean, pen=pg.mkPen((50,50,50,min(elem_alpha,255)), width=1.))
             semp = p.plot(x=X, y=Y_mean+Y_sem, pen=pg.mkPen((100,100,100,min(elem_alpha,100)), width=.1))

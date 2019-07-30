@@ -16,6 +16,7 @@ from ecogvis.signal_processing.resample import *
 from ecogvis.signal_processing.linenoise_notch import *
 from ecogvis.signal_processing.common_referencing import *
 from ecogvis.signal_processing.bands import *
+from ecogvis.functions.nwb_copy_file import nwb_copy_file
 
 
 def processing_data(path, subject, blocks, mode=None , config=None, new_file=''):
@@ -43,122 +44,39 @@ def make_new_nwb(old_file, new_file):
     new_file : str, path
         String such as '/path/to/new_file.nwb'.
     """
-    from datetime import datetime
-    from dateutil.tz import tzlocal
-    from pynwb import NWBFile, NWBHDF5IO, get_manager
-    from pynwb.device import Device
-    from nwbext_ecog import CorticalSurfaces, ECoGSubject
 
-    manager = get_manager()
+    #Dictionary for copy_nwb
+    cp_objs = {
+        'institution': True,
+        'lab': True,
+        'session':True,
+        'devices':True,
+        'electrode_groups':True,
+        'electrodes':True,
+        'epochs':True,
+        'invalid_times':True,
+        'trials':True,
+        'intervals':True,
+        'stimulus':True,
+        'subject':True,
+    }
 
     # Open original signal file
-    with NWBHDF5IO(old_file, 'r', manager=manager, load_namespaces=True) as io1:
-        nwb = io1.read()
-        # Creates new file
-        nwb_new = NWBFile(session_description=str(nwb.session_description),
-                          identifier='high gamma data',
-                          session_start_time=datetime.now(tzlocal()))
-        with NWBHDF5IO(new_file, mode='w', manager=manager) as io2:
-            # Copy relevant fields, except Acquisition and DecompositionSeries
-            #Devices
-            if nwb.devices is not None:
-                for aux in list(nwb.devices.keys()):
-                    dev = Device(nwb.devices[aux].name)
-                    nwb_new.add_device(dev)
-            #Electrode groups
-            if nwb.electrode_groups is not None:
-                for aux in list(nwb.electrode_groups.keys()):
-                    nwb_new.create_electrode_group(name=nwb.electrode_groups[aux].name,
-                                                   description=nwb.electrode_groups[aux].description,
-                                                   location=nwb.electrode_groups[aux].location,
-                                                   device=nwb_new.get_device(nwb.electrode_groups[aux].device.name))
-            #Electrodes
-            if nwb.electrodes is not None:
-                nElec = len(nwb.electrodes['x'].data[:])
-                for aux in np.arange(nElec):
-                    nwb_new.add_electrode(x=nwb.electrodes['x'][aux],
-                                          y=nwb.electrodes['y'][aux],
-                                          z=nwb.electrodes['z'][aux],
-                                          imp=nwb.electrodes['imp'][aux],
-                                          location=nwb.electrodes['location'][aux],
-                                          filtering=nwb.electrodes['filtering'][aux],
-                                          group=nwb_new.get_electrode_group(nwb.electrodes['group'][aux].name),
-                                          group_name=nwb.electrodes['group_name'][aux])
-                # if there are custom variables
-                new_vars = list(nwb.electrodes.colnames)
-                default_vars = ['x', 'y', 'z', 'imp', 'location', 'filtering', 'group', 'group_name']
-                [new_vars.remove(var) for var in default_vars]
-                for var in new_vars:
-                    nwb_new.add_electrode_column(name=var,
-                                                 description=nwb.electrodes[var].description,
-                                                 data=nwb.electrodes[var].data[:])
-            #Epochs
-            if nwb.epochs is not None:
-                nEpochs = len(nwb.epochs['start_time'].data[:])
-                for i in np.arange(nEpochs):
-                    nwb_new.add_epoch(start_time=nwb.epochs['start_time'].data[i],
-                                      stop_time=nwb.epochs['stop_time'].data[i])
-            #Institution and Lab names
-            nwb_new.institution = str(nwb.institution)
-            nwb_new.lab = str(nwb.lab)
-            #Invalid times
-            if nwb.invalid_times is not None:
-                nInvalid = len(nwb.invalid_times['start_time'][:])
-                for aux in np.arange(nInvalid):
-                    nwb_new.add_invalid_time_interval(start_time=nwb.invalid_times['start_time'][aux],
-                                                      stop_time=nwb.invalid_times['stop_time'][aux])
-            #Trials
-            if nwb.trials is not None:
-                nTrials = len(nwb.trials['start_time'])
-                for aux in np.arange(nTrials):
-                    nwb_new.add_trial(start_time=nwb.trials['start_time'][aux],
-                                      stop_time=nwb.trials['stop_time'][aux])
-            #Session id
-            if nwb.session_id is not None:
-                nwb_new.session_id = nwb.session_id
-            #Stimulus
-            if nwb.stimulus is not None:
-                for stim_name in list(nwb.stimulus.keys()):
-                    stim = nwb.stimulus[stim_name]
-                    ts = TimeSeries(name=stim.name,
-                                    description=stim.description,
-                                    data=stim.data[:],
-                                    rate=stim.rate,
-                                    resolution=stim.resolution,
-                                    conversion=stim.conversion,
-                                    starting_time=stim.starting_time,
-                                    unit=stim.unit)
-                    nwb_new.add_stimulus(ts)
-            #Subject
-            # if nwb.subject is not None:
-            #     try:
-            #         cortical_surfaces = CorticalSurfaces()
-            #         surfaces = nwb.subject.cortical_surfaces.surfaces
-            #         for sfc in list(surfaces.keys()):
-            #             cortical_surfaces.create_surface(name=surfaces[sfc].name,
-            #                                              faces=surfaces[sfc].faces,
-            #                                              vertices=surfaces[sfc].vertices)
-            #         nwb_new.subject = ECoGSubject(cortical_surfaces=cortical_surfaces,
-            #                                       subject_id=nwb.subject.subject_id,
-            #                                       age=nwb.subject.age,
-            #                                       description=nwb.subject.description,
-            #                                       genotype=nwb.subject.genotype,
-            #                                       sex=nwb.subject.sex,
-            #                                       species=nwb.subject.species,
-            #                                       weight=nwb.subject.weight,
-            #                                       date_of_birth=nwb.subject.date_of_birth)
-            #     except:
-            #         nwb_new.subject = Subject(age=nwb.subject.age,
-            #                                   description=nwb.subject.description,
-            #                                   genotype=nwb.subject.genotype,
-            #                                   sex=nwb.subject.sex,
-            #                                   species=nwb.subject.species,
-            #                                   subject_id=nwb.subject.subject_id,
-            #                                   weight=nwb.subject.weight,
-            #                                   date_of_birth=nwb.subject.date_of_birth)
+    with NWBHDF5IO(old_file, 'r', load_namespaces=True) as io:
+        nwb_old = io.read()
+        #Exclude raw signals, keep other acquisition
+        acq_vars = list(nwb_old.acquisition.keys())
+        if 'ElectricalSeries' in acq_vars:
+            acq_vars.remove('ElectricalSeries')
+        cp_objs['acquisition'] = acq_vars
+        #Exclude existing high_gamma, keep other processing modules
+        ece_vars = list(nwb_old.processing['ecephys'].data_interfaces.keys())
+        if 'high_gamma' in ece_vars:
+            ece_vars.remove('high_gamma')
+        cp_objs['ecephys'] = ece_vars
 
-            #Write new file with copied fields
-            io2.write(nwb_new, link_data=False)
+    nwb_copy_file(old_file, new_file, cp_objs=cp_objs)
+
 
 
 def preprocess_raw_data(block_path, config):
@@ -441,7 +359,6 @@ def high_gamma_estimation(block_path, bands_vals, new_file=''):
                                   data=HG,
                                   electrodes=elecs_region,
                                   rate=rate,
-                                  unit='V',
                                   description='')
 
             ecephys_module = nwb.processing['ecephys']
@@ -461,11 +378,14 @@ def high_gamma_estimation(block_path, bands_vals, new_file=''):
                                       electrodes=elecs_region,
                                       rate=rate,
                                       description='')
-                # creates ecephys ProcessingModule
-                ecephys_module = ProcessingModule(name='ecephys',
-                                                  description='Extracellular electrophysiology data.')
-                # Add module to NWB file
-                nwb_new.add_processing_module(ecephys_module)
+
+                try:      # if ecephys module already exists
+                    ecephys_module = nwb_new.processing['ecephys']
+                except:   # creates ecephys ProcessingModule
+                    ecephys_module = ProcessingModule(name='ecephys',
+                                                      description='Extracellular electrophysiology data.')
+                    nwb_new.add_processing_module(ecephys_module)
+
                 ecephys_module.add_data_interface(hg)
                 io_new.write(nwb_new)
                 print('High Gamma power saved in '+new_file)

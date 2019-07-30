@@ -26,18 +26,22 @@ class TimeSeriesPlotter:
         self.nwb = self.io.read()      #reads NWB file
 
         #Tries to load Raw data
-        try:
-            lis = list(self.nwb.acquisition.keys())
-            for i in lis:  # Check if there is ElectricalSeries in acquisition group
-                if type(self.nwb.acquisition[i]).__name__ == 'ElectricalSeries':
-                    self.source = self.nwb.acquisition[i]
-                    self.parent.combo3.setCurrentIndex(self.parent.combo3.findText('raw'))
-        except:
+        lis = list(self.nwb.acquisition.keys())
+        there_is_raw = False
+        for i in lis:  # Check if there is ElectricalSeries in acquisition group
+            if type(self.nwb.acquisition[i]).__name__ == 'ElectricalSeries':
+                self.source = self.nwb.acquisition[i]
+                self.parent.combo3.setCurrentIndex(self.parent.combo3.findText('raw'))
+                there_is_raw = True
+        if not there_is_raw:
             print("No 'ElectricalSeries' object in 'acquisition' group.")
         #Tries to load preprocessed data
         try:
             self.source = self.nwb.processing['ecephys'].data_interfaces['LFP'].electrical_series['preprocessed']
             self.parent.combo3.setCurrentIndex(self.parent.combo3.findText('preprocessed'))
+            self.parent.push5_0.setEnabled(True)
+            self.parent.push6_0.setEnabled(False)
+            self.parent.push7_0.setEnabled(True)
         except:
             print("No 'preprocessed' data in 'processing' group.")
         #Tries to load High Gamma data
@@ -45,6 +49,8 @@ class TimeSeriesPlotter:
             self.source = self.nwb.processing['ecephys'].data_interfaces['high_gamma']
             self.parent.combo3.setCurrentIndex(self.parent.combo3.findText('high gamma'))
             self.parent.push5_0.setEnabled(False)
+            self.parent.push6_0.setEnabled(False)
+            self.parent.push7_0.setEnabled(False)
         except:
             print("No 'high_gamma' data in 'processing' group.")
         self.plotData = self.source.data

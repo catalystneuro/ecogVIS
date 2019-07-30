@@ -543,7 +543,7 @@ class Application(QMainWindow):
         except: #if it fails, raises a no high gamma message
             NoHighGammaDialog()
             open_dialog = False
-        #If all tries passed, open ERP           
+        #If all tries passed, open ERP
         if open_dialog:
             w = ERPDialog(parent=self)
 
@@ -777,18 +777,22 @@ class Application(QMainWindow):
         - 'high gamma': High Gamma estimation traces, stored in nwb.processing['ecephys'].data_interfaces['high_gamma']
         """
         if self.combo3.currentText()=='raw':
-            try:
-                lis = list(self.model.nwb.acquisition.keys())
-                for i in lis:  # Check if there is ElectricalSeries in acquisition group
-                    if type(self.model.nwb.acquisition[i]).__name__ == 'ElectricalSeries':
-                        self.model.source = self.model.nwb.acquisition[i]
+            lis = list(self.model.nwb.acquisition.keys())
+            there_is_raw = False
+            for i in lis:  # Check if there is ElectricalSeries in acquisition group
+                if type(self.model.nwb.acquisition[i]).__name__ == 'ElectricalSeries':
+                    self.model.source = self.model.nwb.acquisition[i]
+                    there_is_raw = True
+            if there_is_raw:
                 self.model.plot_panel = 'voltage_raw'
                 self.model.plotData = self.model.source.data
                 self.model.nBins = self.model.plotData.shape[0]     #total number of bins
                 self.model.fs_signal = self.model.source.rate     #sampling frequency [Hz]
                 self.model.tbin_signal = 1/self.model.fs_signal #time bin duration [seconds]
                 self.push5_0.setEnabled(True)
-            except:
+                self.push6_0.setEnabled(True)
+                self.push7_0.setEnabled(False)
+            else:
                 self.combo3.setCurrentIndex(self.combo3.findText('high gamma'))
                 self.voltage_time_series()
                 NoRawDialog()
@@ -801,6 +805,8 @@ class Application(QMainWindow):
                 self.model.fs_signal = self.model.source.rate
                 self.model.tbin_signal = 1/self.model.fs_signal
                 self.push5_0.setEnabled(True)
+                self.push6_0.setEnabled(False)
+                self.push7_0.setEnabled(True)
             except:
                 self.combo3.setCurrentIndex(self.combo3.findText('raw'))
                 self.voltage_time_series()
@@ -814,6 +820,8 @@ class Application(QMainWindow):
                 self.model.fs_signal = self.model.source.rate
                 self.model.tbin_signal = 1/self.model.fs_signal
                 self.push5_0.setEnabled(False)
+                self.push6_0.setEnabled(False)
+                self.push7_0.setEnabled(False)
             except:  #if not, opens warning dialog
                 self.combo3.setCurrentIndex(self.combo3.findText('preprocessed'))
                 self.voltage_time_series()
