@@ -33,7 +33,7 @@ def processing_data(path, subject, blocks, mode=None , config=None, new_file='')
             high_gamma_estimation(block_path, bands_vals=config, new_file=new_file)
 
 
-def make_new_nwb(old_file, new_file):
+def make_new_nwb(old_file, new_file, cp_objs=None):
     """
     Copy all fields, except 'acquisition', from current NWB file to new NWB file.
 
@@ -46,20 +46,21 @@ def make_new_nwb(old_file, new_file):
     """
 
     #Dictionary for copy_nwb
-    cp_objs = {
-        'institution': True,
-        'lab': True,
-        'session':True,
-        'devices':True,
-        'electrode_groups':True,
-        'electrodes':True,
-        'epochs':True,
-        'invalid_times':True,
-        'trials':True,
-        'intervals':True,
-        'stimulus':True,
-        'subject':True,
-    }
+    if cp_objs is None:
+        cp_objs = {
+            'institution': True,
+            'lab': True,
+            'session':True,
+            'devices':True,
+            'electrode_groups':True,
+            'electrodes':True,
+            'epochs':True,
+            'invalid_times':True,
+            'trials':True,
+            'intervals':True,
+            'stimulus':True,
+            'subject':True,
+        }
 
     # Open original signal file
     with NWBHDF5IO(old_file, 'r', load_namespaces=True) as io:
