@@ -8,14 +8,14 @@ A collaboration with with [Chang Lab](http://changlab.ucsf.edu/).
 ## Installation
 To clone the repository and set up a conda environment, do:
 ```
-$ git clone https://github.com/bendichter/ecogVIS.git
+$ git clone https://github.com/ben-dichter-consulting/ecogVIS
 $ conda env create -f ecogVIS/make_env.yml
 $ source activate ecog_vis
 ```
 
 Alternatively, to install **ecogVIS** directly in an existing environment:
 ```
-$ pip install git+https://github.com/bendichter/ecogVIS.git
+$ pip install git+https://github.com/ben-dichter-consulting/ecogVIS
 ```
 
 After activating the correct environment, **ecogVIS** can be imported and run from python. If the file does not exist (or if you provide an empty string ''), you'll be prompted to choose a file from a dialog.
@@ -120,7 +120,15 @@ main(fpath)
   <summary> 
     <strong>Periodograms</strong> 
   </summary>
-  Grid visualization of Periodograms.
+  Grid visualization of Periodograms:
+  <ul>
+    <li>Raw and preprocessed data</li>
+    <li>FFT and Welch methods</li>
+    <li>Individual devices</li>
+  </ul> 
+  The grid items are coloured to mark specific cortical areas and can be rotated to correspond anatomically to them. Emphasis can be given to specific areas of interest and double-clicking an item allows for fast inspection of the single electrode's Periodogram in detail. <br></br>
+  
+  ![](media/gif_periodograms.gif)
 </details>
 
 <details>
