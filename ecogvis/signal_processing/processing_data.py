@@ -79,7 +79,6 @@ def make_new_nwb(old_file, new_file, cp_objs=None):
     nwb_copy_file(old_file, new_file, cp_objs=cp_objs)
 
 
-
 def preprocess_raw_data(block_path, config):
     """
     Takes raw data and runs:
@@ -108,7 +107,7 @@ def preprocess_raw_data(block_path, config):
     with NWBHDF5IO(block_path, 'r+', load_namespaces=True) as io:
         nwb = io.read()
 
-        # Storage of processed signals on NWB file -----------------------------
+        # Storage of processed signals on NWB file ----------------------------
         if 'ecephys' in nwb.processing:
             ecephys_module = nwb.processing['ecephys']
         else:   # creates ecephys ProcessingModule
@@ -134,7 +133,7 @@ def preprocess_raw_data(block_path, config):
 
             # Data source
             source_list = [acq for acq in nwb.acquisition.values()
-                      if type(acq) == ElectricalSeries]
+                           if type(acq) == ElectricalSeries]
             assert len(source_list) == 1, (
                 'Not precisely one ElectricalSeries in acquisition!')
             source = source_list[0]
@@ -147,33 +146,36 @@ def preprocess_raw_data(block_path, config):
                 print("Downsampling signals to "+str(config['Downsample'])+" Hz.")
                 print("Please wait, this might take around 30 minutes.")
                 start = time.time()
-                #zeros to pad to make signal lenght a power of 2
+                # zeros to pad to make signal lenght a power of 2
                 nBins = source.data.shape[0]
                 extraBins0 = 2**(np.ceil(np.log2(nBins)).astype('int')) - nBins
                 extraZeros = np.zeros(extraBins0)
                 rate = config['Downsample']
-                #One channel at a time, to improve memory usage for long signals
+                # One channel at a time, to improve memory usage for long signals
                 for ch in np.arange(nChannels):
-                    #1e6 scaling helps with numerical accuracy
+                    # 1e6 scaling helps with numerical accuracy
                     Xch = source.data[:,ch]*1e6
-                    #Make lenght a power of 2, improves performance
+                    # Make lenght a power of 2, improves performance
                     Xch = np.append(Xch,extraZeros)
                     Xch = resample(Xch, rate, fs)
-                    if ch==0:
+                    if ch == 0:
                         X = Xch.reshape(1,-1)
                     else:
                         X = np.append(X, Xch.reshape(1,-1), axis=0)
-                print('Downsampling finished in {} seconds'.format(time.time()-start))
+                print('Downsampling finished in {} seconds'.format(
+                    time.time()-start))
             else:  # No downsample
                 rate = fs
                 X = source.data.T*1e6
 
             # Subtract CAR
             if config['CAR'] is not None:
-                print("Computing and subtracting Common Average Reference in "+str(config['CAR'])+" channel blocks.")
+                print("Computing and subtracting Common Average Reference in "
+                      + str(config['CAR'])+" channel blocks.")
                 start = time.time()
                 X = subtract_CAR(X, b_size=config['CAR'])
-                print('CAR subtract time for {}: {} seconds'.format(block_name, time.time()-start))
+                print('CAR subtract time for {}: {} seconds'.format(
+                    block_name, time.time()-start))
 
             # Apply Notch filters
             if config['Notch'] is not None:
@@ -184,36 +186,30 @@ def preprocess_raw_data(block_path, config):
                 extraZeros = np.zeros(extraBins1)
                 start = time.time()
                 for ch in np.arange(nChannels):
-                    Xch = np.append(X[ch,:],extraZeros).reshape(1,-1)
+                    Xch = np.append(X[ch, :], extraZeros).reshape(1, -1)
                     Xch = linenoise_notch(Xch, rate, notch_freq=config['Notch'])
                     if ch==0:
-                        X2 = Xch.reshape(1,-1)
+                        X2 = Xch.reshape(1, -1)
                     else:
                         X2 = np.append(X2, Xch.reshape(1,-1), axis=0)
-                print('Notch filter time for {}: {} seconds'.format(block_name, time.time()-start))
+                print('Notch filter time for {}: {} seconds'.format(
+                    block_name, time.time()-start))
 
                 X = np.copy(X2)
                 del X2
 
-            #Remove excess bins (because of zero padding on previous steps)
+            # Remove excess bins (because of zero padding on previous steps)
             excessBins = int(np.ceil(extraBins0*rate/fs) + extraBins1)
             X = X[:, 0:-excessBins]
             X = X.astype('float32')     # signal (nChannels,nSamples)
             X /= 1e6                    # Scales signals back to Volt
 
             # Add preprocessed downsampled signals as an electrical_series
-            if config['CAR'] is None:
-                car = 'None'
-            else: car = str(config['CAR'])
-            if config['Notch'] is None:
-                notch = 'None'
-            else: notch = str(config['Notch'])
-            if config['Downsample'] is None:
-                downs = 'No'
-            else: downs = 'Yes'
+            car = 'None' if config['CAR'] is None else str(config['CAR'])
+            notch = 'None' if config['Notch'] is None else str(config['Notch'])
+            downs = 'No' if config['Downsample'] is None else 'Yes'
             config_comment = 'CAR:'+car+', Notch:'+notch+', Downsampled:'+downs
-            import pdb
-            pdb.set_trace()
+
             lfp_ts = lfp.create_electrical_series(name='preprocessed',
                                                   data=X.T,
                                                   electrodes=source.electrodes,
