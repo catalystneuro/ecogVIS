@@ -184,8 +184,9 @@ def preprocess_raw_data(block_path, config):
                         X2 = np.append(X2, Xch.reshape(1,-1), axis=0)
                 print('Notch filter time for {}: {} seconds'.format(block_name, time.time()-start))
 
-            X = np.copy(X2)
-            del X2
+                X = np.copy(X2)
+                del X2
+
             #Remove excess bins (because of zero padding on previous steps)
             excessBins = int(np.ceil(extraBins0*rate/fs) + extraBins1)
             X = X[:, 0:-excessBins]
