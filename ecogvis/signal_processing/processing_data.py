@@ -109,27 +109,35 @@ def preprocess_raw_data(block_path, config):
         nwb = io.read()
 
         # Storage of processed signals on NWB file -----------------------------
-        try:      # if ecephys module already exists
+        if 'ecephys' in nwb.processing:
             ecephys_module = nwb.processing['ecephys']
-        except:   # creates ecephys ProcessingModule
-            ecephys_module = ProcessingModule(name='ecephys',
-                                              description='Extracellular electrophysiology data.')
+        else:   # creates ecephys ProcessingModule
+            ecephys_module = ProcessingModule(
+                name='ecephys',
+                description='Extracellular electrophysiology data.'
+            )
             # Add module to NWB file
             nwb.add_processing_module(ecephys_module)
             print('Created ecephys')
 
-        # LFP: Downsampled and power line signal removed -----------------------
-        if 'LFP' in nwb.processing['ecephys'].data_interfaces:    # if LFP already exists
+        # LFP: Downsampled and power line signal removed ----------------------
+        if 'LFP' in nwb.processing['ecephys'].data_interfaces:
+            ######
+            # What's the point of this?  Nothing is done with these vars
+            # if LFP already exists
             lfp = nwb.processing['ecephys'].data_interfaces['LFP']
-            lfp_ts = nwb.processing['ecephys'].data_interfaces['LFP'].electrical_series['preprocessed']
-        else: # creates LFP data interface container
+            lfp_ts = nwb.processing['ecephys'].data_interfaces[
+                'LFP'].electrical_series['preprocessed']
+            ######
+        else:  # creates LFP data interface container
             lfp = LFP()
 
             # Data source
-            lis = list(nwb.acquisition.keys())
-            for i in lis:  # Check if there is ElectricalSeries in acquisition group
-                if type(nwb.acquisition[i]).__name__ == 'ElectricalSeries':
-                    source = nwb.acquisition[i]
+            source_list = [acq for acq in nwb.acquisition.values()
+                      if type(acq) == ElectricalSeries]
+            assert len(source_list) == 1, (
+                'Not precisely one ElectricalSeries in acquisition!')
+            source = source_list[0]
             nChannels = source.data.shape[1]
 
             # Downsampling
@@ -158,7 +166,7 @@ def preprocess_raw_data(block_path, config):
                 print('Downsampling finished in {} seconds'.format(time.time()-start))
             else:  # No downsample
                 rate = fs
-                X = source.data[:,:].T*1e6
+                X = source.data.T*1e6
 
             # Subtract CAR
             if config['CAR'] is not None:
@@ -204,6 +212,8 @@ def preprocess_raw_data(block_path, config):
                 downs = 'No'
             else: downs = 'Yes'
             config_comment = 'CAR:'+car+', Notch:'+notch+', Downsampled:'+downs
+            import pdb
+            pdb.set_trace()
             lfp_ts = lfp.create_electrical_series(name='preprocessed',
                                                   data=X.T,
                                                   electrodes=source.electrodes,
