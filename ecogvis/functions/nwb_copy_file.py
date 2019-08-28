@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 from datetime import datetime
 from dateutil.tz import tzlocal
+import pdb
 import numpy as np
 
 from pynwb import NWBFile, NWBHDF5IO, get_manager, ProcessingModule
@@ -169,18 +170,20 @@ def nwb_copy_file(old_file, new_file, cp_objs={}):
             # Processing modules ----------------------------------------------
             if 'ecephys' in cp_objs:
                 if cp_objs['ecephys'] is True:
-                    all_proc_names = list(nwb_old.processing['ecephys'].data_interfaces.keys())
-                else:  #list of items
-                    all_proc_names = cp_objs['ecephys']
+                    interfaces = nwb_old.processing['ecephys'].data_interfaces.keys()
+                else:  # list of items
+                    interfaces = [
+                        nwb_old.processing['ecephys'].data_interfaces[key]
+                        for key in cp_objs['ecephys']
+                    ]
                 # Add ecephys module to NWB file
                 ecephys_module = ProcessingModule(
-                  name='ecephys',
-                  description='Extracellular electrophysiology data.'
+                    name='ecephys',
+                    description='Extracellular electrophysiology data.'
                 )
                 nwb_new.add_processing_module(ecephys_module)
-                for proc_name in all_proc_names:
-                    obj_old = nwb_old.processing['ecephys'].data_interfaces[proc_name]
-                    obj = copy_obj(obj_old, nwb_old, nwb_new)
+                for interface_old in interfaces:
+                    obj = copy_obj(interface_old, nwb_old, nwb_new)
                     if obj is not None:
                         ecephys_module.add_data_interface(obj)
 
@@ -231,53 +234,57 @@ def nwb_copy_file(old_file, new_file, cp_objs={}):
 def copy_obj(obj_old, nwb_old, nwb_new):
     """ Creates a copy of obj_old. """
 
-    obj = None
-    obj_type = type(obj_old).__name__
-
     # ElectricalSeries --------------------------------------------------------
-    if obj_type == 'ElectricalSeries':
+    if type(obj_old) is ElectricalSeries:
         nChannels = obj_old.electrodes.table['x'].data.shape[0]
         elecs_region = nwb_new.electrodes.create_region(
             name='electrodes',
             region=np.arange(nChannels).tolist(),
             description=''
         )
-        obj = ElectricalSeries(name=obj_old.name,
-                               data=obj_old.data[:],
-                               electrodes=elecs_region,
-                               rate=obj_old.rate,
-                               description=obj_old.description)
+        return ElectricalSeries(
+            name=obj_old.name,
+            data=obj_old.data[:],
+            electrodes=elecs_region,
+            rate=obj_old.rate,
+            description=obj_old.description
+        )
+
+    # DynamicTable ------------------------------------------------------------
+    if type(obj_old) is DynamicTable:
+        return DynamicTable(
+            name=obj_old.name,
+            description=obj_old.description,
+            colnames=obj_old.colnames,
+            columns=obj_old.columns,
+        )
 
     # LFP ---------------------------------------------------------------------
-    if obj_type == 'LFP':
+    if type(obj_old) is LFP:
         obj = LFP(name=obj_old.name)
-        els_name = list(obj_old.electrical_series.keys())[0]
-        els = obj_old.electrical_series[els_name]
+        assert len(obj_old.electrical_series) == 1, (
+            'Expected precisely one electrical series, got %i!' %
+            len(obj_old.electrical_series))
+        els = list(obj_old.electrical_series.values())[0]
         nChannels = els.data.shape[1]
 
-        #####
-        # This won't work with the new bipolar data because it creates the new
-        #  region based on the original electrodes, of which there are fewer.
-        '''
-        bipolarTable_old = obj_old.electrical_series[
-            'preprocessed'].electrodes.table
-        bipolarTable = DynamicTable(
-            name=bipolarTable_old.name,
-            description=bipolarTable_old.description,
-            colnames=bipolarTable_old.colnames,
-            columns=bipolarTable_old.columns,
-        )
-        elecs_region = bipolarTable.create_region(
-            'electrodes', [i for i in range(nChannels)],
-            'all bipolar electrodes'
-        )
-        '''
-        elecs_region = nwb_new.electrodes.create_region(
+        ####
+        # first check for a table among the new file's data_interfaces
+        if els.electrodes.table.name in nwb_new.processing[
+                'ecephys'].data_interfaces:
+            LFP_dynamic_table = nwb_new.processing['ecephys'].data_interfaces[
+                els.electrodes.table.name]
+        else:
+            # othewise use the electrodes as the table
+            LFP_dynamic_table = nwb_new.electrodes
+        ####
+
+        elecs_region = LFP_dynamic_table.create_region(
             name='electrodes',
-            region=np.arange(nChannels).tolist(),
-            description=''
+            region=[i for i in range(nChannels)],
+            description=els.electrodes.description
         )
-        #####
+
         obj_ts = obj.create_electrical_series(
             name=els.name,
             comments=els.comments,
@@ -290,51 +297,60 @@ def copy_obj(obj_old, nwb_old, nwb_new):
             starting_time=els.starting_time
         )
 
-    #TimeSeries ---------------------------------------------------------------
-    elif obj_type=='TimeSeries':
-        obj = TimeSeries(name=obj_old.name,
-                         description=obj_old.description,
-                         data=obj_old.data[:],
-                         rate=obj_old.rate,
-                         resolution=obj_old.resolution,
-                         conversion=obj_old.conversion,
-                         starting_time=obj_old.starting_time,
-                         unit=obj_old.unit)
+        return obj
 
-    #DecompositionSeries ------------------------------------------------------
-    elif obj_type=='DecompositionSeries':
+    # TimeSeries --------------------------------------------------------------
+    if type(obj_old) is TimeSeries:
+        return TimeSeries(
+            name=obj_old.name,
+            description=obj_old.description,
+            data=obj_old.data[:],
+            rate=obj_old.rate,
+            resolution=obj_old.resolution,
+            conversion=obj_old.conversion,
+            starting_time=obj_old.starting_time,
+            unit=obj_old.unit
+        )
+
+    # DecompositionSeries -----------------------------------------------------
+    if type(obj_old) is DecompositionSeries:
         list_columns = []
         for item in obj_old.bands.columns:
-            bp = VectorData(name=item.name,
-                            description=item.description,
-                            data=item.data[:])
+            bp = VectorData(
+                name=item.name,
+                description=item.description,
+                data=item.data[:]
+            )
             list_columns.append(bp)
-        bandsTable = DynamicTable(name=obj_old.bands.name,
-                                  description=obj_old.bands.description,
-                                  columns=list_columns,
-                                  colnames=obj_old.bands.colnames)
-        obj = DecompositionSeries(name=obj_old.name,
-                                  data=obj_old.data[:],
-                                  description=obj_old.description,
-                                  metric=obj_old.metric,
-                                  unit=obj_old.unit,
-                                  rate=obj_old.rate,
-                                  #source_timeseries=lfp,
-                                  bands=bandsTable,)
+        bandsTable = DynamicTable(
+            name=obj_old.bands.name,
+            description=obj_old.bands.description,
+            columns=list_columns,
+            colnames=obj_old.bands.colnames
+        )
+        return DecompositionSeries(
+            name=obj_old.name,
+            data=obj_old.data[:],
+            description=obj_old.description,
+            metric=obj_old.metric,
+            unit=obj_old.unit,
+            rate=obj_old.rate,
+            #source_timeseries=lfp,
+            bands=bandsTable,
+        )
 
-    #Spectrum -----------------------------------------------------------------
-    elif obj_type=='Spectrum':
+    # Spectrum ----------------------------------------------------------------
+    if type(obj_old) is Spectrum:
         file_elecs = nwb_new.electrodes
         nChannels = len(file_elecs['x'].data[:])
-        elecs_region = file_elecs.create_region(name='electrodes',
-                                                region=np.arange(nChannels).tolist(),
-                                                description='')
-        obj = Spectrum(name=obj_old.name,
-                       frequencies=obj_old.frequencies[:],
-                       power=obj_old.power,
-                       electrodes=elecs_region)
-
-
-
-
-    return obj
+        elecs_region = file_elecs.create_region(
+            name='electrodes',
+            region=np.arange(nChannels).tolist(),
+            description=''
+        )
+        return Spectrum(
+            name=obj_old.name,
+            frequencies=obj_old.frequencies[:],
+            power=obj_old.power,
+            electrodes=elecs_region
+        )

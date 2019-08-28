@@ -192,9 +192,9 @@ def preprocess_raw_data(block_path, config):
             if config['referencing'] is not None:
                 if config['referencing'][0] == 'CAR':
                     print("Computing and subtracting Common Average Reference in "
-                          + str(config['CAR'][1])+" channel blocks.")
+                          + str(config['referencing'][1])+" channel blocks.")
                     start = time.time()
-                    X = subtract_CAR(X, b_size=config['CAR'][1])
+                    X = subtract_CAR(X, b_size=config['referencing'][1])
                     print('CAR subtract time for {}: {} seconds'.format(
                         block_name, time.time()-start))
                     electrodes = source.electrodes
@@ -517,12 +517,23 @@ def high_gamma_estimation(block_path, bands_vals, new_file=''):
         HG = np.mean(Xp, 2)   # average of high gamma bands
 
         # Storage of High Gamma on NWB file -----------------------------
-        if new_file == '':  # on current file
+        if new_file == '' or new_file is None:  # on current file
             # make electrodes table
             nElecs = HG.shape[1]
-            elecs_region = nwb.electrodes.create_region(
+            ecephys_module = nwb.processing['ecephys']
+
+            # first check for a table among the file's data_interfaces
+            ####
+            if lfp.electrodes.table.name in ecephys_module.data_interfaces:
+                LFP_dynamic_table = ecephys_module.data_interfaces[
+                    lfp.electrodes.table.name]
+            else:
+                # othewise use the electrodes as the table
+                LFP_dynamic_table = nwb.electrodes
+            ####
+            elecs_region = LFP_dynamic_table.create_region(
                 name='electrodes',
-                region=np.arange(nElecs).tolist(),
+                region=[i for i in range(nChannels)],
                 description='all electrodes'
             )
             hg = ElectricalSeries(
@@ -533,7 +544,6 @@ def high_gamma_estimation(block_path, bands_vals, new_file=''):
                 description=''
             )
 
-            ecephys_module = nwb.processing['ecephys']
             ecephys_module.add_data_interface(hg)
             io.write(nwb)
             print('High Gamma power saved in '+block_path)
