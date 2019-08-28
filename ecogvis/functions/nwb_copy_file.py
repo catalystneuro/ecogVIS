@@ -69,23 +69,27 @@ def nwb_copy_file(old_file, new_file, cp_objs={}):
             # Electrode groups ------------------------------------------------
             if 'electrode_groups' in cp_objs:
                 for aux in list(nwb_old.electrode_groups.keys()):
-                    nwb_new.create_electrode_group(name=nwb_old.electrode_groups[aux].name,
-                                                   description=nwb_old.electrode_groups[aux].description,
-                                                   location=nwb_old.electrode_groups[aux].location,
-                                                   device=nwb_new.get_device(nwb_old.electrode_groups[aux].device.name))
+                    nwb_new.create_electrode_group(
+                        name=nwb_old.electrode_groups[aux].name,
+                        description=nwb_old.electrode_groups[aux].description,
+                        location=nwb_old.electrode_groups[aux].location,
+                        device=nwb_new.get_device(nwb_old.electrode_groups[aux].device.name)
+                    )
 
             # Electrodes ------------------------------------------------------
             if 'electrodes' in cp_objs:
                 nElec = len(nwb_old.electrodes['x'].data[:])
                 for aux in np.arange(nElec):
-                    nwb_new.add_electrode(x=nwb_old.electrodes['x'][aux],
-                                          y=nwb_old.electrodes['y'][aux],
-                                          z=nwb_old.electrodes['z'][aux],
-                                          imp=nwb_old.electrodes['imp'][aux],
-                                          location=nwb_old.electrodes['location'][aux],
-                                          filtering=nwb_old.electrodes['filtering'][aux],
-                                          group=nwb_new.get_electrode_group(nwb_old.electrodes['group'][aux].name),
-                                          group_name=nwb_old.electrodes['group_name'][aux])
+                    nwb_new.add_electrode(
+                        x=nwb_old.electrodes['x'][aux],
+                        y=nwb_old.electrodes['y'][aux],
+                        z=nwb_old.electrodes['z'][aux],
+                        imp=nwb_old.electrodes['imp'][aux],
+                        location=nwb_old.electrodes['location'][aux],
+                        filtering=nwb_old.electrodes['filtering'][aux],
+                        group=nwb_new.get_electrode_group(nwb_old.electrodes['group'][aux].name),
+                        group_name=nwb_old.electrodes['group_name'][aux]
+                    )
                 # if there are custom variables
                 new_vars = list(nwb_old.electrodes.colnames)
                 default_vars = ['x', 'y', 'z', 'imp', 'location', 'filtering', 'group', 'group_name']
@@ -230,42 +234,61 @@ def copy_obj(obj_old, nwb_old, nwb_new):
     obj = None
     obj_type = type(obj_old).__name__
 
-    #ElectricalSeries ---------------------------------------------------------
-    if obj_type=='ElectricalSeries':
+    # ElectricalSeries --------------------------------------------------------
+    if obj_type == 'ElectricalSeries':
         nChannels = obj_old.electrodes.table['x'].data.shape[0]
-        elecs_region = nwb_new.electrodes.create_region(name='electrodes',
-                                                        region=np.arange(nChannels).tolist(),
-                                                        description='')
+        elecs_region = nwb_new.electrodes.create_region(
+            name='electrodes',
+            region=np.arange(nChannels).tolist(),
+            description=''
+        )
         obj = ElectricalSeries(name=obj_old.name,
                                data=obj_old.data[:],
                                electrodes=elecs_region,
                                rate=obj_old.rate,
                                description=obj_old.description)
 
-    #LFP ----------------------------------------------------------------------
-    if obj_type=='LFP':
+    # LFP ---------------------------------------------------------------------
+    if obj_type == 'LFP':
         obj = LFP(name=obj_old.name)
         els_name = list(obj_old.electrical_series.keys())[0]
         els = obj_old.electrical_series[els_name]
         nChannels = els.data.shape[1]
-        try:
-            elecs_region = nwb_new.electrodes.create_region(
-                name='electrodes',
-                region=np.arange(nChannels).tolist(),
-                description=''
-            )
-        except:
-            import pdb
-            pdb.set_trace()
-        obj_ts = obj.create_electrical_series(name=els.name,
-                                              comments=els.comments,
-                                              conversion=els.conversion,
-                                              data=els.data[:],
-                                              description=els.description,
-                                              electrodes=elecs_region,
-                                              rate=els.rate,
-                                              resolution=els.resolution,
-                                              starting_time=els.starting_time)
+
+        #####
+        # This won't work with the new bipolar data because it creates the new
+        #  region based on the original electrodes, of which there are fewer.
+        '''
+        bipolarTable_old = obj_old.electrical_series[
+            'preprocessed'].electrodes.table
+        bipolarTable = DynamicTable(
+            name=bipolarTable_old.name,
+            description=bipolarTable_old.description,
+            colnames=bipolarTable_old.colnames,
+            columns=bipolarTable_old.columns,
+        )
+        elecs_region = bipolarTable.create_region(
+            'electrodes', [i for i in range(nChannels)],
+            'all bipolar electrodes'
+        )
+        '''
+        elecs_region = nwb_new.electrodes.create_region(
+            name='electrodes',
+            region=np.arange(nChannels).tolist(),
+            description=''
+        )
+        #####
+        obj_ts = obj.create_electrical_series(
+            name=els.name,
+            comments=els.comments,
+            conversion=els.conversion,
+            data=els.data[:],
+            description=els.description,
+            electrodes=elecs_region,
+            rate=els.rate,
+            resolution=els.resolution,
+            starting_time=els.starting_time
+        )
 
     #TimeSeries ---------------------------------------------------------------
     elif obj_type=='TimeSeries':

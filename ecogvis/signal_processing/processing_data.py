@@ -35,7 +35,8 @@ def processing_data(path, subject, blocks, mode=None, config=None, new_file=''):
 
 def make_new_nwb(old_file, new_file, cp_objs=None):
     """
-    Copy all fields, except 'acquisition', from current NWB file to new NWB file.
+    Copy all fields, as defined by cp_objs, from current NWB file to new NWB
+    file.
 
     Parameters
     ----------
@@ -43,9 +44,17 @@ def make_new_nwb(old_file, new_file, cp_objs=None):
         String such as '/path/to/old_file.nwb'.
     new_file : str, path
         String such as '/path/to/new_file.nwb'.
+    cp_objs : dictionary
+        Dictionary of objectives to copy from the current NWB file to the
+        new NWB file. If not given, the defaults will be set (defined
+        below). For 'acquisition', 'stimulus', and 'ecephys' fields, if the
+        value is defined as 'default', the default fields from those fields
+        will be copied. Otherwise, if specified as a list of strings,
+        those specific fields will be copied. If something is not to be
+        copied, it should be left out of the cp_objs dictionary.
     """
 
-    #Dictionary for copy_nwb
+    # Dictionary for copy_nwb
     if cp_objs is None:
         cp_objs = {
             'institution': True,
@@ -60,24 +69,33 @@ def make_new_nwb(old_file, new_file, cp_objs=None):
             'intervals': True,
             'stimulus': True,
             'subject': True,
+            'acquisition': 'default',
+            'ecephys': 'default'
         }
 
     # Open original signal file
     with NWBHDF5IO(old_file, 'r', load_namespaces=True) as io:
         nwb_old = io.read()
-        #Exclude raw signals, keep other acquisition
-        acq_vars = list(nwb_old.acquisition.keys())
-        if 'ElectricalSeries' in acq_vars:
-            acq_vars.remove('ElectricalSeries')
-        cp_objs['acquisition'] = acq_vars
-        #Exclude existing high_gamma, keep other processing modules
-        ece_vars = list(nwb_old.processing['ecephys'].data_interfaces.keys())
-        if 'high_gamma' in ece_vars:
-            ece_vars.remove('high_gamma')
-        cp_objs['ecephys'] = ece_vars
+
+        if ('acquisition' in cp_objs) and \
+                (cp_objs['acquisition'] == 'default'):
+            # If 'acquisition' variables are in cp_objs but not defined,
+            # default: Exclude raw signals, keep other acquisition
+            acq_vars = list(nwb_old.acquisition.keys())
+            if 'ElectricalSeries' in acq_vars:
+                acq_vars.remove('ElectricalSeries')
+            cp_objs['acquisition'] = acq_vars
+
+        if ('ecephys' in cp_objs) and \
+                (cp_objs['ecephys'] == 'default'):
+            # If 'ecephys' variables are in cp_objs but not defined, default:
+            # Exclude existing high_gamma, keep other processing modules
+            ece_vars = list(nwb_old.processing['ecephys'].data_interfaces.keys())
+            if 'high_gamma' in ece_vars:
+                ece_vars.remove('high_gamma')
+            cp_objs['ecephys'] = ece_vars
 
     nwb_copy_file(old_file, new_file, cp_objs=cp_objs)
-
 
 def preprocess_raw_data(block_path, config):
     """
