@@ -91,8 +91,10 @@ def preprocess_raw_data(block_path, config):
     block_path : str
         subject file path
     config : dictionary
-        'bipolar referencing' - bool: John Burke style; overrides CAR and notch
-        'CAR' - Number of channels to use in CAR (default=16)
+        'referencing' - tuple specifying electrode referencing (type, options)
+            ('CAR', N_channels_per_group)
+            ('CMR', N_channels_per_group)
+            ('bipolar', INCLUDE_OBLIQUE_NBHD)
         'Notch' - Main frequency (Hz) for notch filters (default=60)
         'Downsample' - Downsampling frequency (Hz, default= 400)
 
@@ -123,8 +125,7 @@ def preprocess_raw_data(block_path, config):
         # LFP: Downsampled and power line signal removed ----------------------
         if 'LFP' in nwb.processing['ecephys'].data_interfaces:
             ######
-            # What's the point of this?  Nothing is done with these vars
-            # if LFP already exists
+            # What's the point of this?  Nothing is done with these vars...
             lfp = nwb.processing['ecephys'].data_interfaces['LFP']
             lfp_ts = nwb.processing['ecephys'].data_interfaces[
                 'LFP'].electrical_series['preprocessed']
@@ -141,53 +142,54 @@ def preprocess_raw_data(block_path, config):
             nChannels = source.data.shape[1]
 
             # Downsampling
-            extraBins0 = 0
-            fs = source.rate
             if config['Downsample'] is not None:
                 print("Downsampling signals to "+str(config['Downsample'])+" Hz.")
                 print("Please wait, this might take around 30 minutes.")
                 start = time.time()
-                # zeros to pad to make signal lenght a power of 2
+                # zeros to pad to make signal length a power of 2
                 nBins = source.data.shape[0]
                 extraBins0 = 2**(np.ceil(np.log2(nBins)).astype('int')) - nBins
                 extraZeros = np.zeros(extraBins0)
                 rate = config['Downsample']
+
+                # malloc
+                T = int(np.ceil((nBins + extraBins0)*rate/source.rate))
+                X = np.zeros((source.data.shape[1], T))
+
                 # One channel at a time, to improve memory usage for long signals
                 for ch in np.arange(nChannels):
                     # 1e6 scaling helps with numerical accuracy
                     Xch = source.data[:, ch]*1e6
-                    # Make lenght a power of 2, improves performance
+                    # Make length a power of 2, improves performance
                     Xch = np.append(Xch, extraZeros)
-                    Xch = resample(Xch, rate, fs)
-                    if ch == 0:
-                        X = Xch.reshape(1,-1)
-                    else:
-                        X = np.append(X, Xch.reshape(1,-1), axis=0)
+                    X[ch, :] = resample(Xch, rate, source.rate)
                 print('Downsampling finished in {} seconds'.format(
                     time.time()-start))
             else:  # No downsample
-                rate = fs
-                X = source.data.T*1e6
+                extraBins0 = 0
+                rate = source.rate
+                X = source.data[()].T*1e6
 
-            if config['bipolar referencing']:
-                if 'bipolar referenced' in ecephys_module.data_interfaces:
-                    print("bipolar references already computed for this block")
-                else:
-                    bipolarElectrodes = get_bipolar_referenced_electrodes(
+            # re-reference the (scaled by 1e6!) data
+            if config['referencing'] is not None:
+                if config['referencing'][0] == 'CAR':
+                    print("Computing and subtracting Common Average Reference in "
+                          + str(config['CAR'][1])+" channel blocks.")
+                    start = time.time()
+                    X = subtract_CAR(X, b_size=config['CAR'][1])
+                    print('CAR subtract time for {}: {} seconds'.format(
+                        block_name, time.time()-start))
+                    electrodes = source.electrodes
+                elif config['referencing'][0] == 'bipolar':
+                    X, bipolarTable, electrodes = get_bipolar_referenced_electrodes(
                         X, source.electrodes, rate)
 
-                    # add data interface for later saving
-                    ecephys_module.add_data_interface(bipolarElectrodes)
-                    print('bipolarElectrodes saved in '+block_path)
-
-            # Subtract CAR
-            if config['CAR'] is not None:
-                print("Computing and subtracting Common Average Reference in "
-                      + str(config['CAR'])+" channel blocks.")
-                start = time.time()
-                X = subtract_CAR(X, b_size=config['CAR'])
-                print('CAR subtract time for {}: {} seconds'.format(
-                    block_name, time.time()-start))
+                    # add data interface for the metadata for saving
+                    ecephys_module.add_data_interface(bipolarTable)
+                    print('bipolarElectrodes stored for saving in '+block_path)
+                else:
+                    print('UNRECOGNIZED REFERENCING SCHEME; ', end='')
+                    print('SKIPPING REFERENCING!')
 
             # Apply Notch filters
             if config['Notch'] is not None:
@@ -209,27 +211,35 @@ def preprocess_raw_data(block_path, config):
 
                 X = np.copy(X2)
                 del X2
+            else:
+                extraBins1 = 0
 
             # Remove excess bins (because of zero padding on previous steps)
-            excessBins = int(np.ceil(extraBins0*rate/fs) + extraBins1)
+            excessBins = int(np.ceil(extraBins0*rate/source.rate) + extraBins1)
             X = X[:, 0:-excessBins]
             X = X.astype('float32')     # signal (nChannels,nSamples)
-            X /= 1e6                    # Scales signals back to Volt
+            X /= 1e6                    # Scales signals back to volts
 
             # Add preprocessed downsampled signals as an electrical_series
-            #######
-            car = 'None' if config['CAR'] is None else str(config['CAR'])
+            referencing = 'None' if config['referencing'] is None else config[
+                'referencing'][0]
             notch = 'None' if config['Notch'] is None else str(config['Notch'])
             downs = 'No' if config['Downsample'] is None else 'Yes'
-            config_comment = 'CAR:'+car+', Notch:'+notch+', Downsampled:'+downs
-            #######
+            config_comment = (
+                'referencing:' + referencing
+                + ',Notch:' + notch
+                + ', Downsampled:' + downs
+            )
 
-            lfp_ts = lfp.create_electrical_series(name='preprocessed',
-                                                  data=X.T,
-                                                  electrodes=source.electrodes,
-                                                  rate=rate,
-                                                  description='',
-                                                  comments=config_comment)
+            # create an electrical series for the LFP and store it in lfp
+            lfp_ts = lfp.create_electrical_series(
+                name='preprocessed',
+                data=X.T,
+                electrodes=electrodes,
+                rate=rate,
+                description='',
+                comments=config_comment
+            )
             ecephys_module.add_data_interface(lfp)
 
             # Write LFP to NWB file
@@ -286,8 +296,9 @@ def get_bipolar_referenced_electrodes(X, electrodes, rate, grid_shape=None):
         for name in column_names
     ]
     bipolarTable = DynamicTable(
-        name='bipolar data',
-        description='pseudo-channels derived via John Burke style bipolar referencing',
+        name='bipolar-referenced metadata',
+        description=('pseudo-channels derived via John Burke style'
+                     ' bipolar referencing'),
         colnames=column_names,
         columns=columns,
     )
@@ -340,15 +351,7 @@ def get_bipolar_referenced_electrodes(X, electrodes, rate, grid_shape=None):
     bipolarTableRegion = bipolarTable.create_region(
         'electrodes', [i for i in range(Nchannels)], 'all bipolar electrodes')
 
-    # store the region and the accompanying data (XX) as an ElectricalSeries
-    return ElectricalSeries(
-        name='bipolar referenced',
-        data=XX.T,
-        electrodes=bipolarTableRegion,
-        rate=rate,
-        description='',
-        comments=''
-    )
+    return XX, bipolarTable, bipolarTableRegion
 
 
 def spectral_decomposition(block_path, bands_vals):
@@ -371,8 +374,8 @@ def spectral_decomposition(block_path, bands_vals):
     """
 
     # Get filter parameters
-    band_param_0 = bands_vals[0,:]
-    band_param_1 = bands_vals[1,:]
+    band_param_0 = bands_vals[0, :]
+    band_param_1 = bands_vals[1, :]
 
     with NWBHDF5IO(block_path, 'r+', load_namespaces=True) as io:
         nwb = io.read()
@@ -384,7 +387,7 @@ def spectral_decomposition(block_path, bands_vals):
         nChannels = lfp.data.shape[1]
         Xp = np.zeros((nBands, nChannels, nSamples))  #power (nBands,nChannels,nSamples)
 
-        # Apply Hilbert transform ----------------------------------------------
+        # Apply Hilbert transform ---------------------------------------------
         print('Running Spectral Decomposition...')
         start = time.time()
         for ch in np.arange(nChannels):

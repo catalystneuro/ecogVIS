@@ -673,13 +673,13 @@ class PreprocessingDialog(QtGui.QDialog, Ui_Preprocessing):
                 _, car = car.split(':')
                 _, notch = notch.split(':')
                 _, downs = downs.split(':')
-                if car=='None':
+                if car == 'None':
                     self.checkBox_1.setChecked(False)
                 self.lineEdit_1.setText(car)
-                if notch=='None':
+                if notch == 'None':
                     self.checkBox_2.setChecked(False)
                 self.lineEdit_2.setText(notch)
-                if downs=='No':
+                if downs == 'No':
                     self.checkBox_3.setChecked(False)
                 self.lineEdit_3.setText(str(aux.rate))
                 self.pushButton_1.setEnabled(True)
@@ -694,19 +694,23 @@ class PreprocessingDialog(QtGui.QDialog, Ui_Preprocessing):
         self.label_2.setText('Preprocessing ECoG signals.\nPlease wait...')
         config = {}
         if self.checkBox_1.isChecked():
-            config['CAR'] = int(self.lineEdit_1.text())
-        else: config['CAR'] = None
+            config['referencing'] = ('CAR', int(self.lineEdit_1.text()))
+        else:
+            config['referencing'] = None
         if self.checkBox_2.isChecked():
             config['Notch'] = float(self.lineEdit_2.text())
-        else: config['Notch'] = None
+        else:
+            config['Notch'] = None
         if self.checkBox_3.isChecked():
             config['Downsample'] = float(self.lineEdit_3.text())
-        else: config['Downsample'] = None
+        else:
+            config['Downsample'] = None
         subj, aux = self.fname.split('_')
         block = [ aux.split('.')[0][1:] ]
-        self.thread = ProcessingDataFunction(path=self.fpath, subject=subj,
-                                   blocks=block, mode='preprocess',
-                                   config=config)
+        self.thread = ProcessingDataFunction(
+            path=self.fpath, subject=subj, blocks=block, mode='preprocess',
+            config=config
+        )
         self.thread.finished.connect(lambda: self.out_close(1))
         self.thread.start()
 
