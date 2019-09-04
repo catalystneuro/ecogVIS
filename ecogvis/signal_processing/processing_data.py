@@ -300,9 +300,7 @@ def get_bipolar_referenced_electrodes(X, electrodes, rate, grid_shape=None):
     # malloc
     area = np.prod(grid_shape)
     chan_layout = np.arange(area-1, -1, -1).reshape(grid_shape).T
-    perimeter = 2*np.sum(grid_shape - 1)
-    corners = 4
-    Nchannels = 4*area - 1*perimeter - 1*corners
+    Nchannels = 2*area - np.sum(grid_shape)
     XX = np.zeros((Nchannels, X.shape[1]))
 
     # create a new dynamic table to hold the metadata
@@ -356,16 +354,12 @@ def get_bipolar_referenced_electrodes(X, electrodes, rate, grid_shape=None):
         i, j = [ind_array[0] for ind_array in np.where(chan_layout == iElectrode)]
 
         # store differences
-        if j > 0:
-            iChannel = add_new_channel(iChannel, iElectrode, chan_layout[i, j-1])
-        if i > 0:
-            iChannel = add_new_channel(iChannel, iElectrode, chan_layout[i-1, j])
         if j < grid_shape[1]-1:
             iChannel = add_new_channel(iChannel, iElectrode, chan_layout[i, j+1])
         if i < grid_shape[0]-1:
             iChannel = add_new_channel(iChannel, iElectrode, chan_layout[i+1, j])
 
-    # create one big region for the enture table
+    # create one big region for the entire table
     bipolarTableRegion = bipolarTable.create_region(
         'electrodes', [i for i in range(Nchannels)], 'all bipolar electrodes')
 
