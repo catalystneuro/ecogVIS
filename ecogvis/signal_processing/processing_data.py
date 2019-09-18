@@ -269,9 +269,9 @@ def get_bipolar_referenced_electrodes(X, electrodes, rate, grid_shape=None):
     '''
     Bipolar referencing of electrodes according to the scheme of Dr. John Burke
 
-    Each electrode (with obvious exceptions at the edges) yields four bipolar-
-    referenced channels, one for each of the 90-degree neighbors.  These are
-    returned as an ElectricalSeries.
+    Each electrode (with obvious exceptions at the edges) yields two bipolar-
+    referenced channels, one for the "right" and one for the "below" neighbors.
+    These are returned as an ElectricalSeries.
 
     Input arguments:
     --------
@@ -323,7 +323,7 @@ def get_bipolar_referenced_electrodes(X, electrodes, rate, grid_shape=None):
     def add_new_channel(iChannel, iElectrode, jElectrode):
         jElectrode = int(jElectrode)
 
-        # update the traces
+        # "bipolar referencing": the difference of neighboring electrodes
         XX[iChannel, :] = X[iElectrode, :] - X[jElectrode, :]
 
         # add a row to the table for this new pseudo-electrode
