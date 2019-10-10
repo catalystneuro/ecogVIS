@@ -265,7 +265,9 @@ def preprocess_raw_data(block_path, config):
             print('LFP saved in '+block_path)
 
 
-def get_bipolar_referenced_electrodes(X, electrodes, rate, grid_shape=None):
+def get_bipolar_referenced_electrodes(
+    X, electrodes, rate, grid_shape=None, subsample_rate=None
+):
     '''
     Bipolar referencing of electrodes according to the scheme of Dr. John Burke
 
@@ -298,9 +300,11 @@ def get_bipolar_referenced_electrodes(X, electrodes, rate, grid_shape=None):
         grid_shape = np.array([16, 16])
 
     # malloc
-    area = np.prod(grid_shape)
-    chan_layout = np.arange(area-1, -1, -1).reshape(grid_shape).T
-    Nchannels = 2*area - np.sum(grid_shape)
+    elec_layout = np.arange(np.prod(grid_shape)-1, -1, -1).reshape(grid_shape).T
+    if subsample_rate is not None:
+        elec_layout = elec_layout[::subsample_rate, ::subsample_rate]
+        grid_shape = elec_layout.shape
+    Nchannels = 2*np.prod(grid_shape) - np.sum(grid_shape)
     XX = np.zeros((Nchannels, X.shape[1]))
 
     # create a new dynamic table to hold the metadata
@@ -348,16 +352,16 @@ def get_bipolar_referenced_electrodes(X, electrodes, rate, grid_shape=None):
         return iChannel+1
 
     iChannel = 0
-    # store in the original order of electrodes (such as you can)
-    for iElectrode in range(area):
-        # get the location of this electrode in grid space
-        i, j = [ind_array[0] for ind_array in np.where(chan_layout == iElectrode)]
 
-        # store differences
-        if j < grid_shape[1]-1:
-            iChannel = add_new_channel(iChannel, iElectrode, chan_layout[i, j+1])
-        if i < grid_shape[0]-1:
-            iChannel = add_new_channel(iChannel, iElectrode, chan_layout[i+1, j])
+    # loop across columns and rows
+    for i in range(grid_shape[0]):
+        for j in range(grid_shape[1]):
+            if j < grid_shape[1]-1:
+                iChannel = add_new_channel(
+                    iChannel, elec_layout[i, j], elec_layout[i, j+1])
+            if i < grid_shape[0]-1:
+                iChannel = add_new_channel(
+                    iChannel, elec_layout[i, j], elec_layout[i+1, j])
 
     # create one big region for the entire table
     bipolarTableRegion = bipolarTable.create_region(
