@@ -303,7 +303,7 @@ def get_bipolar_referenced_electrodes(
     elec_layout = np.arange(np.prod(grid_shape)-1, -1, -1).reshape(grid_shape).T
     if subsample_rate is not None:
         elec_layout = elec_layout[::subsample_rate, ::subsample_rate]
-        grid_shape = elec_layout.shape
+        grid_shape = elec_layout.T.shape
     Nchannels = 2*np.prod(grid_shape) - np.sum(grid_shape)
     XX = np.zeros((Nchannels, X.shape[1]))
 
@@ -353,13 +353,13 @@ def get_bipolar_referenced_electrodes(
 
     iChannel = 0
 
-    # loop across columns and rows
-    for i in range(grid_shape[0]):
-        for j in range(grid_shape[1]):
-            if j < grid_shape[1]-1:
+    # loop across columns and rows (remember that grid shape is transposed...)
+    for i in range(grid_shape[1]):
+        for j in range(grid_shape[0]):
+            if j < grid_shape[0]-1:
                 iChannel = add_new_channel(
                     iChannel, elec_layout[i, j], elec_layout[i, j+1])
-            if i < grid_shape[0]-1:
+            if i < grid_shape[1]-1:
                 iChannel = add_new_channel(
                     iChannel, elec_layout[i, j], elec_layout[i+1, j])
 
