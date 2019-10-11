@@ -266,7 +266,7 @@ def preprocess_raw_data(block_path, config):
 
 
 def get_bipolar_referenced_electrodes(
-    X, electrodes, rate, grid_shape=None, subsample_rate=None
+    X, electrodes, rate, grid_size=None, subsample_rate=None
 ):
     '''
     Bipolar referencing of electrodes according to the scheme of Dr. John Burke
@@ -284,7 +284,7 @@ def get_bipolar_referenced_electrodes(
         traces are in X
     rate:
         sampling rate of X; for storage in ElectricalSeries
-    grid_shape:
+    grid_size:
         numpy array with the two dimensions of the grid (2, )
 
     Returns:
@@ -296,15 +296,15 @@ def get_bipolar_referenced_electrodes(
     '''
 
     # set mutable default argument(s)
-    if grid_shape is None:
-        grid_shape = np.array([16, 16])
+    if grid_size is None:
+        grid_size = np.array([16, 16])
 
     # malloc
-    elec_layout = np.arange(np.prod(grid_shape)-1, -1, -1).reshape(grid_shape).T
+    elec_layout = np.arange(np.prod(grid_size)-1, -1, -1).reshape(grid_size).T
     if subsample_rate is not None:
         elec_layout = elec_layout[::subsample_rate, ::subsample_rate]
-        grid_shape = elec_layout.T.shape
-    Nchannels = 2*np.prod(grid_shape) - np.sum(grid_shape)
+        grid_size = elec_layout.T.shape
+    Nchannels = 2*np.prod(grid_size) - np.sum(grid_size)
     XX = np.zeros((Nchannels, X.shape[1]))
 
     # create a new dynamic table to hold the metadata
@@ -354,12 +354,12 @@ def get_bipolar_referenced_electrodes(
     iChannel = 0
 
     # loop across columns and rows (remember that grid shape is transposed...)
-    for i in range(grid_shape[1]):
-        for j in range(grid_shape[0]):
-            if j < grid_shape[0]-1:
+    for i in range(grid_size[1]):
+        for j in range(grid_size[0]):
+            if j < grid_size[0]-1:
                 iChannel = add_new_channel(
                     iChannel, elec_layout[i, j], elec_layout[i, j+1])
-            if i < grid_shape[1]-1:
+            if i < grid_size[1]-1:
                 iChannel = add_new_channel(
                     iChannel, elec_layout[i, j], elec_layout[i+1, j])
 
