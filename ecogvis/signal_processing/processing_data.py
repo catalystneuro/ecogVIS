@@ -266,7 +266,7 @@ def preprocess_raw_data(block_path, config):
 
 
 def get_bipolar_referenced_electrodes(
-    X, electrodes, rate, grid_size=None, subsample_rate=None
+    X, electrodes, rate, grid_size=None, grid_step=1
 ):
     '''
     Bipolar referencing of electrodes according to the scheme of Dr. John Burke
@@ -301,9 +301,8 @@ def get_bipolar_referenced_electrodes(
 
     # malloc
     elec_layout = np.arange(np.prod(grid_size)-1, -1, -1).reshape(grid_size).T
-    if subsample_rate is not None:
-        elec_layout = elec_layout[::subsample_rate, ::subsample_rate]
-        grid_size = elec_layout.T.shape
+    elec_layout = elec_layout[::grid_step, ::grid_step]
+    grid_size = elec_layout.T.shape  # in case grid_step > 1
     Nchannels = 2*np.prod(grid_size) - np.sum(grid_size)
     XX = np.zeros((Nchannels, X.shape[1]))
 
