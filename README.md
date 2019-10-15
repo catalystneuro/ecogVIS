@@ -1,7 +1,7 @@
 # ecogVIS
 Timeseries visualizer and data processing tools for Electrocorticography (ECoG) signals stored in [NWB](https://neurodatawithoutborders.github.io/) files, for Python.
 
-A collaboration with with [Chang Lab](http://changlab.ucsf.edu/).
+A collaboration with the [Chang Lab](http://changlab.ucsf.edu/).
 
 ![](media/screenshot_1.png)
 
