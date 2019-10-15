@@ -16,5 +16,5 @@ setup(name = 'ecogVIS',
       include_package_data = True,
       install_requires = ['PyQt5', 'matplotlib', 'cycler', 'scipy', 'numpy',
                           'h5py', 'pyqtgraph', 'pandas', 'pynwb==1.0.3',
-                          'hdmf==1.1.2', 'nwbext_ecog', 'ndx-spectrum', 'pyopengl'],
+                          'hdmf==1.1.2', 'nwbext_ecog==0.7.2', 'ndx-spectrum', 'pyopengl'],
       )
