@@ -63,14 +63,10 @@ def make_new_nwb(old_file, new_file, cp_objs=None):
             'devices': True,
             'electrode_groups': True,
             'electrodes': True,
-            'epochs': True,
-            'invalid_times': True,
-            'trials': True,
             'intervals': True,
             'stimulus': True,
             'subject': True,
-            'acquisition': 'default',
-            'ecephys': 'default'
+            'acquisition': 'default'
         }
 
     # Open original signal file
