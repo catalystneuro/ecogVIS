@@ -93,6 +93,7 @@ def make_new_nwb(old_file, new_file, cp_objs=None):
 
     nwb_copy_file(old_file, new_file, cp_objs=cp_objs)
 
+
 def preprocess_raw_data(block_path, config):
     """
     Takes raw data and runs:
@@ -185,6 +186,7 @@ def preprocess_raw_data(block_path, config):
                 X = source.data[()].T*1e6
 
             # re-reference the (scaled by 1e6!) data
+            electrodes = source.electrodes
             if config['referencing'] is not None:
                 if config['referencing'][0] == 'CAR':
                     print("Computing and subtracting Common Average Reference in "
@@ -193,10 +195,9 @@ def preprocess_raw_data(block_path, config):
                     X = subtract_CAR(X, b_size=config['referencing'][1])
                     print('CAR subtract time for {}: {} seconds'.format(
                         block_name, time.time()-start))
-                    electrodes = source.electrodes
                 elif config['referencing'][0] == 'bipolar':
                     X, bipolarTable, electrodes = get_bipolar_referenced_electrodes(
-                        X, source.electrodes, rate)
+                        X, electrodes, rate)
 
                     # add data interface for the metadata for saving
                     ecephys_module.add_data_interface(bipolarTable)
@@ -348,7 +349,7 @@ def get_bipolar_referenced_electrodes(
 
     iChannel = 0
 
-    # loop across columns and rows (remember that grid shape is transposed...)
+    # loop across columns and rows (remembering that grid is transposed)
     for i in range(grid_size[1]):
         for j in range(grid_size[0]):
             if j < grid_size[0]-1:
