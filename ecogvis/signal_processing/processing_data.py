@@ -200,7 +200,7 @@ def preprocess_raw_data(block_path, config):
                     electrodes = source.electrodes
                 elif config['referencing'][0] == 'bipolar':
                     X, bipolarTable, electrodes = get_bipolar_referenced_electrodes(
-                        X, source.electrodes, rate)
+                        X, source.electrodes, rate, subsample_rate=1)
 
                     # add data interface for the metadata for saving
                     ecephys_module.add_data_interface(bipolarTable)
