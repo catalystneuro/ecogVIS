@@ -15,9 +15,9 @@ dependencies:
 - cycler
 - h5py
 - pyqtgraph
-- pynwb
+- pynwb=1.0.3
 - pyopengl
-- hdmf
+- hdmf=1.1.2
 - pip:
   - PyQt5
   - nwbext_ecog==0.7.2

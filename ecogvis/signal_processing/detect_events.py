@@ -89,14 +89,22 @@ def detect_events(speaker_data, mic_data=None, interval=None, dfact=30,
 
         # Remove mic response to speaker
         micDS[np.where(speaker_filt > speaker_thresh)[0]] = 0
+
+        # Remove all mic responses before the first speaker event. There may be 
+        # extraneous responses picked up before the task is started.
+        micDS[:np.where(speaker_filt > speaker_thresh)[0][0]] = 0
+
         mic_filt = sgn.medfilt(volume=np.diff(np.append(micDS,micDS[-1]))**2,
                                kernel_size=int((smooth_width*ds//2)*2+1))
         mic_thresh = np.std(mic_filt)*threshold #2e-4
+
         #Find threshold crossing times
         micBinsDS = threshcross(mic_filt, mic_thresh, direction)
+
         #Remove detections too close in time (< 100 miliseconds)
-        rem_ind = np.where(np.diff(micBinsDS/ds)<.1)[0] + 1
-        micBinsDS = np.delete(micBinsDS, rem_ind)
+        # rem_ind = np.where(np.diff(micBinsDS/ds)<.1)[0] + 1
+        # micBinsDS = np.delete(micBinsDS, rem_ind)
+        
         #Transform bins to time
         micEventDS = micBinsDS/ds
 

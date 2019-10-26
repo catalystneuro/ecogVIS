@@ -63,14 +63,10 @@ def make_new_nwb(old_file, new_file, cp_objs=None):
             'devices': True,
             'electrode_groups': True,
             'electrodes': True,
-            'epochs': True,
-            'invalid_times': True,
-            'trials': True,
             'intervals': True,
             'stimulus': True,
             'subject': True,
-            'acquisition': 'default',
-            'ecephys': 'default'
+            'acquisition': 'default'
         }
 
     # Open original signal file
@@ -96,6 +92,7 @@ def make_new_nwb(old_file, new_file, cp_objs=None):
             cp_objs['ecephys'] = ece_vars
 
     nwb_copy_file(old_file, new_file, cp_objs=cp_objs)
+
 
 def preprocess_raw_data(block_path, config):
     """
@@ -189,6 +186,7 @@ def preprocess_raw_data(block_path, config):
                 X = source.data[()].T*1e6
 
             # re-reference the (scaled by 1e6!) data
+            electrodes = source.electrodes
             if config['referencing'] is not None:
                 if config['referencing'][0] == 'CAR':
                     print("Computing and subtracting Common Average Reference in "
@@ -197,10 +195,9 @@ def preprocess_raw_data(block_path, config):
                     X = subtract_CAR(X, b_size=config['referencing'][1])
                     print('CAR subtract time for {}: {} seconds'.format(
                         block_name, time.time()-start))
-                    electrodes = source.electrodes
                 elif config['referencing'][0] == 'bipolar':
                     X, bipolarTable, electrodes = get_bipolar_referenced_electrodes(
-                        X, source.electrodes, rate, subsample_rate=1)
+                        X, electrodes, rate, grid_step=1)
 
                     # add data interface for the metadata for saving
                     ecephys_module.add_data_interface(bipolarTable)
@@ -266,7 +263,7 @@ def preprocess_raw_data(block_path, config):
 
 
 def get_bipolar_referenced_electrodes(
-    X, electrodes, rate, grid_shape=None, subsample_rate=None
+    X, electrodes, rate, grid_size=None, grid_step=1
 ):
     '''
     Bipolar referencing of electrodes according to the scheme of Dr. John Burke
@@ -284,7 +281,7 @@ def get_bipolar_referenced_electrodes(
         traces are in X
     rate:
         sampling rate of X; for storage in ElectricalSeries
-    grid_shape:
+    grid_size:
         numpy array with the two dimensions of the grid (2, )
 
     Returns:
@@ -296,15 +293,14 @@ def get_bipolar_referenced_electrodes(
     '''
 
     # set mutable default argument(s)
-    if grid_shape is None:
-        grid_shape = np.array([16, 16])
+    if grid_size is None:
+        grid_size = np.array([16, 16])
 
     # malloc
-    elec_layout = np.arange(np.prod(grid_shape)-1, -1, -1).reshape(grid_shape).T
-    if subsample_rate is not None:
-        elec_layout = elec_layout[::subsample_rate, ::subsample_rate]
-        grid_shape = elec_layout.T.shape
-    Nchannels = 2*np.prod(grid_shape) - np.sum(grid_shape)
+    elec_layout = np.arange(np.prod(grid_size)-1, -1, -1).reshape(grid_size).T
+    elec_layout = elec_layout[::grid_step, ::grid_step]
+    grid_size = elec_layout.T.shape  # in case grid_step > 1
+    Nchannels = 2*np.prod(grid_size) - np.sum(grid_size)
     XX = np.zeros((Nchannels, X.shape[1]))
 
     # create a new dynamic table to hold the metadata
@@ -353,13 +349,13 @@ def get_bipolar_referenced_electrodes(
 
     iChannel = 0
 
-    # loop across columns and rows (remember that grid shape is transposed...)
-    for i in range(grid_shape[1]):
-        for j in range(grid_shape[0]):
-            if j < grid_shape[0]-1:
+    # loop across columns and rows (remembering that grid is transposed)
+    for i in range(grid_size[1]):
+        for j in range(grid_size[0]):
+            if j < grid_size[0]-1:
                 iChannel = add_new_channel(
                     iChannel, elec_layout[i, j], elec_layout[i, j+1])
-            if i < grid_shape[1]-1:
+            if i < grid_size[1]-1:
                 iChannel = add_new_channel(
                     iChannel, elec_layout[i, j], elec_layout[i+1, j])
 
