@@ -2197,19 +2197,23 @@ class AudioEventDetection(QtGui.QDialog):
         panel0.setLayout(grid0)
 
         #Left panel - Detection ------------------------------------------------
-        labelDown = QLabel('Downsample:')
+        labelDown = QLabel('Downsample Factor:')
         self.qline3 = QLineEdit('800')
         labelDown.setToolTip('Downsample rate of raw signal.\n'
                              'Typical values: 500~900 Hz')
-        labelWidth = QLabel('Width:')
+        labelWidth = QLabel('Kernel Width:')
         self.qline4 = QLineEdit('.4')
         labelWidth.setToolTip('This will affect the width of \n'
-                               'the smoothing filter.\n'
+                               'the smoothing filter (seconds).\n'
                                'Typical values: .1 ~ 1')
-        labelThresh = QLabel('Threshold:')
+        labelSpeakerThresh = QLabel('Speaker Threshold:')
         self.qline5 = QLineEdit('.05')
-        labelThresh.setToolTip('This will affect the sensitivity to variation.\n'
+        labelSpeakerThresh.setToolTip('Threshold on the smoothed signal (standard deviations from the mean).\n'
                                'Typical values: .02 ~ .1')
+        labelMicThresh = QLabel('Mic Threshold:')
+        self.qline5b = QLineEdit('.1')
+        labelMicThresh.setToolTip('Threshold on the smoothed signal (standard deviations from the mean).\n'
+                               'Typical values: .05 ~ .5')
         self.push1_0 = QPushButton('Run Test')
         self.push1_0.clicked.connect(self.run_test)
 
@@ -2218,9 +2222,11 @@ class AudioEventDetection(QtGui.QDialog):
         grid1.addWidget(self.qline3, 0, 4, 1, 2)
         grid1.addWidget(labelWidth, 1, 0, 1, 4)
         grid1.addWidget(self.qline4, 1, 4, 1, 2)
-        grid1.addWidget(labelThresh, 2, 0, 1, 4)
+        grid1.addWidget(labelSpeakerThresh, 2, 0, 1, 4)
         grid1.addWidget(self.qline5, 2, 4, 1, 2)
-        grid1.addWidget(self.push1_0, 3, 0, 1, 6)
+        grid1.addWidget(labelMicThresh, 3, 0, 1, 4)
+        grid1.addWidget(self.qline5b, 3, 4, 1, 2)
+        grid1.addWidget(self.push1_0, 4, 0, 1, 6)
         grid1.setAlignment(QtCore.Qt.AlignTop)
         panel1 = QGroupBox('Detection Parameters')
         panel1.setFixedWidth(200)
@@ -2338,11 +2344,12 @@ class AudioEventDetection(QtGui.QDialog):
         speakerDS, speakerEventDS, speakerFilt, speakerThresh, \
         micDS, micEventDS, micFilt, micThresh \
             = detect_events(speaker_data=self.source_stim,
-                              mic_data=self.source_resp,
-                              interval=[self.plotBins[0],self.plotBins[-1]+1],
-                              dfact=self.fs/float(self.qline3.text()),
-                              smooth_width=float(self.qline4.text()),
-                              threshold=float(self.qline5.text()))
+                            mic_data=self.source_resp,
+                            interval=[self.plotBins[0],self.plotBins[-1]+1],
+                            dfact=self.fs/float(self.qline3.text()),
+                            smooth_width=float(self.qline4.text()),
+                            speaker_threshold=float(self.qline5.text()),
+                            mic_threshold=float(self.qline5b.text()))
         self.stimTimes = speakerEventDS + self.startTime
         self.respTimes = micEventDS + self.startTime
         #self.draw_scene()
@@ -2351,20 +2358,22 @@ class AudioEventDetection(QtGui.QDialog):
         #self.win.addLegend()
         #Plot speaker
         y0 = np.stack([speakerDS, speakerFilt, np.ones(speakerDS.shape)*speakerThresh],axis=1)
-        y0 /= np.max(np.abs(y0))
+        y0[:,0] /= np.max(np.abs(y0[:,0]))
+        y0[:,1:] /= np.max(np.abs(y0[:,1]))
         y0_names = ['Speaker','SpeakerFilt','SpeakerThresh']
-        y0_kargs = [{'width':1.},{'width':3.},{'width':1.,'style':QtCore.Qt.DashLine}]
+        y0_kargs = [{'color':(0,0,200),'width':1.},{'color':(0,200,200),'width':2.},{'color':(0,200,200),'width':1.,'style':QtCore.Qt.DashLine}]
         for name,kargs,column in zip(y0_names,y0_kargs,y0.T):
-            self.win.plot(self.xx, column+2, pen=pg.mkPen((0,0,200), **kargs), name=name)
+            self.win.plot(self.xx, column+2, pen=pg.mkPen(**kargs), name=name)
         for st in self.stimTimes:
             self.win.plot([st, st], [0, 3], pen=pg.mkPen((0,0,200), width=2.))
         #Plot responses
         y1 = np.stack([micDS, micFilt,np.ones(micDS.shape)*micThresh],axis=1)
-        y1 /= np.max(np.abs(y1))
+        y1[:,0] /= np.max(np.abs(y1[:,0]))
+        y1[:,1:] /= np.max(np.abs(y1[:,1]))
         y1_names = ['Mic','MicFilt','MicThresh']
-        y1_kargs = [{'width':1.},{'width':3.},{'width':1.,'style':QtCore.Qt.DashLine}]
+        y1_kargs = [{'color':(200,0,0),'width':1.},{'color':(0,0,0),'width':2.},{'color':(0,0,0),'width':1.,'style':QtCore.Qt.DashLine}]
         for name,kargs,column in zip(y1_names,y1_kargs,y1.T):
-            self.win.plot(self.xx, column+1, pen=pg.mkPen((200,0,0), **kargs), name=name)
+            self.win.plot(self.xx, column+1, pen=pg.mkPen(**kargs), name=name)
         for rt in self.respTimes:
             self.win.plot([rt, rt], [0, 3], pen=pg.mkPen((200,0,0), width=2.))
         #Axes parameters
@@ -2383,7 +2392,8 @@ class AudioEventDetection(QtGui.QDialog):
                                              mic_data=self.source_resp,
                                              dfact=self.fs/float(self.qline3.text()),
                                              smooth_width=float(self.qline4.text()),
-                                             threshold=float(self.qline5.text()))
+                                             speaker_threshold=float(self.qline5.text()),
+                                             mic_threshold=float(self.qline5b.text()))
         self.thread.finished.connect(lambda: self.out_close(1))
         self.thread.start()
 
@@ -2397,6 +2407,7 @@ class AudioEventDetection(QtGui.QDialog):
         self.qline3.setEnabled(False)
         self.qline4.setEnabled(False)
         self.qline5.setEnabled(False)
+        self.qline5b.setEnabled(False)
         self.push1_0.setEnabled(False)
         self.push2_0.setEnabled(False)
 
@@ -2428,13 +2439,15 @@ class AudioEventDetection(QtGui.QDialog):
 
 # Runs 'detect_events' function, useful to wait for thread ---------------------
 class EventDetectionFunction(QtCore.QThread):
-    def __init__(self, speaker_data, mic_data, dfact, smooth_width, threshold):
+    def __init__(self, speaker_data, mic_data, dfact, smooth_width,
+                 speaker_threshold, mic_threshold):
         super().__init__()
         self.source_stim = speaker_data
         self.source_resp = mic_data
         self.dfact = dfact
         self.smooth_width = smooth_width
-        self.threshold = threshold
+        self.stim_threshold = speaker_threshold
+        self.resp_threshold = mic_threshold
 
     def run(self):
         speakerDS, speakerEventDS, _, _, micDS, micEventDS, _, _ = detect_events(
@@ -2443,7 +2456,8 @@ class EventDetectionFunction(QtCore.QThread):
                                       interval=None,
                                       dfact=self.dfact,
                                       smooth_width=self.smooth_width,
-                                      threshold=self.threshold,
+                                      speaker_threshold=self.stim_threshold,
+                                      mic_threshold=self.resp_threshold,
                                       direction='both')
         self.stimTimes = speakerEventDS
         self.respTimes = micEventDS

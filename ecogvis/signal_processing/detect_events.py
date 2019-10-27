@@ -3,7 +3,7 @@ import scipy.signal as sgn
 from ecogvis.signal_processing.resample import *
 
 def detect_events(speaker_data, mic_data=None, interval=None, dfact=30,
-                  smooth_width=0.4, threshold=0.05, direction='both'):
+                  smooth_width=0.4, speaker_threshold=0.05, mic_threshold=0.05, direction='both'):
     """
     Automatically detects events in audio signals.
 
@@ -19,8 +19,10 @@ def detect_events(speaker_data, mic_data=None, interval=None, dfact=30,
         Downsampling factor. Default 30.
     smooth_width: float
         Width scale for median smoothing filter (default = .4, decent for CVs).
-    threshold : float
-        Sets threshold level.
+    speaker_threshold : float
+        Sets threshold level for speaker.
+    mic_threshold : float
+        Sets threshold level for mic.
     direction : str
         'Up' detects events start times. 'Down' detects events stop times. 'Both'
         detects both start and stop times.
@@ -67,7 +69,7 @@ def detect_events(speaker_data, mic_data=None, interval=None, dfact=30,
         #kernel size must be an odd number
         speakerFilt = sgn.medfilt(volume=np.diff(np.append(speakerDS,speakerDS[-1]))**2,
                                    kernel_size=int((smooth_width*ds//2)*2+1))
-        speakerThresh = np.std(speakerFilt)*threshold
+        speakerThresh = np.std(speakerFilt) * speaker_threshold
         #Find threshold crossing times
         stimBinsDS = threshcross(speakerFilt, speakerThresh, direction)
         #Remove detections too close in time (< 100 miliseconds)
@@ -99,7 +101,7 @@ def detect_events(speaker_data, mic_data=None, interval=None, dfact=30,
         micDS[np.where(speakerFilt > speakerThresh)[0]] = 0
         micFilt = sgn.medfilt(volume=np.diff(np.append(micDS,micDS[-1]))**2,
                                kernel_size=int((smooth_width*ds//2)*2+1))
-        micThresh = np.std(micFilt)*threshold #2e-4
+        micThresh = np.std(micFilt) * mic_threshold #2e-4
         #Find threshold crossing times
         micBinsDS = threshcross(micFilt, micThresh, direction)
         #Remove detections too close in time (< 100 miliseconds)
