@@ -2335,13 +2335,14 @@ class AudioEventDetection(QtGui.QDialog):
         self.win.getAxis('bottom').setPen(pg.mkPen(color=(50,50,50)))
 
     def run_test(self):
-        speakerDS, speakerEventDS, micDS, micEventDS = detect_events(
-                                      speaker_data=self.source_stim,
-                                      mic_data=self.source_resp,
-                                      interval=[self.plotBins[0],self.plotBins[-1]+1],
-                                      dfact=self.fs/float(self.qline3.text()),
-                                      smooth_width=float(self.qline4.text()),
-                                      threshold=float(self.qline5.text()))
+        speakerDS, speakerEventDS, speakerFilt, speakerThresh, \
+        micDS, micEventDS, micFilt, micThresh \
+            = detect_events(speaker_data=self.source_stim,
+                              mic_data=self.source_resp,
+                              interval=[self.plotBins[0],self.plotBins[-1]+1],
+                              dfact=self.fs/float(self.qline3.text()),
+                              smooth_width=float(self.qline4.text()),
+                              threshold=float(self.qline5.text()))
         self.stimTimes = speakerEventDS + self.startTime
         self.respTimes = micEventDS + self.startTime
         #self.draw_scene()
@@ -2349,15 +2350,21 @@ class AudioEventDetection(QtGui.QDialog):
         self.win.clear()
         #self.win.addLegend()
         #Plot speaker
-        y0 = speakerDS
+        y0 = np.stack([speakerDS, speakerFilt, np.ones(speakerDS.shape)*speakerThresh],axis=1)
         y0 /= np.max(np.abs(y0))
-        self.win.plot(self.xx, y0+2, pen=pg.mkPen((0,0,200), width=1.), name='Speaker')
+        y0_names = ['Speaker','SpeakerFilt','SpeakerThresh']
+        y0_kargs = [{'width':1.},{'width':3.},{'width':1.,'style':QtCore.Qt.DashLine}]
+        for name,kargs,column in zip(y0_names,y0_kargs,y0.T):
+            self.win.plot(self.xx, column+2, pen=pg.mkPen((0,0,200), **kargs), name=name)
         for st in self.stimTimes:
             self.win.plot([st, st], [0, 3], pen=pg.mkPen((0,0,200), width=2.))
         #Plot responses
-        y1 = micDS
+        y1 = np.stack([micDS, micFilt,np.ones(micDS.shape)*micThresh],axis=1)
         y1 /= np.max(np.abs(y1))
-        self.win.plot(self.xx, y1+1, pen=pg.mkPen((200,0,0), width=1.), name='Mic')
+        y1_names = ['Mic','MicFilt','MicThresh']
+        y1_kargs = [{'width':1.},{'width':3.},{'width':1.,'style':QtCore.Qt.DashLine}]
+        for name,kargs,column in zip(y1_names,y1_kargs,y1.T):
+            self.win.plot(self.xx, column+1, pen=pg.mkPen((200,0,0), **kargs), name=name)
         for rt in self.respTimes:
             self.win.plot([rt, rt], [0, 3], pen=pg.mkPen((200,0,0), width=2.))
         #Axes parameters
@@ -2430,7 +2437,7 @@ class EventDetectionFunction(QtCore.QThread):
         self.threshold = threshold
 
     def run(self):
-        speakerDS, speakerEventDS, micDS, micEventDS = detect_events(
+        speakerDS, speakerEventDS, _, _, micDS, micEventDS, _, _ = detect_events(
                                       speaker_data=self.source_stim,
                                       mic_data=self.source_resp,
                                       interval=None,
