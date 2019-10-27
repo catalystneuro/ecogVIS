@@ -2211,7 +2211,7 @@ class AudioEventDetection(QtGui.QDialog):
         labelSpeakerThresh.setToolTip('Threshold on the smoothed signal (standard deviations from the mean).\n'
                                'Typical values: .02 ~ .1')
         labelMicThresh = QLabel('Mic Threshold:')
-        self.qline5b = QLineEdit('.1')
+        self.qline6 = QLineEdit('.1')
         labelMicThresh.setToolTip('Threshold on the smoothed signal (standard deviations from the mean).\n'
                                'Typical values: .05 ~ .5')
         self.push1_0 = QPushButton('Run Test')
@@ -2225,17 +2225,27 @@ class AudioEventDetection(QtGui.QDialog):
         grid1.addWidget(labelSpeakerThresh, 2, 0, 1, 4)
         grid1.addWidget(self.qline5, 2, 4, 1, 2)
         grid1.addWidget(labelMicThresh, 3, 0, 1, 4)
-        grid1.addWidget(self.qline5b, 3, 4, 1, 2)
+        grid1.addWidget(self.qline6, 3, 4, 1, 2)
         grid1.addWidget(self.push1_0, 4, 0, 1, 6)
         grid1.setAlignment(QtCore.Qt.AlignTop)
         panel1 = QGroupBox('Detection Parameters')
         panel1.setFixedWidth(200)
         panel1.setLayout(grid1)
 
+        labelDetectStart = QLabel('Start [sec]:')
+        self.qline7 = QLineEdit('0')
+        self.qline7.returnPressed.connect(self.reset_draw)
+        labelDetectStop = QLabel('Stop [sec]:')
+        self.qline8 = QLineEdit('end')
+        self.qline8.returnPressed.connect(self.reset_draw)
         self.push2_0 = QPushButton('Run Detection')
         self.push2_0.clicked.connect(self.run_detection)
         grid2 = QGridLayout()
-        grid2.addWidget(self.push2_0)
+        grid2.addWidget(labelDetectStart, 0, 0, 1, 4)
+        grid2.addWidget(self.qline7, 0, 4, 1, 2)
+        grid2.addWidget(labelDetectStop, 1, 0, 1, 4)
+        grid2.addWidget(self.qline8, 1, 4, 1, 2)
+        grid2.addWidget(self.push2_0, 2, 0, 1, 6)
         panel2 = QGroupBox('Run for whole signal')
         panel2.setFixedWidth(200)
         panel2.setLayout(grid2)
@@ -2318,9 +2328,26 @@ class AudioEventDetection(QtGui.QDialog):
         self.plotBins = np.clip(self.plotBins, 0, self.nTotalBins-1).astype('int')
         self.x = self.plotBins/self.fs
 
+    def set_detect_interval(self):
+        """Sets new detect interval"""
+        # Control for invalid values and ranges
+        if self.qline8.text()=='end':
+            self.qline8.setText(str(np.round(self.maxTime,1)))
+        self.detectStartTime = np.clip(float(self.qline7.text()), 0, self.maxTime-1.1)
+        self.detectStopTime = np.clip(float(self.qline8.text()), 1.1, self.maxTime)
+        if (self.detectStopTime-self.detectStartTime)<1:
+            self.detectStopTime = self.detectStartTime + 1
+        self.qline7.setText(str(np.round(self.detectStartTime,1)))
+        self.qline8.setText(str(np.round(self.detectStopTime,1)))
+        #Calculate correspondent bins
+        self.detectStartBin = int(self.detectStartTime*self.fs)
+        self.detectStopBin = int(self.detectStopTime*self.fs)
+
+
     def draw_scene(self):
         """Draws signal and detection points."""
         self.set_interval()
+        self.set_detect_interval()
         self.win.clear()
         #self.win.addLegend()
         #Plot stimuli
@@ -2349,7 +2376,7 @@ class AudioEventDetection(QtGui.QDialog):
                             dfact=self.fs/float(self.qline3.text()),
                             smooth_width=float(self.qline4.text()),
                             speaker_threshold=float(self.qline5.text()),
-                            mic_threshold=float(self.qline5b.text()))
+                            mic_threshold=float(self.qline6.text()))
         self.stimTimes = speakerEventDS + self.startTime
         self.respTimes = micEventDS + self.startTime
         #self.draw_scene()
@@ -2386,14 +2413,17 @@ class AudioEventDetection(QtGui.QDialog):
         self.win.getAxis('bottom').setPen(pg.mkPen(color=(50,50,50)))
 
     def run_detection(self):
+        self.set_detect_interval()
         self.disable_all()
-        self.plotTitle.setText('Running event detection. Please wait...')
+        self.plotTitle.setText(f'Running event detection {self.detectStartTime}-{self.detectStopTime}s. Please wait...')
         self.thread = EventDetectionFunction(speaker_data=self.source_stim,
                                              mic_data=self.source_resp,
+                                             interval=[self.detectStartBin,self.detectStopBin+1],
+                                             time_offset=self.detectStartTime,
                                              dfact=self.fs/float(self.qline3.text()),
                                              smooth_width=float(self.qline4.text()),
                                              speaker_threshold=float(self.qline5.text()),
-                                             mic_threshold=float(self.qline5b.text()))
+                                             mic_threshold=float(self.qline6.text()))
         self.thread.finished.connect(lambda: self.out_close(1))
         self.thread.start()
 
@@ -2407,7 +2437,9 @@ class AudioEventDetection(QtGui.QDialog):
         self.qline3.setEnabled(False)
         self.qline4.setEnabled(False)
         self.qline5.setEnabled(False)
-        self.qline5b.setEnabled(False)
+        self.qline6.setEnabled(False)
+        self.qline7.setEnabled(False)
+        self.qline8.setEnabled(False)
         self.push1_0.setEnabled(False)
         self.push2_0.setEnabled(False)
 
@@ -2439,11 +2471,13 @@ class AudioEventDetection(QtGui.QDialog):
 
 # Runs 'detect_events' function, useful to wait for thread ---------------------
 class EventDetectionFunction(QtCore.QThread):
-    def __init__(self, speaker_data, mic_data, dfact, smooth_width,
+    def __init__(self, speaker_data, mic_data, interval, time_offset, dfact, smooth_width,
                  speaker_threshold, mic_threshold):
         super().__init__()
         self.source_stim = speaker_data
         self.source_resp = mic_data
+        self.interval = interval
+        self.time_offset = time_offset
         self.dfact = dfact
         self.smooth_width = smooth_width
         self.stim_threshold = speaker_threshold
@@ -2453,11 +2487,11 @@ class EventDetectionFunction(QtCore.QThread):
         speakerDS, speakerEventDS, _, _, micDS, micEventDS, _, _ = detect_events(
                                       speaker_data=self.source_stim,
                                       mic_data=self.source_resp,
-                                      interval=None,
+                                      interval=self.interval,
                                       dfact=self.dfact,
                                       smooth_width=self.smooth_width,
                                       speaker_threshold=self.stim_threshold,
                                       mic_threshold=self.resp_threshold,
                                       direction='both')
-        self.stimTimes = speakerEventDS
-        self.respTimes = micEventDS
+        self.stimTimes = speakerEventDS + self.time_offset
+        self.respTimes = micEventDS + self.time_offset
