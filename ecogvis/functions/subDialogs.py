@@ -1042,7 +1042,7 @@ class PeriodogramGridDialog(QMainWindow):
             #Background
             loc = 'ctx-lh-'+self.parent.model.nwb.electrodes['location'][ch]
             vb = p.getViewBox()
-            color = tuple(cmap[loc])
+            color = tuple(cmap.get(loc, cmap['Unknown']))
             vb.setBackgroundColor((*color,min(elem_alpha,70)))  # append alpha to color tuple
             #Main plots
             if self.b1.isChecked() == True:
@@ -1169,7 +1169,7 @@ class IndividualPeriodogramDialog(QtGui.QDialog):
         #Background
         loc = 'ctx-lh-'+self.ancestor.model.nwb.electrodes['location'][self.ch]
         vb = p.getViewBox()
-        color = tuple(cmap[loc])
+        color = tuple(cmap.get(loc, cmap['Unknown']))
         vb.setBackgroundColor((*color,70))  # append alpha to color tuple
         #Main plots
         if self.b1.isChecked() == True:
@@ -1949,7 +1949,7 @@ class ERPDialog(QMainWindow):
             #Background
             loc = 'ctx-lh-'+self.parent.model.nwb.electrodes['location'][ch]
             vb = p.getViewBox()
-            color = tuple(cmap[loc])
+            color = tuple(cmap.get(loc, cmap['Unknown']))
             vb.setBackgroundColor((*color,min(elem_alpha,70)))  # append alpha to color tuple
             #Main plots
             mean = p.plot(x=X, y=Y_mean, pen=pg.mkPen((50,50,50,min(elem_alpha,255)), width=1.))
@@ -2132,7 +2132,7 @@ class IndividualERPDialog(QtGui.QDialog):
         #Background color
         loc = 'ctx-lh-'+self.parent.parent.parent.model.nwb.electrodes['location'][self.ch]
         vb = p.getViewBox()
-        color = tuple(cmap[loc])
+        color = tuple(cmap.get(loc, cmap['Unknown']))
         vb.setBackgroundColor((*color,70))  # append alpha to color tuple
         vb.border = pg.mkPen(color = 'w')
         #Main plots
