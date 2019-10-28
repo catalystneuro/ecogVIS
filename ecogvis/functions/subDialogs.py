@@ -2466,6 +2466,9 @@ class AudioEventDetection(QtGui.QDialog):
                 nwb.add_time_intervals(ti_resp)
                 #Write file
                 io.write(nwb)
+            self.parent.model.refresh_file()
+            self.parent.model.SpeakerAndMicIntervalAdd()
+            self.parent.model.refreshScreen()
         self.accept()
 
 
