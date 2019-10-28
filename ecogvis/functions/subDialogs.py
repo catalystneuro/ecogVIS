@@ -1730,7 +1730,7 @@ class ERPDialog(QMainWindow):
         self.grid_order = np.where(self.electrodes.table['group_name'].data[:]==self.elec_group)[0]
         self.nElecs = len(self.grid_order)
         self.nCols = 16
-        self.nRows = int(self.nElecs/self.nCols)
+        self.nRows = max(int(self.nElecs/self.nCols),1)
         self.set_grid()
         self.draw_erp()
 
