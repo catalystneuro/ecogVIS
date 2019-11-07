@@ -3,7 +3,7 @@ import scipy.signal as sgn
 from ecogvis.signal_processing.resample import *
 
 def detect_events(speaker_data, mic_data=None, interval=None, dfact=30,
-                  smooth_width=0.4, threshold=0.05, direction='both'):
+                  smooth_width=0.4, speaker_threshold=0.05, mic_threshold=0.05, direction='both'):
     """
     Automatically detects events in audio signals.
 
@@ -19,8 +19,10 @@ def detect_events(speaker_data, mic_data=None, interval=None, dfact=30,
         Downsampling factor. Default 30.
     smooth_width: float
         Width scale for median smoothing filter (default = .4, decent for CVs).
-    threshold : float
-        Sets threshold level.
+    speaker_threshold : float
+        Sets threshold level for speaker.
+    mic_threshold : float
+        Sets threshold level for mic.
     direction : str
         'Up' detects events start times. 'Down' detects events stop times. 'Both'
         detects both start and stop times.
@@ -31,14 +33,22 @@ def detect_events(speaker_data, mic_data=None, interval=None, dfact=30,
         Downsampled speaker signal.
     speakerEventDS : 1D array of floats
         Event times for speaker signal.
+    speakerFilt : 1D array of floats
+        Filtered speaker signal.
+    speakerThresh : float
+        Threshold for the speaker signal.
     micDS : 1D array of floats
         Downsampled microphone signal.
     micEventDS : 1D array of floats
         Event times for microphone signal.
+    micFilt : 1D array of floats
+        Filtered microphone signal.
+    micThresh : float
+        Threshold for the micorphone signal.
     """
 
     # Downsampling Speaker -----------------------------------------------------
-    speakerDS, speakerEventDS = None, None
+    speakerDS, speakerEventDS, speakerFilt, speakerThresh = None, None, None, None
     if speaker_data is not None:
         if interval is None:
             X = speaker_data.data[:]
@@ -57,11 +67,11 @@ def detect_events(speaker_data, mic_data=None, interval=None, dfact=30,
         speakerDS = speakerDS[0:-excessBins]
 
         #kernel size must be an odd number
-        speaker_filt = sgn.medfilt(volume=np.diff(np.append(speakerDS,speakerDS[-1]))**2,
+        speakerFilt = sgn.medfilt(volume=np.diff(np.append(speakerDS,speakerDS[-1]))**2,
                                    kernel_size=int((smooth_width*ds//2)*2+1))
-        speaker_thresh = np.std(speaker_filt)*threshold
+        speakerThresh = np.std(speakerFilt) * speaker_threshold
         #Find threshold crossing times
-        stimBinsDS = threshcross(speaker_filt, speaker_thresh, direction)
+        stimBinsDS = threshcross(speakerFilt, speakerThresh, direction)
         #Remove detections too close in time (< 100 miliseconds)
         rem_ind = np.where(np.diff(stimBinsDS/ds)<.1)[0] + 1
         stimBinsDS = np.delete(stimBinsDS, rem_ind)
@@ -69,7 +79,7 @@ def detect_events(speaker_data, mic_data=None, interval=None, dfact=30,
         speakerEventDS = stimBinsDS/ds
 
     # Downsampling Mic ---------------------------------------------------------
-    micDS, micEventDS = None, None
+    micDS, micEventDS, micFilt, micThresh = None, None, None, None
     if mic_data is not None:
         if interval is None:
             X = mic_data.data[:]
@@ -88,19 +98,12 @@ def detect_events(speaker_data, mic_data=None, interval=None, dfact=30,
         micDS = micDS[0:-excessBins]
 
         # Remove mic response to speaker
-        micDS[np.where(speaker_filt > speaker_thresh)[0]] = 0
-
-        # Remove all mic responses before the first speaker event. There may be 
-        # extraneous responses picked up before the task is started.
-        micDS[:np.where(speaker_filt > speaker_thresh)[0][0]] = 0
-
-        mic_filt = sgn.medfilt(volume=np.diff(np.append(micDS,micDS[-1]))**2,
+        micDS[np.where(speakerFilt > speakerThresh)[0]] = 0
+        micFilt = sgn.medfilt(volume=np.diff(np.append(micDS,micDS[-1]))**2,
                                kernel_size=int((smooth_width*ds//2)*2+1))
-        mic_thresh = np.std(mic_filt)*threshold #2e-4
-
+        micThresh = np.std(micFilt) * mic_threshold #2e-4
         #Find threshold crossing times
-        micBinsDS = threshcross(mic_filt, mic_thresh, direction)
-
+        micBinsDS = threshcross(micFilt, micThresh, direction)
         #Remove detections too close in time (< 100 miliseconds)
         # rem_ind = np.where(np.diff(micBinsDS/ds)<.1)[0] + 1
         # micBinsDS = np.delete(micBinsDS, rem_ind)
@@ -108,7 +111,8 @@ def detect_events(speaker_data, mic_data=None, interval=None, dfact=30,
         #Transform bins to time
         micEventDS = micBinsDS/ds
 
-    return speakerDS, speakerEventDS, micDS, micEventDS
+    return speakerDS, speakerEventDS, speakerFilt, speakerThresh, \
+           micDS, micEventDS, micFilt, micThresh
 
 
 def threshcross(data, threshold=0, direction='up'):
