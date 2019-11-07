@@ -174,7 +174,8 @@ class NoSpectrumDialog(QtGui.QDialog):
         self.val = -1
         self.text = QLabel(
             "There is no Spectrum data for " + self.type + " data in the "
-                                                           "current NWB file.\n" +
+                                                           "current NWB "
+                                                           "file.\n" +
             "To calculate the Power Spectral Density, click Calculate.")
         self.cancelButton = QtGui.QPushButton("Cancel")
         self.cancelButton.clicked.connect(lambda: self.out_close(val=-1))
@@ -954,37 +955,37 @@ class PeriodogramGridDialog(QMainWindow):
         if self.combo0.currentText() == 'raw':
             # PSD shape: ('frequency', 'channel')
             self.psd_fft = \
-            self.parent.model.nwb.processing['ecephys'].data_interfaces[
-                'Spectrum_fft_raw'].power
+                self.parent.model.nwb.processing['ecephys'].data_interfaces[
+                    'Spectrum_fft_raw'].power
             self.xf_fft = \
-            self.parent.model.nwb.processing['ecephys'].data_interfaces[
-                'Spectrum_fft_raw'].frequencies[:]
+                self.parent.model.nwb.processing['ecephys'].data_interfaces[
+                    'Spectrum_fft_raw'].frequencies[:]
             self.psd_welch = \
-            self.parent.model.nwb.processing['ecephys'].data_interfaces[
-                'Spectrum_welch_raw'].power
+                self.parent.model.nwb.processing['ecephys'].data_interfaces[
+                    'Spectrum_welch_raw'].power
             self.xf_welch = \
-            self.parent.model.nwb.processing['ecephys'].data_interfaces[
-                'Spectrum_welch_raw'].frequencies[:]
+                self.parent.model.nwb.processing['ecephys'].data_interfaces[
+                    'Spectrum_welch_raw'].frequencies[:]
             self.electrodes = \
-            self.parent.model.nwb.processing['ecephys'].data_interfaces[
-                'Spectrum_fft_raw'].electrodes
+                self.parent.model.nwb.processing['ecephys'].data_interfaces[
+                    'Spectrum_fft_raw'].electrodes
         elif self.combo0.currentText() == 'preprocessed':
             # PSD shape: ('frequency', 'channel')
             self.psd_fft = \
-            self.parent.model.nwb.processing['ecephys'].data_interfaces[
-                'Spectrum_fft_preprocessed'].power
+                self.parent.model.nwb.processing['ecephys'].data_interfaces[
+                    'Spectrum_fft_preprocessed'].power
             self.xf_fft = \
-            self.parent.model.nwb.processing['ecephys'].data_interfaces[
-                'Spectrum_fft_preprocessed'].frequencies[:]
+                self.parent.model.nwb.processing['ecephys'].data_interfaces[
+                    'Spectrum_fft_preprocessed'].frequencies[:]
             self.psd_welch = \
-            self.parent.model.nwb.processing['ecephys'].data_interfaces[
-                'Spectrum_welch_preprocessed'].power
+                self.parent.model.nwb.processing['ecephys'].data_interfaces[
+                    'Spectrum_welch_preprocessed'].power
             self.xf_welch = \
-            self.parent.model.nwb.processing['ecephys'].data_interfaces[
-                'Spectrum_welch_preprocessed'].frequencies[:]
+                self.parent.model.nwb.processing['ecephys'].data_interfaces[
+                    'Spectrum_welch_preprocessed'].frequencies[:]
             self.electrodes = \
-            self.parent.model.nwb.processing['ecephys'].data_interfaces[
-                'Spectrum_fft_preprocessed'].electrodes
+                self.parent.model.nwb.processing['ecephys'].data_interfaces[
+                    'Spectrum_fft_preprocessed'].electrodes
 
     def find_groups(self):
         """Find electrodes groups present in current file."""
@@ -1251,31 +1252,31 @@ class IndividualPeriodogramDialog(QtGui.QDialog):
         if self.combo0.currentText() == 'raw':
             # PSD shape: ('frequency', 'channel')
             self.psd_fft = \
-            self.ancestor.model.nwb.modules['ecephys'].data_interfaces[
-                'Spectrum_fft_raw'].power
+                self.ancestor.model.nwb.modules['ecephys'].data_interfaces[
+                    'Spectrum_fft_raw'].power
             self.xf_fft = \
-            self.ancestor.model.nwb.modules['ecephys'].data_interfaces[
-                'Spectrum_fft_raw'].frequencies[:]
+                self.ancestor.model.nwb.modules['ecephys'].data_interfaces[
+                    'Spectrum_fft_raw'].frequencies[:]
             self.psd_welch = \
-            self.ancestor.model.nwb.modules['ecephys'].data_interfaces[
-                'Spectrum_welch_raw'].power
+                self.ancestor.model.nwb.modules['ecephys'].data_interfaces[
+                    'Spectrum_welch_raw'].power
             self.xf_welch = \
-            self.ancestor.model.nwb.modules['ecephys'].data_interfaces[
-                'Spectrum_welch_raw'].frequencies[:]
+                self.ancestor.model.nwb.modules['ecephys'].data_interfaces[
+                    'Spectrum_welch_raw'].frequencies[:]
         elif self.combo0.currentText() == 'preprocessed':
             # PSD shape: ('frequency', 'channel')
             self.psd_fft = \
-            self.ancestor.model.nwb.modules['ecephys'].data_interfaces[
-                'Spectrum_fft_preprocessed'].power
+                self.ancestor.model.nwb.modules['ecephys'].data_interfaces[
+                    'Spectrum_fft_preprocessed'].power
             self.xf_fft = \
-            self.ancestor.model.nwb.modules['ecephys'].data_interfaces[
-                'Spectrum_fft_preprocessed'].frequencies[:]
+                self.ancestor.model.nwb.modules['ecephys'].data_interfaces[
+                    'Spectrum_fft_preprocessed'].frequencies[:]
             self.psd_welch = \
-            self.ancestor.model.nwb.modules['ecephys'].data_interfaces[
-                'Spectrum_welch_preprocessed'].power
+                self.ancestor.model.nwb.modules['ecephys'].data_interfaces[
+                    'Spectrum_welch_preprocessed'].power
             self.xf_welch = \
-            self.ancestor.model.nwb.modules['ecephys'].data_interfaces[
-                'Spectrum_welch_preprocessed'].frequencies[:]
+                self.ancestor.model.nwb.modules['ecephys'].data_interfaces[
+                    'Spectrum_welch_preprocessed'].frequencies[:]
         self.draw_periodograms()
 
     def draw_periodograms(self):
@@ -1703,25 +1704,26 @@ class ERPDialog(QMainWindow):
         self.Yscale = {}
 
         self.source = \
-        self.parent.model.nwb.processing['ecephys'].data_interfaces[
-            'high_gamma'].data
+            self.parent.model.nwb.processing['ecephys'].data_interfaces[
+                'high_gamma'].data
         self.fs = self.parent.model.nwb.processing['ecephys'].data_interfaces[
             'high_gamma'].rate
         self.electrodes = \
-        self.parent.model.nwb.processing['ecephys'].data_interfaces[
-            'high_gamma'].electrodes
+            self.parent.model.nwb.processing['ecephys'].data_interfaces[
+                'high_gamma'].electrodes
         self.speaker_start_times = \
-        self.parent.model.nwb.intervals['TimeIntervals_speaker'][
-            'start_time'].data[:]
+            self.parent.model.nwb.intervals['TimeIntervals_speaker'][
+                'start_time'].data[:]
         self.speaker_stop_times = \
-        self.parent.model.nwb.intervals['TimeIntervals_speaker'][
-            'stop_time'].data[:]
+            self.parent.model.nwb.intervals['TimeIntervals_speaker'][
+                'stop_time'].data[:]
         self.mic_start_times = \
-        self.parent.model.nwb.intervals['TimeIntervals_mic'][
-            'start_time'].data[:]
+            self.parent.model.nwb.intervals['TimeIntervals_mic'][
+                'start_time'].data[:]
         self.mic_stop_times = \
-        self.parent.model.nwb.intervals['TimeIntervals_mic']['stop_time'].data[
-        :]
+            self.parent.model.nwb.intervals['TimeIntervals_mic'][
+                'stop_time'].data[
+            :]
         # Get only reference times smaller than the main signal duration
         self.maxTime = self.source.shape[0] / self.fs
         self.speaker_start_times = self.speaker_start_times[
@@ -2589,16 +2591,20 @@ class AudioEventDetection(QtGui.QDialog):
         self.win.getAxis('bottom').setPen(pg.mkPen(color=(50, 50, 50)))
 
     def run_test(self):
-        speakerDS, speakerEventDS, speakerFilt, speakerThresh, \
-        micDS, micEventDS, micFilt, micThresh \
-            = detect_events(
+
+        # Assign the threshold values.
+        self.speakerThresh = float(self.qline5.text())
+        self.micThresh = float(self.qline6.text())
+
+        speakerDS, speakerEventDS, speakerFilt, micDS, micEventDS, micFilt =\
+            detect_events(
             speaker_data=self.source_stim,
             mic_data=self.source_resp,
             interval=[self.plotBins[0], self.plotBins[-1] + 1],
             dfact=self.fs / float(self.qline3.text()),
             smooth_width=float(self.qline4.text()),
-            speaker_threshold=float(self.qline5.text()),
-            mic_threshold=float(self.qline6.text())
+            speaker_threshold=self.speakerThresh,
+            mic_threshold=self.micThresh
         )
         self.stimTimes = speakerEventDS + self.startTime
         self.respTimes = micEventDS + self.startTime
@@ -2607,14 +2613,15 @@ class AudioEventDetection(QtGui.QDialog):
         self.win.clear()
 
         # Plot speaker
-        y0 = [speakerDS, speakerFilt, np.ones(speakerDS.shape) * speakerThresh]
+        y0 = [speakerDS, speakerFilt, np.ones(speakerDS.shape) * self.speakerThresh]
         y0[0] /= np.max(np.abs(y0[0]))
-        y0[1] /= np.max(np.abs(y0[1]))
         y0_names = ['Speaker', 'SpeakerFilt', 'SpeakerThresh']
         y0_kargs = [{'color': (0, 0, 200), 'width': 1.},
                     {'color': (0, 200, 200), 'width': 2.},
-                    {'color': (0, 200, 200), 'width': 1.,
-                        'style': QtCore.Qt.DashLine}]
+                    {
+                        'color': (0, 200, 200), 'width': 1.,
+                        'style': QtCore.Qt.DashLine
+                    }]
         for name, kargs, column in zip(y0_names, y0_kargs, y0):
             self.win.plot(self.xx, column + self.speaker_offset,
                           pen=pg.mkPen(**kargs), name=name)
@@ -2622,14 +2629,15 @@ class AudioEventDetection(QtGui.QDialog):
             self.win.plot([st, st], self.ylim,
                           pen=pg.mkPen((0, 0, 200), width=2.))
         # Plot responses
-        y1 = [micDS, micFilt, np.ones(micDS.shape) * micThresh]
+        y1 = [micDS, micFilt, np.ones(micDS.shape) * self.micThresh]
         y1[0] /= np.max(np.abs(y1[0]))
-        y1[1] /= np.max(np.abs(y1[1]))
         y1_names = ['Mic', 'MicFilt', 'MicThresh']
         y1_kargs = [{'color': (200, 0, 0), 'width': 1.},
                     {'color': (0, 0, 0), 'width': 2.},
-                    {'color': (0, 0, 0), 'width': 1.,
-                        'style': QtCore.Qt.DashLine}]
+                    {
+                        'color': (0, 0, 0), 'width': 1.,
+                        'style': QtCore.Qt.DashLine
+                    }]
         for name, kargs, column in zip(y1_names, y1_kargs, y1):
             self.win.plot(self.xx, column + self.mic_offset,
                           pen=pg.mkPen(**kargs), name=name)
@@ -2649,7 +2657,8 @@ class AudioEventDetection(QtGui.QDialog):
         self.set_detect_interval()
         self.disable_all()
         self.plotTitle.setText(
-            f'Running event detection {self.detectStartTime}-{self.detectStopTime}s. Please wait...')
+            f'Running event detection {self.detectStartTime}-'
+            f'{self.detectStopTime}s. Please wait...')
         self.thread = EventDetectionFunction(
             speaker_data=self.source_stim,
             mic_data=self.source_resp,
@@ -2727,7 +2736,7 @@ class EventDetectionFunction(QtCore.QThread):
         self.resp_threshold = mic_threshold
 
     def run(self):
-        speakerDS, speakerEventDS, _, _, micDS, micEventDS, _, _ = detect_events(
+        speakerDS, speakerEventDS, _, micDS, micEventDS, _ = detect_events(
             speaker_data=self.source_stim,
             mic_data=self.source_resp,
             interval=self.interval,
