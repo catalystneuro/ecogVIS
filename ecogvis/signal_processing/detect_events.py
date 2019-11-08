@@ -94,7 +94,7 @@ def detect_events(speaker_data, mic_data=None, interval=None, dfact=30,
         stimBinsDS = speaker_events.reshape((-1))
 
         # Transform bins to time
-        speakerEventDS = stimBinsDS / ds
+        speakerEventDS = (stimBinsDS  / ds) + (interval[0] / fs)
 
     # Downsampling Mic -------------------------------------------------------
 
@@ -139,7 +139,7 @@ def detect_events(speaker_data, mic_data=None, interval=None, dfact=30,
         micBinsDS = mic_events.reshape((-1))
 
         # Transform bins to time
-        micEventDS = micBinsDS / ds
+        micEventDS = (micBinsDS / ds) + (interval[0] / fs)
 
     return speakerDS, speakerEventDS, speakerFilt, micDS, micEventDS, micFilt
 

@@ -2375,8 +2375,6 @@ class AudioEventDetection(QtGui.QDialog):
         self.gray = (33, 47, 61)
 
         # Left panel - Plot Preview ------------------------------------------
-        self.push0_0 = QPushButton('Draw')
-        self.push0_0.clicked.connect(self.reset_draw)
         labelSpeaker = QLabel('Speaker:')
         self.combo0 = QComboBox()
         self.combo0.activated.connect(self.reset_draw)
@@ -2385,13 +2383,12 @@ class AudioEventDetection(QtGui.QDialog):
         self.combo1.activated.connect(self.reset_draw)
         labelStart = QLabel('Start [sec]:')
         self.qline1 = QLineEdit('0')
-        self.qline1.returnPressed.connect(self.reset_draw)
+        self.qline1.returnPressed.connect(self.draw_scene)
         labelStop = QLabel('Stop [sec]:')
         self.qline2 = QLineEdit('20')
-        self.qline2.returnPressed.connect(self.reset_draw)
+        self.qline2.returnPressed.connect(self.draw_scene)
 
         grid0 = QGridLayout()
-        grid0.addWidget(self.push0_0, 0, 0, 1, 6)
         grid0.addWidget(labelSpeaker, 1, 0, 1, 3)
         grid0.addWidget(self.combo0, 1, 3, 1, 3)
         grid0.addWidget(labelMic, 2, 0, 1, 3)
@@ -2447,10 +2444,8 @@ class AudioEventDetection(QtGui.QDialog):
 
         labelDetectStart = QLabel('Start [sec]:')
         self.qline7 = QLineEdit('0')
-        self.qline7.returnPressed.connect(self.reset_draw)
         labelDetectStop = QLabel('Stop [sec]:')
         self.qline8 = QLineEdit('end')
-        self.qline8.returnPressed.connect(self.reset_draw)
         self.push2_0 = QPushButton('Run Detection')
         self.push2_0.clicked.connect(self.run_detection)
         grid2 = QGridLayout()
@@ -2489,6 +2484,7 @@ class AudioEventDetection(QtGui.QDialog):
         self.resize(1100, 300)
         self.find_signals()
         self.reset_draw()
+        self.set_detect_interval()
         self.exec_()
 
     def find_signals(self):
@@ -2515,20 +2511,23 @@ class AudioEventDetection(QtGui.QDialog):
         self.source_stim = self.stimuli[stim]
         self.signal_stim = self.source_stim.data
         self.stimTimes = []  # clears any previous stim times
+        self.signal_stim_filt = None # clears any previous smoothed speaker
 
         # Response variables
         resp = self.combo1.currentText()
         self.source_resp = self.responses[resp]
         self.signal_resp = self.source_resp.data
         self.respTimes = []  # clears any previous resp times
+        self.signal_resp_filt = None
 
         # Common to both stim and resp
         self.fs = self.source_stim.rate
         self.nTotalBins = self.signal_stim.shape[0]
-        self.maxTime = self.nTotalBins / self.fs
+        self.timeaxis = np.arange(self.nTotalBins)/self.fs
+        self.maxTime = self.timeaxis[-1]
         self.draw_scene()
 
-    def set_interval(self):
+    def set_plot_interval(self):
         """Sets new interval."""
         # Control for invalid values and ranges
         self.startTime = np.clip(float(self.qline1.text()), 0,
@@ -2538,14 +2537,6 @@ class AudioEventDetection(QtGui.QDialog):
             self.stopTime = self.startTime + 1
         self.qline1.setText(str(np.round(self.startTime, 1)))
         self.qline2.setText(str(np.round(self.stopTime, 1)))
-
-        # Calculate correspondent bins
-        self.startBin = int(self.startTime * self.fs)
-        self.stopBin = int(self.stopTime * self.fs)
-        self.plotBins = np.arange(self.startBin, self.stopBin)
-        self.plotBins = np.clip(self.plotBins, 0, self.nTotalBins - 1).astype(
-            'int')
-        self.x = self.plotBins / self.fs
 
     def set_detect_interval(self):
         """Sets new detect interval"""
@@ -2567,25 +2558,68 @@ class AudioEventDetection(QtGui.QDialog):
 
     def draw_scene(self):
         """Draws signal and detection points."""
-        self.set_interval()
-        self.set_detect_interval()
+        self.set_plot_interval()
         self.win.clear()
         # self.win.addLegend()
 
         # Plot stimuli
-        y0 = self.signal_stim[self.plotBins[0]:self.plotBins[-1] + 1].astype(
-            float)
+        plotBins = np.logical_and(self.timeaxis>=self.startTime,
+                                  self.timeaxis<=self.stopTime)
+        x = self.timeaxis[plotBins]
+        y0 = self.signal_stim[plotBins].astype(float)
         y0 /= np.max(np.abs(y0))
-        self.win.plot(self.x, y0 + self.speaker_offset,
+        self.win.plot(x, y0 + self.speaker_offset,
                       pen=pg.mkPen(self.blue_light, width=1.),
                       name='Speaker')
 
         # Plot responses
-        y1 = self.signal_resp[self.plotBins[0]:self.plotBins[-1] + 1].astype(
-            float)
+        y1 = self.signal_resp[plotBins].astype(float)
         y1 /= np.max(np.abs(y1))
-        self.win.plot(self.x, y1 + self.mic_offset,
+        self.win.plot(x, y1 + self.mic_offset,
                       pen=pg.mkPen(self.red_light, width=1.), name='Mic')
+
+        if self.signal_stim_filt is not None \
+                and self.signal_resp_filt is not None:
+
+            plotBinsFilt = np.logical_and(self.timeaxis_filt>=self.startTime,
+                                          self.timeaxis_filt<=self.stopTime)
+            x_filt = self.timeaxis_filt[plotBinsFilt]
+
+            # Plot filtered stimulus and threshold
+            y0 = [self.signal_stim_filt[plotBinsFilt],
+                  np.ones(np.sum(plotBinsFilt)) * self.speakerThresh]
+            y0_names = ['SpeakerFilt', 'SpeakerThresh']
+            y0_kargs = [{'color': self.gray, 'width': 2.},
+                        {
+                            'color': self.blue, 'width': 1.5,
+                            'style': QtCore.Qt.DashLine
+                        }]
+            for name, kargs, column in zip(y0_names, y0_kargs, y0):
+                self.win.plot(x_filt, column + self.speaker_offset,
+                              pen=pg.mkPen(**kargs), name=name)
+
+            for st in self.stimTimes:
+                if st>self.startTime and st<=self.stopTime:
+                    self.win.plot([st, st], self.ylim,
+                                  pen=pg.mkPen(self.blue, width=2.))
+
+            # Plot filtered response and threshold
+            y1 = [self.signal_resp_filt[plotBinsFilt],
+                  np.ones(np.sum(plotBinsFilt)) * self.micThresh]
+            y1_names = ['MicFilt', 'MicThresh']
+            y1_kargs = [{'color': self.gray, 'width': 2.},
+                        {
+                            'color': self.red, 'width': 1.5,
+                            'style': QtCore.Qt.DashLine
+                        }]
+            for name, kargs, column in zip(y1_names, y1_kargs, y1):
+                self.win.plot(x_filt, column + self.mic_offset,
+                              pen=pg.mkPen(**kargs), name=name)
+
+            for rt in self.respTimes:
+                if rt>self.startTime and rt<=self.stopTime:
+                    self.win.plot([rt, rt], self.ylim,
+                                  pen=pg.mkPen(self.red, width=2.))
 
         # Axes parameters
         self.win.setXRange(self.startTime, self.stopTime)
@@ -2617,52 +2651,15 @@ class AudioEventDetection(QtGui.QDialog):
             mic_threshold=self.micThresh
         )
 
-        self.stimTimes = speakerEventDS + self.startTime
-        self.respTimes = micEventDS + self.startTime
-        self.xx = self.startTime + np.arange(len(speakerDS)) / float(
+        self.stimTimes = speakerEventDS
+        self.respTimes = micEventDS
+        self.timeaxis_filt = self.detectStartTime + np.arange(len(speakerDS)) / float(
             self.qline3.text())
-        self.win.clear()
+        self.signal_stim_filt = speakerFilt
+        self.signal_resp_filt = micFilt
 
-        # Plot speaker
-        y0 = [speakerDS, speakerFilt, np.ones(speakerDS.shape) * self.speakerThresh]
-        y0[0] /= np.max(np.abs(y0[0]))
-        y0_names = ['Speaker', 'SpeakerFilt', 'SpeakerThresh']
-        y0_kargs = [{'color': self.blue_light, 'width': 1.},
-                    {'color': self.gray, 'width': 2.},
-                    {
-                        'color': self.blue, 'width': 1.5,
-                        'style': QtCore.Qt.DashLine
-                    }]
-        for name, kargs, column in zip(y0_names, y0_kargs, y0):
-            self.win.plot(self.xx, column + self.speaker_offset,
-                          pen=pg.mkPen(**kargs), name=name)
-        for st in self.stimTimes:
-            self.win.plot([st, st], self.ylim,
-                          pen=pg.mkPen(self.blue, width=2.))
-        # Plot responses
-        y1 = [micDS, micFilt, np.ones(micDS.shape) * self.micThresh]
-        y1[0] /= np.max(np.abs(y1[0]))
-        y1_names = ['Mic', 'MicFilt', 'MicThresh']
-        y1_kargs = [{'color': self.red_light, 'width': 1.},
-                    {'color': self.gray, 'width': 2.},
-                    {
-                        'color': self.red, 'width': 1.5,
-                        'style': QtCore.Qt.DashLine
-                    }]
-        for name, kargs, column in zip(y1_names, y1_kargs, y1):
-            self.win.plot(self.xx, column + self.mic_offset,
-                          pen=pg.mkPen(**kargs), name=name)
-        for rt in self.respTimes:
-            self.win.plot([rt, rt], self.ylim,
-                          pen=pg.mkPen(self.red, width=2.))
-        # Axes parameters
-        self.win.setXRange(self.startTime, self.stopTime)
-        self.win.setYRange(self.ylim[0], self.ylim[1])
-        self.win.getAxis('left').setStyle(showValues=False)
-        self.win.getAxis('left').setTicks([])
-        self.win.getAxis('left').setPen(pg.mkPen(color=(50, 50, 50)))
-        self.win.setLabel('bottom', 'Time', units='sec')
-        self.win.getAxis('bottom').setPen(pg.mkPen(color=(50, 50, 50)))
+        self.draw_scene()
+
 
     def run_detection(self):
         self.set_detect_interval()
@@ -2674,7 +2671,6 @@ class AudioEventDetection(QtGui.QDialog):
             speaker_data=self.source_stim,
             mic_data=self.source_resp,
             interval=[self.detectStartBin, self.detectStopBin + 1],
-            time_offset=self.detectStartTime,
             dfact=self.fs / float(self.qline3.text()),
             smooth_width=float(self.qline4.text()),
             speaker_threshold=float(self.qline5.text()),
@@ -2733,14 +2729,13 @@ class AudioEventDetection(QtGui.QDialog):
 
 # Runs 'detect_events' function, useful to wait for thread -----------------
 class EventDetectionFunction(QtCore.QThread):
-    def __init__(self, speaker_data, mic_data, interval, time_offset, dfact,
+    def __init__(self, speaker_data, mic_data, interval, dfact,
                  smooth_width,
                  speaker_threshold, mic_threshold):
         super().__init__()
         self.source_stim = speaker_data
         self.source_resp = mic_data
         self.interval = interval
-        self.time_offset = time_offset
         self.dfact = dfact
         self.smooth_width = smooth_width
         self.stim_threshold = speaker_threshold
@@ -2757,5 +2752,5 @@ class EventDetectionFunction(QtCore.QThread):
             mic_threshold=self.resp_threshold,
             direction='both'
         )
-        self.stimTimes = speakerEventDS + self.time_offset
-        self.respTimes = micEventDS + self.time_offset
+        self.stimTimes = speakerEventDS
+        self.respTimes = micEventDS
