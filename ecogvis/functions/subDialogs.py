@@ -2596,16 +2596,21 @@ class AudioEventDetection(QtGui.QDialog):
         self.speakerThresh = float(self.qline5.text())
         self.micThresh = float(self.qline6.text())
 
+        # Use the full signal based on the interval specified (different
+        # from the interval plotted.
+        self.set_detect_interval()
+
         speakerDS, speakerEventDS, speakerFilt, micDS, micEventDS, micFilt =\
             detect_events(
             speaker_data=self.source_stim,
             mic_data=self.source_resp,
-            interval=[self.plotBins[0], self.plotBins[-1] + 1],
+            interval=[self.detectStartBin, self.detectStopBin + 1],
             dfact=self.fs / float(self.qline3.text()),
             smooth_width=float(self.qline4.text()),
             speaker_threshold=self.speakerThresh,
             mic_threshold=self.micThresh
         )
+
         self.stimTimes = speakerEventDS + self.startTime
         self.respTimes = micEventDS + self.startTime
         self.xx = self.startTime + np.arange(len(speakerDS)) / float(
