@@ -2368,6 +2368,11 @@ class AudioEventDetection(QtGui.QDialog):
         self.speaker_offset = 3.3
         self.mic_offset = 1
         self.ylim = [-0.1, 4.3]
+        self.blue = (40, 116, 166)
+        self.blue_light = (40, 116, 166, 80)
+        self.red = (176, 58, 46)
+        self.red_light = (176, 58, 46, 80)
+        self.gray = (33, 47, 61)
 
         # Left panel - Plot Preview ------------------------------------------
         self.push0_0 = QPushButton('Draw')
@@ -2572,14 +2577,15 @@ class AudioEventDetection(QtGui.QDialog):
             float)
         y0 /= np.max(np.abs(y0))
         self.win.plot(self.x, y0 + self.speaker_offset,
-                      pen=pg.mkPen((0, 0, 200), width=1.), name='Speaker')
+                      pen=pg.mkPen(self.blue_light, width=1.),
+                      name='Speaker')
 
         # Plot responses
         y1 = self.signal_resp[self.plotBins[0]:self.plotBins[-1] + 1].astype(
             float)
         y1 /= np.max(np.abs(y1))
         self.win.plot(self.x, y1 + self.mic_offset,
-                      pen=pg.mkPen((200, 0, 0), width=1.), name='Mic')
+                      pen=pg.mkPen(self.red_light, width=1.), name='Mic')
 
         # Axes parameters
         self.win.setXRange(self.startTime, self.stopTime)
@@ -2621,10 +2627,10 @@ class AudioEventDetection(QtGui.QDialog):
         y0 = [speakerDS, speakerFilt, np.ones(speakerDS.shape) * self.speakerThresh]
         y0[0] /= np.max(np.abs(y0[0]))
         y0_names = ['Speaker', 'SpeakerFilt', 'SpeakerThresh']
-        y0_kargs = [{'color': (0, 0, 200), 'width': 1.},
-                    {'color': (0, 200, 200), 'width': 2.},
+        y0_kargs = [{'color': self.blue_light, 'width': 1.},
+                    {'color': self.gray, 'width': 2.},
                     {
-                        'color': (0, 200, 200), 'width': 1.,
+                        'color': self.blue, 'width': 1.5,
                         'style': QtCore.Qt.DashLine
                     }]
         for name, kargs, column in zip(y0_names, y0_kargs, y0):
@@ -2632,15 +2638,15 @@ class AudioEventDetection(QtGui.QDialog):
                           pen=pg.mkPen(**kargs), name=name)
         for st in self.stimTimes:
             self.win.plot([st, st], self.ylim,
-                          pen=pg.mkPen((0, 0, 200), width=2.))
+                          pen=pg.mkPen(self.blue, width=2.))
         # Plot responses
         y1 = [micDS, micFilt, np.ones(micDS.shape) * self.micThresh]
         y1[0] /= np.max(np.abs(y1[0]))
         y1_names = ['Mic', 'MicFilt', 'MicThresh']
-        y1_kargs = [{'color': (200, 0, 0), 'width': 1.},
-                    {'color': (0, 0, 0), 'width': 2.},
+        y1_kargs = [{'color': self.red_light, 'width': 1.},
+                    {'color': self.gray, 'width': 2.},
                     {
-                        'color': (0, 0, 0), 'width': 1.,
+                        'color': self.red, 'width': 1.5,
                         'style': QtCore.Qt.DashLine
                     }]
         for name, kargs, column in zip(y1_names, y1_kargs, y1):
@@ -2648,7 +2654,7 @@ class AudioEventDetection(QtGui.QDialog):
                           pen=pg.mkPen(**kargs), name=name)
         for rt in self.respTimes:
             self.win.plot([rt, rt], self.ylim,
-                          pen=pg.mkPen((200, 0, 0), width=2.))
+                          pen=pg.mkPen(self.red, width=2.))
         # Axes parameters
         self.win.setXRange(self.startTime, self.stopTime)
         self.win.setYRange(self.ylim[0], self.ylim[1])
