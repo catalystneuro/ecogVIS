@@ -65,7 +65,7 @@ def detect_events(speaker_data, mic_data=None, interval=None, dfact=30,
         fs = speaker_data.rate  # sampling rate
         ds = fs / dfact
 
-        # Pad zeros to make signal lenght a power of 2, improves performance
+        # Pad zeros to make signal length a power of 2, improves performance
         nBins = X.shape[0]
         extraBins = 2 ** (np.ceil(np.log2(nBins)).astype('int')) - nBins
         extraZeros = np.zeros(extraBins)
@@ -87,9 +87,11 @@ def detect_events(speaker_data, mic_data=None, interval=None, dfact=30,
         # Find threshold crossing times
         stimBinsDS = threshcross(speakerFilt, speaker_threshold, direction)
 
-        # Remove detections too close in time (< 100 miliseconds)
-        rem_ind = np.where(np.diff(stimBinsDS / ds) < .1)[0] + 1
-        stimBinsDS = np.delete(stimBinsDS, rem_ind)
+        # Remove events that have a duration less than 0.1 s.
+        speaker_events = stimBinsDS.reshape((-1, 2))
+        rem_ind = np.where((speaker_events[:, 1] - speaker_events[:, 0]) < ds * 0.1)[0]
+        speaker_events = np.delete(speaker_events, rem_ind, axis=0)
+        stimBinsDS = speaker_events.reshape((-1))
 
         # Transform bins to time
         speakerEventDS = stimBinsDS / ds
@@ -107,7 +109,7 @@ def detect_events(speaker_data, mic_data=None, interval=None, dfact=30,
         fs = mic_data.rate  # sampling rate
         ds = fs / dfact
 
-        # Pad zeros to make signal lenght a power of 2, improves performance
+        # Pad zeros to make signal length a power of 2, improves performance
         nBins = X.shape[0]
         extraBins = 2 ** (np.ceil(np.log2(nBins)).astype('int')) - nBins
         extraZeros = np.zeros(extraBins)
@@ -130,9 +132,11 @@ def detect_events(speaker_data, mic_data=None, interval=None, dfact=30,
         # Find threshold crossing times
         micBinsDS = threshcross(micFilt, mic_threshold, direction)
 
-        # Remove detections too close in time (< 100 miliseconds)
-        # rem_ind = np.where(np.diff(micBinsDS/ds)<.1)[0] + 1
-        # micBinsDS = np.delete(micBinsDS, rem_ind)
+        # Remove events that have a duration less than 0.1 s.
+        mic_events = micBinsDS.reshape((-1, 2))
+        rem_ind = np.where((mic_events[:, 1] - mic_events[:, 0]) < ds * 0.1)[0]
+        mic_events = np.delete(mic_events, rem_ind, axis=0)
+        micBinsDS = mic_events.reshape((-1))
 
         # Transform bins to time
         micEventDS = micBinsDS / ds
@@ -152,6 +156,8 @@ def threshcross(data, threshold=0, direction='up'):
         Value of threshold.
     direction : str
         Defines the direction of cross detected: 'up', 'down', or 'both'.
+        With 'both', it will check to make sure that up and down crosses are
+        detected. In other words,
 
     Returns
     -------
@@ -168,6 +174,20 @@ def threshcross(data, threshold=0, direction='up'):
     elif direction == 'down':
         out = np.where(cross == -1)[0]
     elif direction == 'both':
-        out = np.where(cross != 0)[0]
+        cross_nonzero = np.where(cross != 0)[0]
+
+        events = []
+        for i in range(len(cross_nonzero) - 1):
+
+            # Skip to the next ind if this one was already recorded.
+            if cross_nonzero[i] in events:
+                continue
+
+            if (cross[cross_nonzero[i]] == 1) and (
+                    cross[cross_nonzero[i + 1]] == -1):
+                events.append(cross_nonzero[i])
+                events.append(cross_nonzero[i + 1])
+
+        out = np.array(events)
 
     return out
