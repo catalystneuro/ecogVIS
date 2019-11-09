@@ -2381,12 +2381,19 @@ class AudioEventDetection(QtGui.QDialog):
         labelMic = QLabel('Mic:')
         self.combo1 = QComboBox()
         self.combo1.activated.connect(self.reset_draw)
-        labelStart = QLabel('Start [sec]:')
+        labelStart = QLabel('Interval Start [sec]:')
         self.qline1 = QLineEdit('0')
         self.qline1.returnPressed.connect(self.draw_scene)
-        labelStop = QLabel('Stop [sec]:')
+        labelStop = QLabel('Time Span:')
         self.qline2 = QLineEdit('20')
         self.qline2.returnPressed.connect(self.draw_scene)
+
+        self.push0_0 = QPushButton('<<')
+        self.push0_0.clicked.connect(self.page_backward)
+        self.push0_1 = QPushButton('refresh')
+        self.push0_1.clicked.connect(self.draw_scene)
+        self.push0_2 = QPushButton('>>')
+        self.push0_2.clicked.connect(self.page_forward)
 
         grid0 = QGridLayout()
         grid0.addWidget(labelSpeaker, 1, 0, 1, 3)
@@ -2397,6 +2404,9 @@ class AudioEventDetection(QtGui.QDialog):
         grid0.addWidget(self.qline1, 3, 4, 1, 2)
         grid0.addWidget(labelStop, 4, 0, 1, 4)
         grid0.addWidget(self.qline2, 4, 4, 1, 2)
+        grid0.addWidget(self.push0_0, 5, 1, 1, 1)
+        grid0.addWidget(self.push0_1, 5, 2, 1, 2)
+        grid0.addWidget(self.push0_2, 5, 4, 1, 1)
         grid0.setAlignment(QtCore.Qt.AlignTop)
         panel0 = QGroupBox('Plot')
         panel0.setFixedWidth(200)
@@ -2526,13 +2536,29 @@ class AudioEventDetection(QtGui.QDialog):
     def set_plot_interval(self):
         """Sets new interval."""
         # Control for invalid values and ranges
+        interval = float(self.qline2.text())
         self.startTime = np.clip(float(self.qline1.text()), 0,
-                                 self.maxTime - 1.1)
-        self.stopTime = np.clip(float(self.qline2.text()), 1.1, self.maxTime)
+                                 self.maxTime - interval)
+        self.stopTime = np.clip(self.startTime + interval, 1.1,
+                                self.maxTime)
         if (self.stopTime - self.startTime) < 1:
             self.stopTime = self.startTime + 1
         self.qline1.setText(str(np.round(self.startTime, 1)))
-        self.qline2.setText(str(np.round(self.stopTime, 1)))
+        self.qline2.setText(str(np.round(self.stopTime-self.startTime, 1)))
+
+    def page_forward(self):
+        start = float(self.qline1.text())
+        interval = float(self.qline2.text())
+        self.qline1.setText(str(start + interval))
+        self.set_plot_interval()
+        self.draw_scene()
+
+    def page_backward(self):
+        start = float(self.qline1.text())
+        interval = float(self.qline2.text())
+        self.qline1.setText(str(start - interval))
+        self.set_plot_interval()
+        self.draw_scene()
 
     def set_detect_interval(self):
         """Sets new detect interval"""
@@ -2678,6 +2704,8 @@ class AudioEventDetection(QtGui.QDialog):
     def disable_all(self):
         self.win.clear()
         self.push0_0.setEnabled(False)
+        self.push0_1.setEnabled(False)
+        self.push0_2.setEnabled(False)
         self.combo0.setEnabled(False)
         self.combo1.setEnabled(False)
         self.qline1.setEnabled(False)
