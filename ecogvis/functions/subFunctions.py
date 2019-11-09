@@ -304,8 +304,9 @@ class TimeSeriesPlotter:
                 stimData = self.stimY[stimName]
                 plt3.plot(stimData, pen='k', width=1)
                 # remove this later -------------------------------------------
-
+        
         plt3.setLabel('left', 'Stim')
+        plt3.setYRange(np.min(stimData), np.max(stimData))
         plt3.getAxis('left').setWidth(w=53)
         plt3.getAxis('left').setStyle(showValues=False)
         plt3.getAxis('left').setTicks([])
