@@ -2381,10 +2381,10 @@ class AudioEventDetection(QtGui.QDialog):
         labelMic = QLabel('Mic:')
         self.combo1 = QComboBox()
         self.combo1.activated.connect(self.reset_draw)
-        labelStart = QLabel('Interval Start [sec]:')
+        labelStart = QLabel('Interval Start (s):')
         self.qline1 = QLineEdit('0')
         self.qline1.returnPressed.connect(self.draw_scene)
-        labelStop = QLabel('Time Span:')
+        labelStop = QLabel('Plot window (s):')
         self.qline2 = QLineEdit('20')
         self.qline2.returnPressed.connect(self.draw_scene)
 
@@ -2397,53 +2397,52 @@ class AudioEventDetection(QtGui.QDialog):
 
         grid0 = QGridLayout()
         grid0.addWidget(labelSpeaker, 1, 0, 1, 3)
-        grid0.addWidget(self.combo0, 1, 3, 1, 3)
+        grid0.addWidget(self.combo0, 1, 3, 1, 4)
         grid0.addWidget(labelMic, 2, 0, 1, 3)
-        grid0.addWidget(self.combo1, 2, 3, 1, 3)
-        grid0.addWidget(labelStart, 3, 0, 1, 4)
-        grid0.addWidget(self.qline1, 3, 4, 1, 2)
-        grid0.addWidget(labelStop, 4, 0, 1, 4)
-        grid0.addWidget(self.qline2, 4, 4, 1, 2)
-        grid0.addWidget(self.push0_0, 5, 1, 1, 1)
-        grid0.addWidget(self.push0_1, 5, 2, 1, 2)
-        grid0.addWidget(self.push0_2, 5, 4, 1, 1)
+        grid0.addWidget(self.combo1, 2, 3, 1, 4)
+        grid0.addWidget(labelStart, 3, 0, 1, 5)
+        grid0.addWidget(self.qline1, 3, 5, 1, 2)
+        grid0.addWidget(labelStop, 4, 0, 1, 5)
+        grid0.addWidget(self.qline2, 4, 5, 1, 2)
+        grid0.addWidget(self.push0_0, 5, 0, 1, 2)
+        grid0.addWidget(self.push0_1, 5, 2, 1, 3)
+        grid0.addWidget(self.push0_2, 5, 5, 1, 2)
         grid0.setAlignment(QtCore.Qt.AlignTop)
         panel0 = QGroupBox('Plot')
         panel0.setFixedWidth(200)
         panel0.setLayout(grid0)
 
-        # Left panel - Detection ---------------------------------------------
-        labelDetectStart = QLabel('Start [sec]:')
+        # Left panel - Detection Settings -----------------------------------
+        labelDetectStart = QLabel('Start (s):')
         self.qline7 = QLineEdit('0')
-        labelDetectStop = QLabel('Stop [sec]:')
+        labelDetectStop = QLabel('Stop (s):')
         self.qline8 = QLineEdit('end')
 
-        labelDown = QLabel('Downsample Factor:')
+        labelDown = QLabel('Downsample\nFactor:')
         self.qline3 = QLineEdit('800')
         labelDown.setToolTip('Downsample rate of raw signal.\n'
                              'Typical values: 500~900 Hz')
-        labelWidth = QLabel('Kernel Width:')
-        self.qline4 = QLineEdit('.4')
+        labelWidth = QLabel('Smoothing Filter\nWidth:')
+        self.qline4 = QLineEdit('0.4')
         labelWidth.setToolTip('This will affect the width of \n'
                               'the smoothing filter (seconds).\n'
                               'Typical values: .1 ~ 1')
         labelSpeakerThresh = QLabel('Speaker Threshold:')
-        self.qline5 = QLineEdit('.05')
+        self.qline5 = QLineEdit('0.05')
         labelSpeakerThresh.setToolTip(
             'Threshold on the smoothed signal (standard deviations from the '
             'mean).\n'
             'Typical values: .02 ~ .1')
         labelMicThresh = QLabel('Mic Threshold:')
-        self.qline6 = QLineEdit('.1')
+        self.qline6 = QLineEdit('0.1')
         labelMicThresh.setToolTip(
             'Threshold on the smoothed signal (standard deviations from the '
             'mean).\n'
             'Typical values: .05 ~ .5')
+
+        labelRunTest = QLabel('Preview detection with\nthese settings.')
         self.push1_0 = QPushButton('Run Test')
         self.push1_0.clicked.connect(self.run_test)
-
-        self.push1_1 = QPushButton('Run Detection')
-        self.push1_1.clicked.connect(self.run_detection)
 
         grid1 = QGridLayout()
         grid1.addWidget(labelDetectStart, 0, 0, 1, 3)
@@ -2458,16 +2457,34 @@ class AudioEventDetection(QtGui.QDialog):
         grid1.addWidget(self.qline5, 4, 4, 1, 2)
         grid1.addWidget(labelMicThresh, 5, 0, 1, 4)
         grid1.addWidget(self.qline6, 5, 4, 1, 2)
-        grid1.addWidget(self.push1_0, 6, 0, 1, 6)
-        grid1.addWidget(self.push1_1, 7, 0, 1, 6)
+        grid1.addWidget(labelRunTest, 6, 0, 1, 6)
+        grid1.addWidget(self.push1_0, 7, 0, 1, 6)
+
         grid1.setAlignment(QtCore.Qt.AlignTop)
-        panel1 = QGroupBox('Detection')
+        panel1 = QGroupBox('Detection - Settings')
         panel1.setFixedWidth(200)
         panel1.setLayout(grid1)
+
+        # Left panel - Detection Full --------------------------------------
+
+        labelRunDetection = QLabel('Run and save detection\nwith these '
+                                   'settings.')
+        self.push2_0 = QPushButton('Run Detection')
+        self.push2_0.clicked.connect(self.run_detection)
+
+        grid2 = QGridLayout()
+        grid2.addWidget(labelRunDetection, 0, 0, 1, 6)
+        grid2.addWidget(self.push2_0, 1, 0, 1, 6)
+
+        grid2.setAlignment(QtCore.Qt.AlignTop)
+        panel2 = QGroupBox('Detection - Run')
+        panel2.setFixedWidth(200)
+        panel2.setLayout(grid2)
 
         self.leftbox = QVBoxLayout()
         self.leftbox.addWidget(panel0)
         self.leftbox.addWidget(panel1)
+        self.leftbox.addWidget(panel2)
         self.leftbox.addStretch()
 
         # Right panel --------------------------------------------------------
