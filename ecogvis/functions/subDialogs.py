@@ -2734,7 +2734,7 @@ class AudioEventDetection(QtGui.QDialog):
         self.qline7.setEnabled(False)
         self.qline8.setEnabled(False)
         self.push1_0.setEnabled(False)
-        self.push1_1.setEnabled(False)
+        self.push2_0.setEnabled(False)
 
     def out_close(self, val):
         self.value = val
