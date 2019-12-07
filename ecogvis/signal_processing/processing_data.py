@@ -1,22 +1,19 @@
 from __future__ import print_function, division
 
-import argparse, h5py, time, os
-import numpy as np
+import os
+import time
 
-import nwbext_ecog
+from hdmf.common.table import DynamicTable, VectorData
 from pynwb import NWBHDF5IO, ProcessingModule
 from pynwb.ecephys import LFP, ElectricalSeries
-from pynwb.core import DynamicTable, DynamicTableRegion, VectorData
 from pynwb.misc import DecompositionSeries
-from pynwb.base import TimeSeries
-from pynwb.file import Subject
 
-from ecogvis.signal_processing.hilbert_transform import *
-from ecogvis.signal_processing.resample import *
-from ecogvis.signal_processing.linenoise_notch import *
-from ecogvis.signal_processing.common_referencing import *
-from ecogvis.signal_processing.bands import *
 from ecogvis.functions.nwb_copy_file import nwb_copy_file
+from ecogvis.signal_processing.bands import *
+from ecogvis.signal_processing.common_referencing import *
+from ecogvis.signal_processing.hilbert_transform import *
+from ecogvis.signal_processing.linenoise_notch import *
+from ecogvis.signal_processing.resample import *
 
 
 def processing_data(path, subject, blocks, mode=None, config=None, new_file=''):
