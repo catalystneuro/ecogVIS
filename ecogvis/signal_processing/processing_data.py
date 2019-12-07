@@ -3,6 +3,7 @@ from __future__ import print_function, division
 import os
 import time
 
+import nwbext_ecog
 from hdmf.common.table import DynamicTable, VectorData
 from pynwb import NWBHDF5IO, ProcessingModule
 from pynwb.ecephys import LFP, ElectricalSeries
