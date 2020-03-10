@@ -19,7 +19,6 @@ def test_hilbert_return():
     assert Xh.dtype == np.complex
 
 
-
 def test_gaussian():
     X = np.random.randn(32, 1000)
     rate = 200
@@ -28,3 +27,14 @@ def test_gaussian():
     Xg = gaussian(X, rate, center, sd)
     assert Xg.shape[0] == X.shape[1]
     assert Xg.dtype == 'float64'
+
+
+def test_hamming():
+    X = np.random.randn(32, 1000)
+    rate = 200
+    min_freq = 60
+    max_freq = 70
+    Xham = hamming(X, rate, min_freq, max_freq)
+    assert Xham.shape[0] == X.shape[1]
+    assert Xham.dtype == 'float64'
+    
