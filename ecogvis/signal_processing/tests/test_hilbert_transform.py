@@ -1,6 +1,5 @@
 import numpy as np
-
-from ecog.signal_processing import (hilbert_transform,
+from ecogvis.signal_processing.hilbert_transform import (hilbert_transform,
         gaussian, hamming)
 
 def test_hilbert_return():
@@ -18,3 +17,14 @@ def test_hilbert_return():
     Xh = hilbert_transform(X, rate)
     assert Xh.shape == X.shape
     assert Xh.dtype == np.complex
+
+
+
+def test_gaussian():
+    X = np.random.randn(32, 1000)
+    rate = 200
+    center = 100
+    sd = 5
+    Xg = gaussian(X, rate, center, sd)
+    assert Xg.shape[0] == X.shape[1]
+    assert Xg.dtype == 'float64'
