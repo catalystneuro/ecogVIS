@@ -110,9 +110,9 @@ def resample(x, num, t=None, axis=0, window=None):
     N = int(np.minimum(num, Nx))
     Y = np.zeros(newshape, 'D')
     sl[axis] = slice(0, (N + 1) // 2)
-    Y[sl] = X[sl]
+    Y[sl[0],sl[1]] = X[sl[0],sl[1]]
     sl[axis] = slice(-(N - 1) // 2, None)
-    Y[sl] = X[sl]
+    Y[sl[0],sl[1]] = X[sl[0],sl[1]]
     y = ifft(Y, axis=axis) * (float(num) / float(Nx))
 
     if x.dtype.char not in ['F', 'D']:
