@@ -40,7 +40,7 @@ def resample(X, new_freq, old_freq, kind=1, axis=-1, same_sign=False):
         meds[axis % X.ndim] = med
         slices = [slice(None)] * X.ndim
         slices[axis % X.ndim] = slice(None, None, ratio)
-        Xds = sp.signal.medfilt(X, meds)[slices]
+        Xds = sp.signal.medfilt(X, meds)[slices[0],slices[1]]
     else:
         time = X.shape[axis]
         new_time = int(np.ceil(time * new_freq / old_freq))
