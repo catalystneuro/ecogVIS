@@ -15,32 +15,32 @@ class FunctionCopyTestCase(unittest.TestCase):
         start_time = datetime(2017, 4, 3, 11, tzinfo=tzlocal())
         create_date = datetime(2017, 4, 15, 12, tzinfo=tzlocal())
         
-        nwbfile = NWBFile('my first synthetic recording', 'EXAMPLE_ID', datetime.now(tzlocal()),
+        self.nwbfile = NWBFile('my first synthetic recording', 'EXAMPLE_ID', datetime.now(tzlocal()),
                           experimenter='Dr. Bilbo Baggins',
                           lab='Bag End Laboratory',
                           institution='University of Middle Earth at the Shire',
                           experiment_description='I went on an adventure with thirteen dwarves to reclaim vast treasures.',
                           session_id='LONELYMTN')
 
-        device = nwbfile.create_device(name='trodes_rig123')
+        device = self.nwbfile.create_device(name='trodes_rig123')
 
         electrode_name = 'tetrode1'
         description = "an example tetrode"
         location = "somewhere in the hippocampus"
 
-        electrode_group = nwbfile.create_electrode_group(electrode_name,
+        electrode_group = self.nwbfile.create_electrode_group(electrode_name,
                                                          description=description,
                                                          location=location,
                                                          device=device)
 
         for idx in [1, 2, 3, 4]:
-            nwbfile.add_electrode(id=idx,
+            self.nwbfile.add_electrode(id=idx,
                                   x=1.0, y=2.0, z=3.0,
                                   imp=float(-idx),
                                   location='CA1', filtering='none',
                                   group=electrode_group)
 
-        electrode_table_region = nwbfile.create_electrode_table_region([0, 2], 'the first and third electrodes')
+        electrode_table_region = self.nwbfile.create_electrode_table_region([0, 2], 'the first and third electrodes')
 
         rate = 10.0
         np.random.seed(1234)
@@ -57,15 +57,15 @@ class FunctionCopyTestCase(unittest.TestCase):
                                     comments="This data was randomly generated with numpy, using 1234 as the seed",
                                     description="Random numbers generated with numpy.random.rand")
         
-        lfp = LFP(ephys_ts)
+        self.lfp = LFP(ephys_ts)
 
-        ecephys_module = nwbfile.create_processing_module(name='ecephys',
+        ecephys_module = self.nwbfile.create_processing_module(name='ecephys',
                                                        description='preprocessed ecephys data')
 
-        nwbfile.processing['ecephys'].add(lfp)
+        self.nwbfile.processing['ecephys'].add(self.lfp)
 
         with NWBHDF5IO('ecephys_example.nwb', 'w') as io:
-            io.write(nwbfile)
+            io.write(self.nwbfile)
         
 
         nwbfile_new = NWBFile('my first synthetic recording', 'EXAMPLE_ID', datetime.now(tzlocal()),
@@ -76,7 +76,7 @@ class FunctionCopyTestCase(unittest.TestCase):
                           session_id='LONELYMTN')
 
         with NWBHDF5IO('new_ecephys_example.nwb', 'w') as io:
-                io.write(nwbfile_new)
+                io.write(self.nwbfile_new)
         
     def test_nwb_copy_file(self):
          
@@ -90,3 +90,7 @@ class FunctionCopyTestCase(unittest.TestCase):
         'intervals':True,
         'stimulus':True}
          nwb_copy_file('ecephys_example.nwb','new_ecephys_example.nwb',cp_objs=cp_objs)
+         
+    def test_copy_obj(self):
+        
+        copy_obj(self.lfp,1,self.nwbfile)
