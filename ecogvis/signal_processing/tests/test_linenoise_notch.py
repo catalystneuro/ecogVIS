@@ -1,5 +1,6 @@
 import numpy as np
 from ecogvis.signal_processing.linenoise_notch import linenoise_notch,apply_notches
+import unittest
 
 class LineNoiseNotchTestCase(unittest.TestCase):
 
