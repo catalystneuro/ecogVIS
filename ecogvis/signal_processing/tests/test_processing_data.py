@@ -5,7 +5,7 @@ from pynwb import NWBFile
 from pynwb import NWBHDF5IO
 from pynwb.ecephys import ElectricalSeries
 from pynwb.ecephys import LFP
-from ecogvis.signal_processing.processing_data import high_gamma_estimation,spectral_decomposition,preprocess_raw_data
+from ecogvis.signal_processing.processing_data import high_gamma_estimation,spectral_decomposition,preprocess_raw_data,make_new_nwb
 import unittest
 
 
@@ -68,6 +68,18 @@ class ProcessingDataTestCase(unittest.TestCase):
         with NWBHDF5IO('ecephys_example.nwb', 'w') as io:
             io.write(nwbfile)
         
+
+        nwbfile_new = NWBFile('my first synthetic recording', 'EXAMPLE_ID', datetime.now(tzlocal()),
+                          experimenter='Dr. Bilbo Baggins',
+                          lab='Bag End Laboratory',
+                          institution='University of Middle Earth at the Shire',
+                          experiment_description='I went on an adventure with thirteen dwarves to reclaim vast treasures.',
+                          session_id='LONELYMTN')
+
+        with NWBHDF5IO('new_ecephys_example.nwb', 'w') as io:
+                io.write(nwbfile_new)
+        
+        
     def test_high_gamma_estimation(self):
 
         bands_vals=np.random.rand(2,10)*80+70
@@ -82,3 +94,18 @@ class ProcessingDataTestCase(unittest.TestCase):
  
         config = {'CAR':16,'Notch':60,'Downsample':400}
         preprocess_raw_data('ecephys_example.nwb', config)
+        
+    def test_make_new_nwb(self):
+         
+        cp_objs = {
+        'institution': True,
+        'lab': True,
+        'session':True,
+        'devices':True,
+        'electrode_groups':True,
+        'electrodes':True,
+        'intervals':True,
+        'stimulus':True,
+        'acquisition':'default',
+        'ecephys':'default'}
+         make_new_nwb('ecephys_example.nwb','new_ecephys_example.nwb',cp_objs=cp_objs)
