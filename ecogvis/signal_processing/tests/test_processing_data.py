@@ -58,7 +58,7 @@ class ProcessingDataTestCase(unittest.TestCase):
                                     comments="This data was randomly generated with numpy, using 1234 as the seed",
                                     description="Random numbers generated with numpy.random.rand")
         
-         lfp = LFP(ephys_ts)
+        lfp = LFP(ephys_ts)
 
         ecephys_module = nwbfile.create_processing_module(name='ecephys',
                                                        description='preprocessed ecephys data')
