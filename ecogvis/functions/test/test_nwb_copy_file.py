@@ -88,7 +88,5 @@ class FunctionCopyTestCase(unittest.TestCase):
         'electrode_groups':True,
         'electrodes':True,
         'intervals':True,
-        'stimulus':True,
-        'acquisition':'default',
-        'ecephys':'default'}
+        'stimulus':True}
          nwb_copy_file('ecephys_example.nwb','new_ecephys_example.nwb',cp_objs=cp_objs)
