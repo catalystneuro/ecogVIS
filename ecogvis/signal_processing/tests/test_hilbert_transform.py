@@ -20,9 +20,7 @@ class HilbertTestCase(unittest.TestCase):
 
         
     def test_hilbert_return(self):
-        """
-        Test the return shape and dtype.
-        """
+        
         
         filters = [gaussian(self.X, self.rate, 10, 2),
                    hamming(self.X, self.rate, 10, 15)]
