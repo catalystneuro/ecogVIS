@@ -13,7 +13,7 @@ from pynwb.file import Subject
 
 from ecogvis.signal_processing.hilbert_transform import *
 from ecogvis.signal_processing.resample import *
-from ecogvis.signal_processing.linenoise_notch import *
+from process_nwb.linenoise_notch import *
 from ecogvis.signal_processing.common_referencing import *
 from ecogvis.signal_processing.bands import *
 from ecogvis.functions.nwb_copy_file import nwb_copy_file
