@@ -13,7 +13,7 @@ except ImportError:
 
 
 __authors__ = "Alex Bujan, Jesse Livezey"
-__all__ = ['gaussian', 'hamming', 'hilbert_transform']
+__all__ = ['hilbert_transform']
 
 
 def hilbert_transform(X, rate, filters=None, phase=None, X_fft_h=None):
