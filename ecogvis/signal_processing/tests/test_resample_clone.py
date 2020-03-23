@@ -1,7 +1,7 @@
 import numpy as np
 
 from scipy.signal import resample as sp_resample
-from ecog.signal_processing.resample_clone import resample as cl_resample
+from ecogvis.signal_processing.resample_clone import cl_resample
 
 def test_resample_clone():
     rng = np.random.RandomState(20161029)
