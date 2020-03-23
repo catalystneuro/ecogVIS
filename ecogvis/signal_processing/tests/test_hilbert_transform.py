@@ -103,8 +103,8 @@ class HilbertTestCase(unittest.TestCase):
                0.         -0.j        ,   0.         +0.j        ,
                0.         +0.j        ,   0.         -0.j        ]]))
         
-        assert np.allclose(Xh[0],Xh_expected[0])
-        assert np.allclose(Xh[1],Xh_expected[1])
+        np.testing.assert_almost_equal(Xh[0],Xh_expected[0])
+        np.testing.assert_almost_equal(Xh[1],Xh_expected[1])
 
         Xh = hilbert_transform(self.X, self.rate)
         
@@ -159,5 +159,5 @@ class HilbertTestCase(unittest.TestCase):
                0.         -0.j        ,   0.         +0.j        ,
                0.         +0.j        ,   0.         -0.j        ]]))
         
-        assert np.allclose(Xh[0],Xh_expected[0])
-        assert np.allclose(Xh[1],Xh_expected[1])
+        np.testing.assert_almost_equal(Xh[0],Xh_expected[0])
+        np.testing.assert_almost_equal(Xh[1],Xh_expected[1])
