@@ -1,6 +1,6 @@
 import numpy as np
 
-from ecog.signal_processing import linenoise_notch
+from ecogvis.signal_processing.linenoise_notch import linenoise_notch
 
 def test_linenoise_notch_return():
     """
