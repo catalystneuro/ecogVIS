@@ -1,6 +1,7 @@
 import numpy as np
-from ecogvis.signal_processing.hilbert_transform import (hilbert_transform,
-        gaussian, hamming)
+from ecogvis.signal_processing.hilbert_transform import hilbert_transform
+from process_nwb.wavelet_transform import gaussian,hamming
+
 import unittest
 
 class HilbertTestCase(unittest.TestCase):
@@ -22,8 +23,8 @@ class HilbertTestCase(unittest.TestCase):
     def test_hilbert_return(self):
         
         
-        filters = [gaussian(self.X, self.rate, 10, 2),
-                   hamming(self.X, self.rate, 10, 15)]
+        filters = [gaussian(50, self.rate, 10, 2),
+                   hamming(50, self.rate, 10, 15)]
         Xh = hilbert_transform(self.X, self.rate, filters)
         
         Xh_expected = (np.array([[-0.21311015-0.0607549j ,  0.19600701-0.01539358j,
@@ -160,38 +161,3 @@ class HilbertTestCase(unittest.TestCase):
         
         assert np.allclose(Xh[0],Xh_expected[0])
         assert np.allclose(Xh[1],Xh_expected[1])
-
-
-    def test_gaussian(self):
-       
-        center = 10
-        sd = 2
-        Xg = gaussian(self.X, self.rate, center, sd)
-        Xg_expected = np.array([1.25183332e-06, 3.33545509e-06, 8.53870306e-06, 2.10018206e-05,
-           4.96306770e-05, 1.12686444e-04, 2.45822352e-04, 5.15227799e-04,
-           1.03754137e-03, 2.00742710e-03, 3.73166252e-03, 6.66489268e-03,
-           1.14370016e-02, 1.88564278e-02, 2.98699767e-02, 4.54609562e-02,
-           6.64768556e-02, 9.33964981e-02, 1.26072086e-01, 1.63506681e-01,
-           2.03741870e-01, 2.43923305e-01, 2.80578586e-01, 3.10087294e-01,
-           3.29262021e-01, 3.35913555e-01, 3.29262021e-01, 3.10087294e-01,
-           2.80578586e-01, 2.43923305e-01, 2.03741870e-01, 1.63506681e-01,
-           1.26072086e-01, 9.33964981e-02, 6.64768556e-02, 4.54609562e-02,
-           2.98699767e-02, 1.88564278e-02, 1.14370016e-02, 6.66489268e-03,
-           3.73166252e-03, 2.00742710e-03, 1.03754137e-03, 5.15227799e-04,
-           2.45822352e-04, 1.12686444e-04, 4.96306770e-05, 2.10018206e-05,
-           8.53870306e-06, 3.33545509e-06])
-        
-        assert np.allclose(Xg,Xg_expected)
-
-
-    def test_hamming(self):
-        
-        min_freq = 10
-        max_freq = 15
-        Xham = hamming(self.X, self.rate, min_freq, max_freq)
-        Xham_expected = np.array([0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0.,
-           0., 0., 0., 0., 0., 0., 0., 0., 1., 0., 0., 0., 0., 0., 0., 0., 0.,
-           0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0.])
-        assert np.allclose(Xham,Xham_expected)
-        
-
