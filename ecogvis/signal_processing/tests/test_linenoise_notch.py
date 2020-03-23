@@ -1,5 +1,6 @@
 import numpy as np
-from ecogvis.signal_processing.linenoise_notch import linenoise_notch,apply_notches
+from ecogvis.signal_processing.linenoise_notch import linenoise_notch
+from process_nwb.linenoise_notch import apply_notches
 import unittest
 
 class LineNoiseNotchTestCase(unittest.TestCase):
@@ -30,18 +31,3 @@ class LineNoiseNotchTestCase(unittest.TestCase):
                     0.78977701, -0.21193541,  0.09266877, -0.6837059 , -0.14342515,
                     0.71256218,  2.18441782,  1.22294831,  0.7248046 ,  0.24423127])
         np.testing.assert_almost_equal(Xh,Xh_expected)
-
-    def test_apply_notches(self):
-        notches = np.arange(60, 10, 60)
-        Xan = apply_notches(self.X, notches, self.rate)
-        Xan_expected = np.array([-1.90326482,  0.35096703,  1.26193713,  1.35437749, -1.01596516,
-                   -0.01740816,  1.40755137, -1.87826967,  0.25096001,  0.52397222,
-                   -0.33671476, -2.59298705,  0.18516219,  0.36746056,  0.41544204,
-                    1.86434848, -0.45742732,  0.39596267,  0.27323786,  0.55796332,
-                    0.55035036,  0.42901251,  2.04574957,  0.29213717, -0.71105487,
-                   -0.63116681,  1.57401261,  1.3785037 ,  0.17613027,  1.58919257,
-                   -0.16175437, -0.5684704 ,  0.41837715, -0.17657268,  1.01687025,
-                    0.27467374,  1.65216317, -0.76683111,  0.11962773, -1.77906483,
-                    0.78977701, -0.21193541,  0.09266877, -0.6837059 , -0.14342515,
-                    0.71256218,  2.18441782,  1.22294831,  0.7248046 ,  0.24423127])
-        np.testing.assert_almost_equal(Xan,Xan_expected)
