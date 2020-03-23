@@ -10,3 +10,4 @@ pynwb
 nwbext_ecog
 ndx-spectrum
 pyopengl
+process_nwb
