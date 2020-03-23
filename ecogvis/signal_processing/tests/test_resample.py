@@ -1,6 +1,6 @@
 import numpy as np
+from ecogvis.signal_processing.resample import resample
 
-from ecog.signal_processing import resample
 
 def test_resample_shape():
     X = np.random.randn(32, 2000)
