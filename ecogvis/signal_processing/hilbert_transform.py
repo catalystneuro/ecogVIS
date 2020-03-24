@@ -1,5 +1,4 @@
 from __future__ import division
-from process_nwb.wavelet_transform import gaussian,hamming
 import numpy as np
 
 from .fft import fftfreq, fft, ifft
