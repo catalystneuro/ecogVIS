@@ -36,7 +36,7 @@ from scipy.fftpack import ifftshift, fftfreq
 from scipy.signal import get_window
 from scipy._lib.six import callable
 
-from process_nwb.fft import fft, ifft
+
 
 
 def resample(x, num, t=None, axis=0, window=None):
