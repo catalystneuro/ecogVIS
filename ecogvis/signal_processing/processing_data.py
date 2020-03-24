@@ -11,8 +11,7 @@ from pynwb.misc import DecompositionSeries
 from pynwb.base import TimeSeries
 from pynwb.file import Subject
 
-from ecogvis.signal_processing.hilbert_transform import hilbert_transform
-from process_nwb.wavelet_transform import gaussian
+from process_nwb.wavelet_transform import gaussian,wavelet_transform
 from ecogvis.signal_processing.resample import resample
 from process_nwb.linenoise_notch import apply_linenoise_notch
 from ecogvis.signal_processing.common_referencing import subtract_CAR,subtract_common_median_reference
@@ -238,7 +237,7 @@ def preprocess_raw_data(block_path, config):
 
 def spectral_decomposition(block_path, bands_vals):
     """
-    Takes preprocessed LFP data and does the standard Hilbert transform on
+    Takes preprocessed LFP data and does the wavelet transform on
     different bands. Takes about 20 minutes to run on 1 10-min block.
 
     Parameters
@@ -264,12 +263,12 @@ def spectral_decomposition(block_path, bands_vals):
         lfp = nwb.processing['ecephys'].data_interfaces['LFP'].electrical_series['preprocessed']
         rate = lfp.rate
 
-        nBands = len(band_param_0)
+        nBands = 40
         nSamples = lfp.data.shape[0]
         nChannels = lfp.data.shape[1]
         Xp = np.zeros((nBands, nChannels, nSamples))  #power (nBands,nChannels,nSamples)
 
-        # Apply Hilbert transform ----------------------------------------------
+        # Apply wavelet transform ----------------------------------------------
         print('Running Spectral Decomposition...')
         start = time.time()
         for ch in np.arange(nChannels):
@@ -277,9 +276,10 @@ def spectral_decomposition(block_path, bands_vals):
             Xch = Xch.reshape(1,-1)
             Xch = Xch.astype('float32')     # signal (nChannels,nSamples)
             X_fft_h = None
-            for ii, (bp0, bp1) in enumerate(zip(band_param_0, band_param_1)):
-                kernel = gaussian(Xch.shape[-1], rate, bp0, bp1)
-                X_analytic, X_fft_h = hilbert_transform(Xch, rate, kernel, phase=None, X_fft_h=X_fft_h)
+            for ii in np.arange(40):
+                X_analytic, X_fft_h = wavelet_transform(Xch, rate, X_fft_h=X_fft_h)
+                X_analytic = X_analytic[:,:,ii]
+                X_fft_h = X_fft_h[ii+1,:]
                 Xp[ii, ch, :] = abs(X_analytic).astype('float32')
         print('Spectral Decomposition finished in {} seconds'.format(time.time()-start))
 
@@ -295,12 +295,12 @@ def spectral_decomposition(block_path, bands_vals):
                           description='frequencies for bandpass filters',
                           data=band_param_1)
         bandsTable = DynamicTable(name='bands',
-                                  description='Series of filters used for Hilbert transform.',
+                                  description='Series of filters used for wavelet transform.',
                                   columns=[band_param_0V,band_param_1V],
                                   colnames=['filter_param_0','filter_param_1'])
         decs = DecompositionSeries(name='DecompositionSeries',
                                     data=Xp,
-                                    description='Analytic amplitude estimated with Hilbert transform.',
+                                    description='Analytic amplitude estimated with wavelet transform.',
                                     metric='amplitude',
                                     unit='V',
                                     bands=bandsTable,
@@ -317,7 +317,7 @@ def spectral_decomposition(block_path, bands_vals):
 def high_gamma_estimation(block_path, bands_vals, new_file=''):
     """
     Takes preprocessed LFP data and calculates High-Gamma power from the
-    averaged power of standard Hilbert transform on 70~150 Hz bands.
+    averaged power of standard wavelet transform on 70~150 Hz bands.
 
     Parameters
     ----------
@@ -346,12 +346,12 @@ def high_gamma_estimation(block_path, bands_vals, new_file=''):
         lfp = nwb.processing['ecephys'].data_interfaces['LFP'].electrical_series['preprocessed']
         rate = lfp.rate
 
-        nBands = len(band_param_0)
+        nBands = 40
         nSamples = lfp.data.shape[0]
         nChannels = lfp.data.shape[1]
         Xp = np.zeros((nBands, nChannels, nSamples))  #power (nBands,nChannels,nSamples)
 
-        # Apply Hilbert transform ----------------------------------------------
+        # Apply wavelet transform ----------------------------------------------
         print('Running High Gamma estimation...')
         start = time.time()
         for ch in np.arange(nChannels):
@@ -359,9 +359,10 @@ def high_gamma_estimation(block_path, bands_vals, new_file=''):
             Xch = Xch.reshape(1,-1)
             Xch = Xch.astype('float32')     # signal (nChannels,nSamples)
             X_fft_h = None
-            for ii, (bp0, bp1) in enumerate(zip(band_param_0, band_param_1)):
-                kernel = gaussian(Xch.shape[-1], rate, bp0, bp1)
-                X_analytic, X_fft_h = hilbert_transform(Xch, rate, kernel, phase=None, X_fft_h=X_fft_h)
+            for ii in np.arange(40):
+                X_analytic, X_fft_h = wavelet_transform(Xch, rate, X_fft_h=X_fft_h)
+                X_analytic = X_analytic[:,:,ii]
+                X_fft_h = X_fft_h[ii+1,:]
                 Xp[ii, ch, :] = abs(X_analytic).astype('float32')
         print('High Gamma estimation finished in {} seconds'.format(time.time()-start))
 
