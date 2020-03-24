@@ -278,7 +278,7 @@ def spectral_decomposition(block_path, bands_vals):
             Xch = Xch.astype('float32')     # signal (nChannels,nSamples)
             X_fft_h = None
             for ii, (bp0, bp1) in enumerate(zip(band_param_0, band_param_1)):
-                kernel = gaussian(Xch, rate, bp0, bp1)
+                kernel = gaussian(Xch.shape[-1], rate, bp0, bp1)
                 X_analytic, X_fft_h = hilbert_transform(Xch, rate, kernel, phase=None, X_fft_h=X_fft_h)
                 Xp[ii, ch, :] = abs(X_analytic).astype('float32')
         print('Spectral Decomposition finished in {} seconds'.format(time.time()-start))
@@ -360,7 +360,7 @@ def high_gamma_estimation(block_path, bands_vals, new_file=''):
             Xch = Xch.astype('float32')     # signal (nChannels,nSamples)
             X_fft_h = None
             for ii, (bp0, bp1) in enumerate(zip(band_param_0, band_param_1)):
-                kernel = gaussian(Xch, rate, bp0, bp1)
+                kernel = gaussian(Xch.shape[-1], rate, bp0, bp1)
                 X_analytic, X_fft_h = hilbert_transform(Xch, rate, kernel, phase=None, X_fft_h=X_fft_h)
                 Xp[ii, ch, :] = abs(X_analytic).astype('float32')
         print('High Gamma estimation finished in {} seconds'.format(time.time()-start))
