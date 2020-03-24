@@ -196,7 +196,7 @@ def preprocess_raw_data(block_path, config):
                 start = time.time()
                 for ch in np.arange(nChannels):
                     Xch = np.append(X[ch,:],extraZeros).reshape(1,-1)
-                    Xch = linenoise_notch(Xch, rate, notch_freq=config['Notch'])
+                    Xch = apply_linenoise_notch(Xch, rate)
                     if ch==0:
                         X2 = Xch.reshape(1,-1)
                     else:
