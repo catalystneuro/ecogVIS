@@ -28,14 +28,6 @@ ecogvis.signal\_processing.fft module
    :undoc-members:
    :show-inheritance:
 
-ecogvis.signal\_processing.hilbert\_transform module
-----------------------------------------------------
-
-.. automodule:: ecogvis.signal_processing.hilbert_transform
-   :members:
-   :undoc-members:
-   :show-inheritance:
-
 ecogvis.signal\_processing.processing\_data module
 --------------------------------------------------
 
