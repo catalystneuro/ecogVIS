@@ -11,7 +11,8 @@ from pynwb.misc import DecompositionSeries
 from pynwb.base import TimeSeries
 from pynwb.file import Subject
 
-from ecogvis.signal_processing.hilbert_transform import hilbert_transform,gaussian,hamming
+from ecogvis.signal_processing.hilbert_transform import hilbert_transform
+from process_nwb.wavelet_transform import gaussian,hamming
 from ecogvis.signal_processing.resample import resample
 from process_nwb.linenoise_notch import apply_notches,apply_linenoise_notch
 from ecogvis.signal_processing.common_referencing import subtract_CAR,subtract_common_median_reference
