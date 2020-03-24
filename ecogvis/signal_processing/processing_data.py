@@ -15,7 +15,8 @@ from ecogvis.signal_processing.hilbert_transform import hilbert_transform
 from process_nwb.wavelet_transform import gaussian
 from ecogvis.signal_processing.resample import resample
 from process_nwb.linenoise_notch import apply_linenoise_notch
-from ecogvis.signal_processing.common_referencing import subtract_CAR,subtract_common_median_reference
+from ecogvis.signal_processing.common_referencing import subtract_common_median_reference
+from process_nwb.common_referencing import subtract_CAR
 from ecogvis.signal_processing.bands import bands
 from ecogvis.functions.nwb_copy_file import nwb_copy_file
 
@@ -183,7 +184,8 @@ def preprocess_raw_data(block_path, config):
             if config['CAR'] is not None:
                 print("Computing and subtracting Common Average Reference in "+str(config['CAR'])+" channel blocks.")
                 start = time.time()
-                X = subtract_CAR(X, b_size=config['CAR'])
+                mean_frac = config['CAR']/X.shape[1]
+                X = subtract_CAR(X, mean_frac=mean_frac)
                 print('CAR subtract time for {}: {} seconds'.format(block_name, time.time()-start))
 
             # Apply Notch filters
