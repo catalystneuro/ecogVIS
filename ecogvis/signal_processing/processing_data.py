@@ -11,11 +11,12 @@ from pynwb.misc import DecompositionSeries
 from pynwb.base import TimeSeries
 from pynwb.file import Subject
 
-from ecogvis.signal_processing.hilbert_transform import *
-from ecogvis.signal_processing.resample import *
-from process_nwb.linenoise_notch import *
-from ecogvis.signal_processing.common_referencing import *
-from ecogvis.signal_processing.bands import *
+from ecogvis.signal_processing.hilbert_transform import hilbert_transform
+from process_nwb.wavelet_transform import gaussian
+from process_nwb.resample import resample
+from process_nwb.linenoise_notch import apply_linenoise_notch
+from ecogvis.signal_processing.common_referencing import subtract_CAR,subtract_common_median_reference
+from ecogvis.signal_processing.bands import bands
 from ecogvis.functions.nwb_copy_file import nwb_copy_file
 
 
@@ -195,7 +196,7 @@ def preprocess_raw_data(block_path, config):
                 start = time.time()
                 for ch in np.arange(nChannels):
                     Xch = np.append(X[ch,:],extraZeros).reshape(1,-1)
-                    Xch = linenoise_notch(Xch, rate, notch_freq=config['Notch'])
+                    Xch = apply_linenoise_notch(Xch, rate)
                     if ch==0:
                         X2 = Xch.reshape(1,-1)
                     else:
@@ -277,7 +278,7 @@ def spectral_decomposition(block_path, bands_vals):
             Xch = Xch.astype('float32')     # signal (nChannels,nSamples)
             X_fft_h = None
             for ii, (bp0, bp1) in enumerate(zip(band_param_0, band_param_1)):
-                kernel = gaussian(Xch, rate, bp0, bp1)
+                kernel = gaussian(Xch.shape[-1], rate, bp0, bp1)
                 X_analytic, X_fft_h = hilbert_transform(Xch, rate, kernel, phase=None, X_fft_h=X_fft_h)
                 Xp[ii, ch, :] = abs(X_analytic).astype('float32')
         print('Spectral Decomposition finished in {} seconds'.format(time.time()-start))
@@ -359,7 +360,7 @@ def high_gamma_estimation(block_path, bands_vals, new_file=''):
             Xch = Xch.astype('float32')     # signal (nChannels,nSamples)
             X_fft_h = None
             for ii, (bp0, bp1) in enumerate(zip(band_param_0, band_param_1)):
-                kernel = gaussian(Xch, rate, bp0, bp1)
+                kernel = gaussian(Xch.shape[-1], rate, bp0, bp1)
                 X_analytic, X_fft_h = hilbert_transform(Xch, rate, kernel, phase=None, X_fft_h=X_fft_h)
                 Xp[ii, ch, :] = abs(X_analytic).astype('float32')
         print('High Gamma estimation finished in {} seconds'.format(time.time()-start))

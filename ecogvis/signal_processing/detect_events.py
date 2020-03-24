@@ -1,6 +1,6 @@
 import numpy as np
 import scipy.signal as sgn
-from ecogvis.signal_processing.resample import *
+from process_nwb.resample import resample
 
 def detect_events(speaker_data, mic_data=None, interval=None, dfact=30,
                   smooth_width=0.4, threshold=0.05, direction='both'):
