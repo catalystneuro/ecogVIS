@@ -36,14 +36,6 @@ ecogvis.signal\_processing.hilbert\_transform module
    :undoc-members:
    :show-inheritance:
 
-ecogvis.signal\_processing.linenoise\_notch module
---------------------------------------------------
-
-.. automodule:: ecogvis.signal_processing.linenoise_notch
-   :members:
-   :undoc-members:
-   :show-inheritance:
-
 ecogvis.signal\_processing.processing\_data module
 --------------------------------------------------
 
