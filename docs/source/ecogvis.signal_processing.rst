@@ -20,14 +20,6 @@ ecogvis.signal\_processing.common\_referencing module
    :undoc-members:
    :show-inheritance:
 
-ecogvis.signal\_processing.fft module
--------------------------------------
-
-.. automodule:: ecogvis.signal_processing.fft
-   :members:
-   :undoc-members:
-   :show-inheritance:
-
 ecogvis.signal\_processing.hilbert\_transform module
 ----------------------------------------------------
 
