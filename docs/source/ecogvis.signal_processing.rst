@@ -44,14 +44,6 @@ ecogvis.signal\_processing.processing\_data module
    :undoc-members:
    :show-inheritance:
 
-ecogvis.signal\_processing.resample module
-------------------------------------------
-
-.. automodule:: ecogvis.signal_processing.resample
-   :members:
-   :undoc-members:
-   :show-inheritance:
-
 ecogvis.signal\_processing.resample\_clone module
 -------------------------------------------------
 
