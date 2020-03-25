@@ -20,14 +20,6 @@ ecogvis.signal\_processing.common\_referencing module
    :undoc-members:
    :show-inheritance:
 
-ecogvis.signal\_processing.fft module
--------------------------------------
-
-.. automodule:: ecogvis.signal_processing.fft
-   :members:
-   :undoc-members:
-   :show-inheritance:
-
 ecogvis.signal\_processing.hilbert\_transform module
 ----------------------------------------------------
 
@@ -36,26 +28,10 @@ ecogvis.signal\_processing.hilbert\_transform module
    :undoc-members:
    :show-inheritance:
 
-ecogvis.signal\_processing.linenoise\_notch module
---------------------------------------------------
-
-.. automodule:: ecogvis.signal_processing.linenoise_notch
-   :members:
-   :undoc-members:
-   :show-inheritance:
-
 ecogvis.signal\_processing.processing\_data module
 --------------------------------------------------
 
 .. automodule:: ecogvis.signal_processing.processing_data
-   :members:
-   :undoc-members:
-   :show-inheritance:
-
-ecogvis.signal\_processing.resample module
-------------------------------------------
-
-.. automodule:: ecogvis.signal_processing.resample
    :members:
    :undoc-members:
    :show-inheritance:
