@@ -113,12 +113,12 @@ class periodogramTestCase(unittest.TestCase):
 
         self.nwbfile.add_acquisition(ephys_ts)
 
-        with NWBHDF5IO('ecephys_example.nwb', 'w') as io:
+        with NWBHDF5IO('ecephys_example_raw.nwb', 'w') as io:
             io.write(self.nwbfile)
 
-        psd_estimate('ecephys_example.nwb', 'raw')
+        psd_estimate('ecephys_example_raw.nwb', 'raw')
         
-        io = NWBHDF5IO('ecephys_example.nwb', 'r')
+        io = NWBHDF5IO('ecephys_example_raw.nwb', 'r')
         nwbfile_in = io.read()
         
         Spectrum_fft_raw = nwbfile_in.processing['ecephys'].data_interfaces['Spectrum_fft_raw'].power[:]
@@ -193,14 +193,14 @@ class periodogramTestCase(unittest.TestCase):
 
         self.nwbfile.processing['ecephys'].add(lfp)
 
-        with NWBHDF5IO('ecephys_example.nwb', 'w') as io:
+        with NWBHDF5IO('ecephys_example_preprocessed.nwb', 'w') as io:
             io.write(self.nwbfile)
 
-        psd_estimate('ecephys_example.nwb', 'preprocessed')
+        psd_estimate('ecephys_example_preprocessed.nwb', 'preprocessed')
         
         
         
-        io = NWBHDF5IO('ecephys_example.nwb', 'r')
+        io = NWBHDF5IO('ecephys_example_preprocessed.nwb', 'r')
         nwbfile_in = io.read()
         
         Spectrum_fft_raw = nwbfile_in.processing['ecephys'].data_interfaces['Spectrum_fft_preprocessed'].power[:]
