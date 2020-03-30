@@ -31,7 +31,7 @@ def test_detect_events():
     speakerDS, speakerEventDS, micDS, micEventDS = detect_events(speaker_data, mic_data)
 
     speakerDS_expected, speakerEventDS_expected, micDS_expected, micEventDS_expected = (np.array([0.291835, 0.617208]), 
-    np.array([30.]),np.array([0., 0.67484807]),np.array([30.]))
+    np.array([30.]),np.array([0., 0.699534]),np.array([30.]))
 
     np.testing.assert_array_almost_equal(speakerDS,speakerDS_expected)
     np.testing.assert_array_almost_equal(speakerEventDS,speakerEventDS_expected)
