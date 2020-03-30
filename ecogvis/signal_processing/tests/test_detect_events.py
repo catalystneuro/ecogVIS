@@ -33,10 +33,10 @@ def test_detect_events():
     speakerDS_expected, speakerEventDS_expected, micDS_expected, micEventDS_expected = (np.array([0.27615769, 0.59275533]), 
     np.array([30.]),np.array([0., 0.67484807]),np.array([30.]))
 
-    np.testing.assert_almost_equal(speakerDS,speakerDS_expected)
-    np.testing.assert_almost_equal(speakerEventDS,speakerEventDS_expected)
-    np.testing.assert_almost_equal(micDS,micDS_expected)
-    np.testing.assert_almost_equal(micEventDS,micEventDS_expected)
+    np.testing.assert_array_almost_equal(speakerDS,speakerDS_expected)
+    np.testing.assert_array_almost_equal(speakerEventDS,speakerEventDS_expected)
+    np.testing.assert_array_almost_equal(micDS,micDS_expected)
+    np.testing.assert_array_almost_equal(micEventDS,micEventDS_expected)
 
     
 def test_threshcross():
