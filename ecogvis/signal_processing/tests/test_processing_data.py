@@ -16,32 +16,32 @@ class ProcessingDataTestCase(unittest.TestCase):
         start_time = datetime(2017, 4, 3, 11, tzinfo=tzlocal())
         create_date = datetime(2017, 4, 15, 12, tzinfo=tzlocal())
         
-        nwbfile = NWBFile('my first synthetic recording', 'EXAMPLE_ID', datetime.now(tzlocal()),
+        self.nwbfile = NWBFile('my first synthetic recording', 'EXAMPLE_ID', datetime.now(tzlocal()),
                           experimenter='Dr. Bilbo Baggins',
                           lab='Bag End Laboratory',
                           institution='University of Middle Earth at the Shire',
                           experiment_description='I went on an adventure with thirteen dwarves to reclaim vast treasures.',
                           session_id='LONELYMTN')
 
-        device = nwbfile.create_device(name='trodes_rig123')
+        device = self.nwbfile.create_device(name='trodes_rig123')
 
         electrode_name = 'tetrode1'
         description = "an example tetrode"
         location = "somewhere in the hippocampus"
 
-        electrode_group = nwbfile.create_electrode_group(electrode_name,
+        electrode_group = self.nwbfile.create_electrode_group(electrode_name,
                                                          description=description,
                                                          location=location,
                                                          device=device)
 
         for idx in [1, 2, 3, 4]:
-            nwbfile.add_electrode(id=idx,
+            self.nwbfile.add_electrode(id=idx,
                                   x=1.0, y=2.0, z=3.0,
                                   imp=float(-idx),
                                   location='CA1', filtering='none',
                                   group=electrode_group)
 
-        electrode_table_region = nwbfile.create_electrode_table_region([0, 2], 'the first and third electrodes')
+        electrode_table_region = self.nwbfile.create_electrode_table_region([0, 2], 'the first and third electrodes')
 
         rate = 5.0
         np.random.seed(1234)
@@ -109,33 +109,29 @@ class ProcessingDataTestCase(unittest.TestCase):
         
         lfp = LFP(ephys_ts)
 
-        ecephys_module = nwbfile.create_processing_module(name='ecephys',
+        ecephys_module = self.nwbfile.create_processing_module(name='ecephys',
                                                        description='preprocessed ecephys data')
 
-        nwbfile.processing['ecephys'].add(lfp)
+        self.nwbfile.processing['ecephys'].add(lfp)
 
-        with NWBHDF5IO('ecephys_exmpl.nwb', 'w') as io:
-            io.write(nwbfile)
-        
 
-        nwbfile_new = NWBFile('my first synthetic recording', 'EXAMPLE_ID', datetime.now(tzlocal()),
+        self.nwbfile_new = NWBFile('my first synthetic recording', 'EXAMPLE_ID', datetime.now(tzlocal()),
                           experimenter='Dr. Bilbo Baggins',
                           lab='Bag End Laboratory',
                           institution='University of Middle Earth at the Shire',
                           experiment_description='I went on an adventure with thirteen dwarves to reclaim vast treasures.',
                           session_id='LONELYMTN')
 
-        with NWBHDF5IO('new_ecephys_example.nwb', 'w') as io:
-                io.write(nwbfile_new)
-        
-        
+
     def test_high_gamma_estimation(self):
+        
+        with NWBHDF5IO('ecephys_exmpl_gamma.nwb', 'w') as io:
+            io.write(self.nwbfile)
 
         bands_vals=np.random.rand(2,10)*80+70
-        high_gamma_estimation('ecephys_exmpl.nwb', bands_vals)
-        
-        io.close()
-        io = NWBHDF5IO('ecephys_exmpl.nwb', 'r')
+        high_gamma_estimation('ecephys_exmpl_gamma.nwb', bands_vals)
+
+        io = NWBHDF5IO('ecephys_exmpl_gamma.nwb', 'r')
         nwbfile_in = io.read()
 
         high_gamma_data = nwbfile_in.processing['ecephys'].data_interfaces['high_gamma'].data[:]
@@ -193,17 +189,29 @@ class ProcessingDataTestCase(unittest.TestCase):
         np.testing.assert_almost_equal(high_gamma_data,high_gamma_data_expected)
 
     def test_spectral_decomposition(self):
+        
+        with NWBHDF5IO('ecephys_exmpl_decomp.nwb', 'w') as io:
+            io.write(self.nwbfile)
 
         bands_vals=np.random.rand(2,10)*80+70
-        spectral_decomposition('ecephys_exmpl.nwb', bands_vals)
+        spectral_decomposition('ecephys_exmpl_decomp.nwb', bands_vals)
 
     def test_preprocess_raw_data(self):
+        
+        with NWBHDF5IO('ecephys_exmpl_raw.nwb', 'w') as io:
+            io.write(self.nwbfile)
  
         config = {'CAR':16,'Notch':60,'Downsample':400}
-        preprocess_raw_data('ecephys_exmpl.nwb', config)
+        preprocess_raw_data('ecephys_exmpl_raw.nwb', config)
         
     def test_make_new_nwb(self):
-         
+        
+        with NWBHDF5IO('ecephys_exmpl_make.nwb', 'w') as io:
+            io.write(self.nwbfile)
+        
+        with NWBHDF5IO('new_ecephys_example.nwb', 'w') as io:
+                io.write(self.nwbfile_new)
+
         cp_objs = {
         'institution': True,
         'lab': True,
