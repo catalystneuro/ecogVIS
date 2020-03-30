@@ -735,3 +735,11 @@ class ProcessingDataTestCase(unittest.TestCase):
         'acquisition':'default',
         'ecephys':'default'}
         make_new_nwb('ecephys_exmpl_make.nwb','new_ecephys_example.nwb',cp_objs=cp_objs)
+        
+        io = NWBHDF5IO('ecephys_exmpl_make.nwb', 'r')
+        nwbfile_in = io.read()
+
+        io = NWBHDF5IO('new_ecephys_example.nwb', 'r')
+        new_nwbfile_in = io.read()
+        
+        assert set(nwbfile_in.fields.keys()) & set(new_nwbfile_in.fields.keys()) == set(new_nwbfile_in.fields.keys())
