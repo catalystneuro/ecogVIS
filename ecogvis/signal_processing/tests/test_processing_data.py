@@ -742,4 +742,4 @@ class ProcessingDataTestCase(unittest.TestCase):
         io = NWBHDF5IO('new_ecephys_example.nwb', 'r')
         new_nwbfile_in = io.read()
         
-        assert set(nwbfile_in.fields.keys()) & set(new_nwbfile_in.fields.keys()) == set(new_nwbfile_in.fields.keys())
+        assert (set(cp_objs.keys()) & set(new_nwbfile_in.fields.keys())).issubset(set(nwbfile_in.fields.keys()))
