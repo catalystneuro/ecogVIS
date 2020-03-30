@@ -96,7 +96,7 @@ class periodogramTestCase(unittest.TestCase):
                                    [0.12702939, 0.36964987],
                                    [0.604334  , 0.10310444],
                                    [0.80237418, 0.94555324]])
-        self.ephys_timestamps = np.arange(data_len) / rate
+        self.ephys_timestamps = np.arange(data_len) / self.rate
 
         
 
