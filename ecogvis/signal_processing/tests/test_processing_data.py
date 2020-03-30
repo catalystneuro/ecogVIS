@@ -157,4 +157,4 @@ class ProcessingDataTestCase(unittest.TestCase):
         'stimulus':True,
         'acquisition':'default',
         'ecephys':'default'}
-         make_new_nwb('ecephys_exmpl.nwb','new_ecephys_example.nwb',cp_objs=cp_objs)
+        make_new_nwb('ecephys_exmpl.nwb','new_ecephys_example.nwb',cp_objs=cp_objs)
