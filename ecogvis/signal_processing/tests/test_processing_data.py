@@ -127,13 +127,14 @@ class ProcessingDataTestCase(unittest.TestCase):
 
         with NWBHDF5IO('new_ecephys_example.nwb', 'w') as io:
                 io.write(nwbfile_new)
-        io.close()
+        
         
     def test_high_gamma_estimation(self):
 
         bands_vals=np.random.rand(2,10)*80+70
         high_gamma_estimation('ecephys_exmpl.nwb', bands_vals)
         
+        io.close()
         io = NWBHDF5IO('ecephys_exmpl.nwb', 'r')
         nwbfile_in = io.read()
 
