@@ -73,7 +73,7 @@ class FunctionCopyTestCase(unittest.TestCase):
    
     def test_nwb_copy_file(self):
         
-         with NWBHDF5IO('ecephys_example_file.nwb', 'w') as io:
+        with NWBHDF5IO('ecephys_example_file.nwb', 'w') as io:
              io.write(self.nwbfile)
             
         with NWBHDF5IO('new_ecephys_example_file.nwb', 'w') as io:
@@ -98,9 +98,9 @@ class FunctionCopyTestCase(unittest.TestCase):
     def test_copy_obj(self):
         
         with NWBHDF5IO('ecephys_example_obj.nwb', 'w') as io:
-            io.write(self.nwbfile)
+             io.write(self.nwbfile)
             
         with NWBHDF5IO('new_ecephys_example_obj.nwb', 'w') as io:
-            io.write(self.nwbfile_new)
+             io.write(self.nwbfile_new)
         
         copy_obj(self.lfp,1,self.nwbfile)
