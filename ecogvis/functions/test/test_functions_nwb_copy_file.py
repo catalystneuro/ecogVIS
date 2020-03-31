@@ -105,4 +105,5 @@ class FunctionCopyTestCase(unittest.TestCase):
         with NWBHDF5IO('new_ecephys_example_obj.nwb', 'w') as io:
              io.write(self.nwbfile_new)
         
-        copy_obj(self.lfp,1,self.nwbfile)
+        obj = copy_obj(self.lfp,1,self.nwbfile)
+        assert isinstance(obj,LFP)
