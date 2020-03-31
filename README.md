@@ -15,7 +15,7 @@ $ pip install ecogVIS
 
 After activating the correct environment, **ecogVIS** can be imported and run from python. If the file does not exist (or if you provide an empty string ''), you'll be prompted to choose a file from a dialog.
 ```python
-from ecogvis.ecogvis import main
+from ecogvis import main
 import os
 
 fpath = os.path.join('path_to','file.nwb')
