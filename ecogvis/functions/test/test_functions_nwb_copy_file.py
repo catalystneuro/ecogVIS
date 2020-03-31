@@ -81,6 +81,7 @@ class FunctionCopyTestCase(unittest.TestCase):
          
         cp_objs = {
         'institution': True,
+        'devices':True,
         'electrode_groups':True,
         'electrodes':True,
         'stimulus':True}
@@ -93,6 +94,7 @@ class FunctionCopyTestCase(unittest.TestCase):
         assert new_nwbfile_in.electrode_groups is not None
         assert new_nwbfile_in.electrodes is not None
         assert new_nwbfile_in.stimulus is not None
+        assert new_nwbfile_in.devices is not None
         
         
     def test_copy_obj(self):
