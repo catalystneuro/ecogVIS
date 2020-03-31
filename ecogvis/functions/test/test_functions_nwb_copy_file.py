@@ -5,7 +5,7 @@ from pynwb import NWBFile
 from pynwb import NWBHDF5IO
 from pynwb.ecephys import ElectricalSeries
 from pynwb.ecephys import LFP
-from ecogvis.functions.nwb_copy_file import nwb_copy_file
+from ecogvis.functions.nwb_copy_file import nwb_copy_file,copy_obj
 import unittest
 
 class FunctionCopyTestCase(unittest.TestCase):
