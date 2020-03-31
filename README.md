@@ -9,16 +9,8 @@ A collaboration with with [Chang Lab](http://changlab.ucsf.edu/).
 ![](media/screenshot_1.png)
 
 ## Installation
-To clone the repository and set up a conda environment, do:
 ```
-$ git clone https://github.com/ben-dichter-consulting/ecogVIS
-$ conda env create -f ecogVIS/make_env.yml
-$ source activate ecog_vis
-```
-
-Alternatively, to install **ecogVIS** directly in an existing environment:
-```
-$ pip install git+https://github.com/ben-dichter-consulting/ecogVIS
+$ pip install ecogVIS
 ```
 
 After activating the correct environment, **ecogVIS** can be imported and run from python. If the file does not exist (or if you provide an empty string ''), you'll be prompted to choose a file from a dialog.
