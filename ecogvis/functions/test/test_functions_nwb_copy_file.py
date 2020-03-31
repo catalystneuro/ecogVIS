@@ -64,7 +64,7 @@ class FunctionCopyTestCase(unittest.TestCase):
 
         self.nwbfile.processing['ecephys'].add(self.lfp)
 
-        nwbfile_new = NWBFile('my first synthetic recording', 'EXAMPLE_ID', datetime.now(tzlocal()),
+        self.nwbfile_new = NWBFile('my first synthetic recording', 'EXAMPLE_ID', datetime.now(tzlocal()),
                           experimenter='Dr. Bilbo Baggins',
                           lab='Bag End Laboratory',
                           institution='University of Middle Earth at the Shire',
