@@ -6,7 +6,7 @@ with open('README.md', 'r') as f:
     long_description = f.read()
 
 setup(name='ecogvis',
-      version='1.0.0',
+      version='1.0.1',
       description='Timeseries visualizer for Electrocorticography (ECoG) signals stored in NWB files.',
       long_description=long_description,
       long_description_content_type='text/markdown',
