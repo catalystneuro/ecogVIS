@@ -64,30 +64,29 @@ class FunctionCopyTestCase(unittest.TestCase):
 
         self.nwbfile.processing['ecephys'].add(self.lfp)
 
-        with NWBHDF5IO('ecephys_example.nwb', 'w') as io:
-            io.write(self.nwbfile)
-        
-
         nwbfile_new = NWBFile('my first synthetic recording', 'EXAMPLE_ID', datetime.now(tzlocal()),
                           experimenter='Dr. Bilbo Baggins',
                           lab='Bag End Laboratory',
                           institution='University of Middle Earth at the Shire',
                           experiment_description='I went on an adventure with thirteen dwarves to reclaim vast treasures.',
                           session_id='LONELYMTN')
-
-        with NWBHDF5IO('new_ecephys_example.nwb', 'w') as io:
-                io.write(self.nwbfile_new)
-        
+   
     def test_nwb_copy_file(self):
+        
+         with NWBHDF5IO('ecephys_example_file.nwb', 'w') as io:
+            io.write(self.nwbfile)
+            
+        with NWBHDF5IO('new_ecephys_example_file.nwb', 'w') as io:
+            io.write(self.nwbfile_new)
          
         cp_objs = {
         'institution': True,
         'electrode_groups':True,
         'electrodes':True,
         'stimulus':True}
-        nwb_copy_file('ecephys_example.nwb','new_ecephys_example.nwb',cp_objs=cp_objs)
+        nwb_copy_file('ecephys_example_file.nwb','new_ecephys_example_file.nwb',cp_objs=cp_objs)
         
-        io = NWBHDF5IO('new_ecephys_example.nwb', 'r')
+        io = NWBHDF5IO('new_ecephys_example_file.nwb', 'r')
         new_nwbfile_in = io.read()
         
         assert new_nwbfile_in.institution is not None
@@ -97,5 +96,11 @@ class FunctionCopyTestCase(unittest.TestCase):
         
         
     def test_copy_obj(self):
+        
+        with NWBHDF5IO('ecephys_example_obj.nwb', 'w') as io:
+            io.write(self.nwbfile)
+            
+        with NWBHDF5IO('new_ecephys_example_obj.nwb', 'w') as io:
+            io.write(self.nwbfile_new)
         
         copy_obj(self.lfp,1,self.nwbfile)
