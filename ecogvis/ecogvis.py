@@ -6,7 +6,6 @@
 #
 import sys
 import os
-import time
 import numpy as np
 import datetime
 import glob
@@ -30,16 +29,18 @@ annotationColor_ = 'red'
 intervalAdd_ = False
 intervalDel_ = False
 intervalType_ = 'invalid'
-intervalsDict_ = {'invalid':{'type':'invalid',
-                             'session':'',
-                             'color':'red',
-                             'counts':0}}
+intervalsDict_ = {'invalid': {'type': 'invalid',
+                              'session': '',
+                              'color': 'red',
+                              'counts': 0}}
+
 
 class Application(QMainWindow):
     keyPressed = QtCore.pyqtSignal(QtCore.QEvent)
-    def __init__(self, filename, parent = None):
+
+    def __init__(self, filename, parent=None):
         super().__init__()
-        # Enable antialiasing for prettier plots
+        # Enable anti-aliasing for prettier plots
         pg.setConfigOptions(antialias=True)
 
         self.centralwidget = QWidget()
@@ -70,19 +71,17 @@ class Application(QMainWindow):
         # Run the main function
         self.model = TimeSeriesPlotter(self)
 
-
     def closeEvent(self, event):
         """Before exiting, checks if there are any unsaved changes and inform the user."""
         w = ExitDialog(self)
-        if w.value == -1: #just exit
+        if w.value == -1:  # just exit
             event.accept()
-        elif w.value == 1: #save and exit
+        elif w.value == 1:  # save and exit
             self.AnnotationSave()
             self.IntervalSave()
             event.accept()
-        elif w.value == 0: #ignore
+        elif w.value == 0:  # ignore
             event.ignore()
-
 
     def log_error(self, error):
         """Error logging"""
@@ -94,11 +93,9 @@ class Application(QMainWindow):
             file.write(datetime.datetime.today().strftime('%Y-%m-%d  %H:%M:%S') + ' ' + error + '\n')
         file.close()
 
-
     def keyPressEvent(self, event):
         super(Application, self).keyPressEvent(event)
         self.keyPressed.emit(event)
-
 
     def on_key(self, event):
         """Actions to be taken when user presses keys."""
@@ -115,7 +112,6 @@ class Application(QMainWindow):
         elif event.key() == QtCore.Qt.Key_Right:
             self.model.time_scroll(scroll=1/3)
         event.accept()
-
 
     def init_gui(self):
         """Initiates GUI elements."""
@@ -726,13 +722,13 @@ class Application(QMainWindow):
         """Opens Periodogram grid window. Checks if PSD data is present on file
         and, if not, asks the user if it should be calculated."""
         if self.combo3.currentText()=='raw':
-            try:  #tries to read fft and welch spectral data
+            try:  # tries to read fft and welch spectral data
                 psd_fft = self.model.nwb.modules['ecephys'].data_interfaces['Spectrum_fft_raw']
                 psd_welch = self.model.nwb.modules['ecephys'].data_interfaces['Spectrum_welch_raw']
                 PeriodogramGridDialog(self)
             except:
                 w = NoSpectrumDialog(self, 'raw')
-                if w.val == 1:  #PSD was calculated
+                if w.val == 1:  # PSD was calculated
                     self.model.refresh_file()  # re-opens the file, now with new data
                     self.combo3.setCurrentIndex(self.combo3.findText('raw'))
                     psd_fft = self.model.nwb.modules['ecephys'].data_interfaces['Spectrum_fft_raw']
@@ -761,13 +757,11 @@ class Application(QMainWindow):
             self.combo3.setCurrentIndex(self.combo3.findText('preprocessed'))
             self.voltage_time_series()
 
-
     def CalcHighGamma(self):
         """Opens calculate High Gamma dialog."""
         w = HighGammaDialog(self)
         if w.value==1:       # If new data was created
             self.open_another_file(filename=w.new_fname)
-
 
     def voltage_time_series(self):
         """
@@ -900,7 +894,6 @@ class Application(QMainWindow):
         self.model.nChannels_Displayed()
 
 
-
 class CustomViewBox(pg.ViewBox):
     """Customized ViewBox to add/del Annotations and Intervals."""
     def __init__(self, parent):
@@ -940,7 +933,6 @@ class CustomViewBox(pg.ViewBox):
             except Exception as ex:
                 print(str(ex))
 
-
     def mouseDragEvent(self, ev):
         global intervalType_
         global intervalAdd_
@@ -971,11 +963,15 @@ class CustomViewBox(pg.ViewBox):
                         self.parent.model.refreshScreen()
 
 
-
 def main(filename):  # If it was imported as a module
     """Sets up QT application."""
     app = QCoreApplication.instance()
     if app is None:
-        app = QApplication(sys.argv)  #instantiate a QtGui (holder for the app)
+        app = QApplication(sys.argv)  # instantiate a QtGui (holder for the app)
     ex = Application(filename=filename)
     sys.exit(app.exec_())
+
+
+if __name__ == '__main__':
+    main(sys.argv[0])
+
