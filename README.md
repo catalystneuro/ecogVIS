@@ -9,21 +9,13 @@ A collaboration with with [Chang Lab](http://changlab.ucsf.edu/).
 ![](media/screenshot_1.png)
 
 ## Installation
-To clone the repository and set up a conda environment, do:
 ```
-$ git clone https://github.com/ben-dichter-consulting/ecogVIS
-$ conda env create -f ecogVIS/make_env.yml
-$ source activate ecog_vis
-```
-
-Alternatively, to install **ecogVIS** directly in an existing environment:
-```
-$ pip install git+https://github.com/ben-dichter-consulting/ecogVIS
+$ pip install ecogVIS
 ```
 
 After activating the correct environment, **ecogVIS** can be imported and run from python. If the file does not exist (or if you provide an empty string ''), you'll be prompted to choose a file from a dialog.
 ```python
-from ecogvis.ecogvis import main
+from ecogvis import main
 import os
 
 fpath = os.path.join('path_to','file.nwb')
@@ -40,9 +32,9 @@ main(fpath)
   </summary>
   Seamless visual navigation through long signals from large arrays of electrodes, by mouse-dragging visualization window, control buttons, value fields and keyboard keys. <br></br>
 
-  ![](media/gif_time_navigation.gif)
+  ![](https://github.com/catalystneuro/ecogVIS/blob/master/media/gif_time_navigation.gif?raw=true)
 
-  ![](media/gif_channel_navigation.gif)
+  ![](media/https://github.com/catalystneuro/ecogVIS/blob/master/media/gif_channel_navigation.gif?raw=true)
 </details>
 
 <details>
@@ -51,7 +43,7 @@ main(fpath)
   </summary>
   Add, delete, save and load annotations for meaningful comments anywhere in the visualization. <br></br>
 
-  ![](media/gif_annotations.gif)
+  ![](https://github.com/catalystneuro/ecogVIS/blob/master/media/gif_annotations.gif?raw=true)
 </details>
 
 <details>
@@ -60,7 +52,7 @@ main(fpath)
   </summary>
   Add, delete, save, load and create custom intervals types to mark specific points in time, with simple click-drag-release mouse movements. <br></br>
 
-  ![](media/gif_intervals.gif)
+  ![](https://github.com/catalystneuro/ecogVIS/blob/master/media/gif_intervals.gif?raw=true)
 </details>
 
 <details>
@@ -69,7 +61,7 @@ main(fpath)
   </summary>
   Mark and un-mark bad channels. Choices are saved in the <em>electrodes</em> group of the current NWB file. <br></br>
 
-  ![](media/gif_badchannels.gif)
+  ![](https://github.com/catalystneuro/ecogVIS/blob/master/media/gif_badchannels.gif?raw=true)
 </details>
 
 <details>
@@ -78,7 +70,7 @@ main(fpath)
   </summary>
   Preprocessing of raw voltage signals, including user-defined Downsampling, CAR and Notch filtering. The resulting processed signals are stored as an <a href="https://pynwb.readthedocs.io/en/stable/pynwb.ecephys.html#pynwb.ecephys.LFP">LFP</a> object, in the <em>processing</em> group of the current NWB file. <br></br>
 
-  ![](media/gif_preprocessing.gif)
+  ![](https://github.com/catalystneuro/ecogVIS/blob/master/media/gif_preprocessing.gif?raw=true)
 </details>
 
 <details>
@@ -93,7 +85,7 @@ main(fpath)
   </ul> 
   The resulting detected intervals, 'TimeIntervals_mic' and 'TimeIntervals_speaker', are saved as <a href="https://pynwb.readthedocs.io/en/stable/pynwb.epoch.html#pynwb.epoch.TimeIntervals">TimeIntervals</a> objects in the <em>intervals</em> group of the current NWB file and can be used later for ERP analysis. A preview allows for testing of the detection parameters before running it for the whole duration of the audio signals. <br></br>
 
-  ![](media/gif_event_detection.gif)
+  ![](https://github.com/catalystneuro/ecogVIS/blob/master/media/gif_event_detection.gif?raw=true)
 </details>
 
 <details>
@@ -102,7 +94,7 @@ main(fpath)
   </summary>
   Estimation of high gamma analytic amplitude, with the average of user-defined specific bands. The results are saved as a <a href="https://pynwb.readthedocs.io/en/stable/pynwb.base.html#pynwb.base.TimeSeries">TimeSeries</a> object, named 'high_gamma', in the <em>processing</em> group of the current or of a new NWB file. <br></br>
 
-  ![](media/gif_highgamma.gif)
+  ![](https://github.com/catalystneuro/ecogVIS/blob/master/media/gif_highgamma.gif?raw=true)
 </details>
 
 <details>
@@ -116,7 +108,7 @@ main(fpath)
   </ul> 
   The grid items are coloured to mark specific cortical areas and can be rotated to correspond anatomically to them. Emphasis can be given to specific areas of interest and double-clicking an item allows for fast inspection of the single electrode's ERP in detail. <br></br>
   
-  ![](media/gif_erp.gif)
+  ![](https://github.com/catalystneuro/ecogVIS/blob/master/media/gif_erp.gif?raw=true)
 </details>
 
 <details>
@@ -131,7 +123,7 @@ main(fpath)
   </ul> 
   The grid items are coloured to mark specific cortical areas and can be rotated to correspond anatomically to them. Emphasis can be given to specific areas of interest and double-clicking an item allows for fast inspection of the single electrode's Periodogram in detail. <br></br>
   
-  ![](media/gif_periodograms.gif)
+  ![](https://github.com/catalystneuro/ecogVIS/blob/master/media/gif_periodograms.gif?raw=true)
 </details>
 
 <details>
@@ -141,7 +133,7 @@ main(fpath)
   Analytic signal amplitude estimation by Hilbert transform of user-defined frequency bands. <br></br>
   WARNING: This function will manipulate an array of size (nSamples, nChannels, nBands), which might be in the order of gigabytes and demand a large memory to operate and is likely to produce a large file. <br></br>
   
-  ![](media/gif_decomposition.gif)
+  ![](https://github.com/catalystneuro/ecogVIS/blob/master/media/gif_decomposition.gif?raw=true)
 </details>
 
 ### Plus
