@@ -20,14 +20,15 @@ from PyQt5.QtWidgets import (QWidget, QLabel, QLineEdit, QMessageBox, QHBoxLayou
 import pyqtgraph as pg
 
 from ecogvis.functions.subFunctions import TimeSeriesPlotter
-from ecogvis.functions.subDialogs import (CustomIntervalDialog, SelectChannelsDialog,
-                                          SpectralChoiceDialog, NoHighGammaDialog,
-                                          NoPreprocessedDialog, NoTrialsDialog,
-                                          ExitDialog, ERPDialog, HighGammaDialog,
-                                          PeriodogramGridDialog,
-                                          PreprocessingDialog, NoRawDialog, NoSpectrumDialog,
-                                          NoAudioDialog, ExistIntervalsDialog)
+from ecogvis.functions.misc_dialogs import (CustomIntervalDialog, SelectChannelsDialog,
+                                            SpectralChoiceDialog, NoHighGammaDialog,
+                                            NoPreprocessedDialog, NoTrialsDialog,
+                                            ExitDialog, HighGammaDialog,
+                                            PeriodogramGridDialog,
+                                            PreprocessingDialog, NoRawDialog, NoSpectrumDialog,
+                                            NoAudioDialog, ExistIntervalsDialog)
 from ecogvis.functions.audio_event_detection import AudioEventDetection
+from ecogvis.functions.event_related_potential import ERPDialog
 
 annotationAdd_ = False
 annotationDel_ = False
