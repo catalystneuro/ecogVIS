@@ -24,9 +24,10 @@ from ecogvis.functions.subDialogs import (CustomIntervalDialog, SelectChannelsDi
                                           SpectralChoiceDialog, NoHighGammaDialog,
                                           NoPreprocessedDialog, NoTrialsDialog,
                                           ExitDialog, ERPDialog, HighGammaDialog,
-                                          PeriodogramGridDialog, AudioEventDetection,
+                                          PeriodogramGridDialog,
                                           PreprocessingDialog, NoRawDialog, NoSpectrumDialog,
                                           NoAudioDialog, ExistIntervalsDialog)
+from ecogvis.functions.audio_event_detection import AudioEventDetection
 
 annotationAdd_ = False
 annotationDel_ = False
@@ -130,9 +131,9 @@ class Application(QMainWindow):
         action_open_file = QAction('Open Another File', self)
         fileMenu.addAction(action_open_file)
         action_open_file.triggered.connect(lambda: self.open_another_file(None))
-        # action_save_file = QAction('Save to NWB', self)
-        # fileMenu.addAction(action_save_file)
-        # action_save_file.triggered.connect(self.save_file)
+        action_save_new_file = QAction('Save to NWB', self)
+        fileMenu.addAction(action_save_new_file)
+        action_save_new_file.triggered.connect(self.save_file)
 
         toolsMenu = mainMenu.addMenu('Tools')
         action_load_annotations = QAction('Load Annotations', self)
@@ -439,8 +440,11 @@ class Application(QMainWindow):
             self.model = TimeSeriesPlotter(self)
 
     def save_file(self):
-        """Saves latest alterations to NWB file. TO BE IMPLEMENTED."""
-        print('Save file to NWB - to be implemented')
+        """Saves chosen data and info to new NWB file."""
+        filename, _ = QFileDialog.getSaveFileName(None, 'Save to file', '', "(*.nwb)")
+        if os.path.isfile(filename):
+            self.file = filename
+            pass
 
     def change_session(self):
         """Changes session name."""
