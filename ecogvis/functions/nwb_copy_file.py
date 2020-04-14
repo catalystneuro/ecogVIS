@@ -48,25 +48,25 @@ def nwb_copy_file(old_file, new_file, cp_objs={}):
                           identifier='',
                           session_start_time=datetime.now(tzlocal()))
         with NWBHDF5IO(new_file, mode='w', manager=manager, load_namespaces=False) as io2:
-            #Institution name --------------------------------------------------
+            # Institution name --------------------------------------------------
             if 'institution' in cp_objs:
                 nwb_new.institution = str(nwb_old.institution)
 
-            #Lab name ----------------------------------------------------------
+            # Lab name ----------------------------------------------------------
             if 'lab' in cp_objs:
                 nwb_new.lab = str(nwb_old.lab)
 
-            #Session id --------------------------------------------------------
+            # Session id --------------------------------------------------------
             if 'session' in cp_objs:
                 nwb_new.session_id = nwb_old.session_id
 
-            #Devices -----------------------------------------------------------
+            # Devices -----------------------------------------------------------
             if 'devices' in cp_objs:
                 for aux in list(nwb_old.devices.keys()):
                     dev = Device(nwb_old.devices[aux].name)
                     nwb_new.add_device(dev)
 
-            #Electrode groups --------------------------------------------------
+            # Electrode groups --------------------------------------------------
             if 'electrode_groups' in cp_objs:
                 for aux in list(nwb_old.electrode_groups.keys()):
                     nwb_new.create_electrode_group(name=nwb_old.electrode_groups[aux].name,
@@ -74,7 +74,7 @@ def nwb_copy_file(old_file, new_file, cp_objs={}):
                                                    location=nwb_old.electrode_groups[aux].location,
                                                    device=nwb_new.get_device(nwb_old.electrode_groups[aux].device.name))
 
-            #Electrodes --------------------------------------------------------
+            # Electrodes --------------------------------------------------------
             if 'electrodes' in cp_objs:
                 nElec = len(nwb_old.electrodes['x'].data[:])
                 for aux in np.arange(nElec):
@@ -95,7 +95,7 @@ def nwb_copy_file(old_file, new_file, cp_objs={}):
                                                  description=nwb_old.electrodes[var].description,
                                                  data=nwb_old.electrodes[var].data[:])
 
-            #Epochs ------------------------------------------------------------
+            # Epochs ------------------------------------------------------------
             if 'epochs' in cp_objs:
                 nEpochs = len(nwb_old.epochs['start_time'].data[:])
                 for i in np.arange(nEpochs):
@@ -110,14 +110,14 @@ def nwb_copy_file(old_file, new_file, cp_objs={}):
                                              description=nwb_old.epochs[var].description,
                                              data=nwb_old.epochs[var].data[:])
 
-            #Invalid times -----------------------------------------------------
+            # Invalid times -----------------------------------------------------
             if 'invalid_times' in cp_objs:
                 nInvalid = len(nwb_old.invalid_times['start_time'][:])
                 for aux in np.arange(nInvalid):
                     nwb_new.add_invalid_time_interval(start_time=nwb_old.invalid_times['start_time'][aux],
                                                       stop_time=nwb_old.invalid_times['stop_time'][aux])
 
-            #Trials ------------------------------------------------------------
+            # Trials ------------------------------------------------------------
             if 'trials' in cp_objs:
                 nTrials = len(nwb_old.trials['start_time'])
                 for aux in np.arange(nTrials):
@@ -132,22 +132,22 @@ def nwb_copy_file(old_file, new_file, cp_objs={}):
                                              description=nwb_old.trials[var].description,
                                              data=nwb_old.trials[var].data[:])
 
-            #Intervals ---------------------------------------------------------
+            # Intervals ---------------------------------------------------------
             if 'intervals' in cp_objs:
                 all_objs_names = list(nwb_old.intervals.keys())
                 for obj_name in all_objs_names:
                     obj_old = nwb_old.intervals[obj_name]
-                    #create and add TimeIntervals
+                    # create and add TimeIntervals
                     obj = TimeIntervals(name=obj_old.name,
                                         description=obj_old.description)
                     nInt = len(obj_old['start_time'])
                     for ind in np.arange(nInt):
                         obj.add_interval(start_time=obj_old['start_time'][ind],
                                          stop_time=obj_old['stop_time'][ind])
-                    #Add to file
+                    # Add to file
                     nwb_new.add_time_intervals(obj)
 
-            #Stimulus ----------------------------------------------------------
+            # Stimulus ----------------------------------------------------------
             if 'stimulus' in cp_objs:
                 all_objs_names = list(nwb_old.stimulus.keys())
                 for obj_name in all_objs_names:
@@ -162,11 +162,11 @@ def nwb_copy_file(old_file, new_file, cp_objs={}):
                                      unit=obj_old.unit)
                     nwb_new.add_stimulus(obj)
 
-            #Processing modules ------------------------------------------------
+            # Processing modules ------------------------------------------------
             if 'ecephys' in cp_objs:
                 if cp_objs['ecephys'] is True:
                     all_proc_names = list(nwb_old.processing['ecephys'].data_interfaces.keys())
-                else:  #list of items
+                else:  # list of items
                     all_proc_names = cp_objs['ecephys']
                 # Add ecephys module to NWB file
                 ecephys_module = ProcessingModule(name='ecephys',
@@ -178,11 +178,11 @@ def nwb_copy_file(old_file, new_file, cp_objs={}):
                     if obj is not None:
                         ecephys_module.add_data_interface(obj)
 
-            #Acquisition -------------------------------------------------------
+            # Acquisition -------------------------------------------------------
             if 'acquisition' in cp_objs:
                 if cp_objs['acquisition'] is True:
                     all_acq_names = list(nwb_old.acquisition.keys())
-                else:  #list of items
+                else:  # list of items
                     all_acq_names = cp_objs['acquisition']
                 for acq_name in all_acq_names:
                     obj_old = nwb_old.acquisition[acq_name]
@@ -190,7 +190,7 @@ def nwb_copy_file(old_file, new_file, cp_objs={}):
                     if obj is not None:
                         nwb_new.add_acquisition(obj)
 
-            #Subject -----------------------------------------------------------
+            # Subject -----------------------------------------------------------
             if 'subject' in cp_objs:
                 try:
                     cortical_surfaces = CorticalSurfaces()
@@ -218,7 +218,7 @@ def nwb_copy_file(old_file, new_file, cp_objs={}):
                                               weight=nwb_old.subject.weight,
                                               date_of_birth=nwb_old.subject.date_of_birth)
 
-            #Write new file with copied fields
+            # Write new file with copied fields
             io2.write(nwb_new, link_data=False)
 
 
@@ -228,8 +228,8 @@ def copy_obj(obj_old, nwb_old, nwb_new):
     obj = None
     obj_type = type(obj_old).__name__
 
-    #ElectricalSeries ----------------------------------------------------------
-    if obj_type=='ElectricalSeries':
+    # ElectricalSeries ----------------------------------------------------------
+    if obj_type == 'ElectricalSeries':
         nChannels = obj_old.electrodes.table['x'].data.shape[0]
         elecs_region = nwb_new.electrodes.create_region(name='electrodes',
                                                         region=np.arange(nChannels).tolist(),
@@ -240,8 +240,8 @@ def copy_obj(obj_old, nwb_old, nwb_new):
                                rate=obj_old.rate,
                                description=obj_old.description)
 
-    #LFP -----------------------------------------------------------------------
-    if obj_type=='LFP':
+    # LFP -----------------------------------------------------------------------
+    if obj_type == 'LFP':
         obj = LFP(name=obj_old.name)
         els_name = list(obj_old.electrical_series.keys())[0]
         els = obj_old.electrical_series[els_name]
@@ -259,8 +259,8 @@ def copy_obj(obj_old, nwb_old, nwb_new):
                                               resolution=els.resolution,
                                               starting_time=els.starting_time)
 
-    #TimeSeries ----------------------------------------------------------------
-    elif obj_type=='TimeSeries':
+    # TimeSeries ----------------------------------------------------------------
+    elif obj_type == 'TimeSeries':
         obj = TimeSeries(name=obj_old.name,
                          description=obj_old.description,
                          data=obj_old.data[:],
@@ -270,8 +270,8 @@ def copy_obj(obj_old, nwb_old, nwb_new):
                          starting_time=obj_old.starting_time,
                          unit=obj_old.unit)
 
-    #DecompositionSeries -------------------------------------------------------
-    elif obj_type=='DecompositionSeries':
+    # DecompositionSeries -------------------------------------------------------
+    elif obj_type == 'DecompositionSeries':
         list_columns = []
         for item in obj_old.bands.columns:
             bp = VectorData(name=item.name,
@@ -288,11 +288,11 @@ def copy_obj(obj_old, nwb_old, nwb_new):
                                   metric=obj_old.metric,
                                   unit=obj_old.unit,
                                   rate=obj_old.rate,
-                                  #source_timeseries=lfp,
+                                  # source_timeseries=lfp,
                                   bands=bandsTable,)
 
-    #Spectrum ------------------------------------------------------------------
-    elif obj_type=='Spectrum':
+    # Spectrum ------------------------------------------------------------------
+    elif obj_type == 'Spectrum':
         file_elecs = nwb_new.electrodes
         nChannels = len(file_elecs['x'].data[:])
         elecs_region = file_elecs.create_region(name='electrodes',
@@ -302,8 +302,5 @@ def copy_obj(obj_old, nwb_old, nwb_new):
                        frequencies=obj_old.frequencies[:],
                        power=obj_old.power,
                        electrodes=elecs_region)
-
-
-
 
     return obj
