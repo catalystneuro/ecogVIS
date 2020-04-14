@@ -24,11 +24,12 @@ from ecogvis.functions.misc_dialogs import (CustomIntervalDialog, SelectChannels
                                             SpectralChoiceDialog, NoHighGammaDialog,
                                             NoPreprocessedDialog, NoTrialsDialog,
                                             ExitDialog, HighGammaDialog,
-                                            PeriodogramGridDialog,
-                                            PreprocessingDialog, NoRawDialog, NoSpectrumDialog,
+                                            PeriodogramGridDialog, NoSpectrumDialog,
+                                            PreprocessingDialog, NoRawDialog,
                                             NoAudioDialog, ExistIntervalsDialog)
 from ecogvis.functions.audio_event_detection import AudioEventDetection
 from ecogvis.functions.event_related_potential import ERPDialog
+from ecogvis.functions.save_to_nwb import SaveToNWBDialog
 
 annotationAdd_ = False
 annotationDel_ = False
@@ -442,10 +443,12 @@ class Application(QMainWindow):
 
     def save_file(self):
         """Saves chosen data and info to new NWB file."""
-        filename, _ = QFileDialog.getSaveFileName(None, 'Save to file', '', "(*.nwb)")
-        if os.path.isfile(filename):
-            self.file = filename
-            pass
+        save_dialog = SaveToNWBDialog(parent=self)
+        print(save_dialog.value)
+        if save_dialog.value:
+            filename, _ = QFileDialog.getSaveFileName(None, 'Save to file', '', "(*.nwb)")
+            if os.path.isfile(filename):
+                self.file = filename
 
     def change_session(self):
         """Changes session name."""
