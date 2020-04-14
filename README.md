@@ -13,10 +13,17 @@ A collaboration with with [Chang Lab](http://changlab.ucsf.edu/).
 $ pip install ecogVIS
 ```
 
-After activating the correct environment, **ecogVIS** can be
+After activating the correct environment, **ecogVIS** can be started from the terminal:
+```
+$ ecogvis
+```
 
+You can also directly pass a file to be opened:
+```
+$ ecogvis --file 'filename.nwb'
+```
 
-can be imported and run from python. If the file does not exist (or if you provide an empty string ''), you'll be prompted to choose a file from a dialog.
+**ecogVIS** can be imported and run from python scripts. If the file does not exist (or if you provide an empty string ''), you'll be prompted to choose a file from a dialog.
 ```python
 from ecogvis import main
 import os
