@@ -268,8 +268,6 @@ def copy_obj(obj_old, nwb_old, nwb_new):
             description=obj_old.description
         )
 
-    # LFP -----------------------------------------------------------------------
-    if obj_type == 'LFP':
     # DynamicTable ------------------------------------------------------------
     if type(obj_old) is DynamicTable:
         return DynamicTable(
