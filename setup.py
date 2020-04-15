@@ -17,8 +17,9 @@ setup(
     packages=find_packages(),
     include_package_data=True,
     install_requires=['PyQt5', 'matplotlib', 'cycler', 'scipy', 'numpy',
-                      'h5py', 'pyqtgraph', 'pandas', 'pynwb', 'PyYAML',
-                      'nwbext_ecog', 'ndx-spectrum', 'pyopengl', 'process_nwb'],
+                      'h5py', 'pyqtgraph', 'pandas', 'pynwb>=1.1.2', 'PyYAML',
+                      'nwbext_ecog==0.7.2', 'ndx-spectrum',
+                          'pyopengl', 'process_nwb'],
     entry_points={
         'console_scripts': ['ecogvis=ecogvis.ecogvis:main'],
     }

@@ -17,7 +17,6 @@ from ecogvis.functions.nwb_copy_file import nwb_copy_file
 
 
 def processing_data(path, subject, blocks, mode=None, config=None, new_file=''):
-
     for block in blocks:
         block_path = os.path.join(path, '{}_B{}.nwb'.format(subject, block))
         if new_file != '':
@@ -57,18 +56,14 @@ def make_new_nwb(old_file, new_file, cp_objs=None):
         cp_objs = {
             'institution': True,
             'lab': True,
-            'session':True,
-            'devices':True,
-            'electrode_groups':True,
-            'electrodes':True,
-            'epochs':True,
-            'invalid_times':True,
-            'trials':True,
-            'intervals':True,
-            'stimulus':True,
-            'subject':True,
-            'acquisition':'default',
-            'ecephys':'default'
+            'session': True,
+            'devices': True,
+            'electrode_groups': True,
+            'electrodes': True,
+            'intervals': True,
+            'stimulus': True,
+            'subject': True,
+            'acquisition': 'default'
         }
 
     # Open original signal file
@@ -108,7 +103,10 @@ def preprocess_raw_data(block_path, config):
     block_path : str
         subject file path
     config : dictionary
-        'CAR' - Number of channels to use in CAR (default=16)
+        'referencing' - tuple specifying electrode referencing (type, options)
+            ('CAR', N_channels_per_group)
+            ('CMR', N_channels_per_group)
+            ('bipolar', INCLUDE_OBLIQUE_NBHD)
         'Notch' - Main frequency (Hz) for notch filters (default=60)
         'Downsample' - Downsampling frequency (Hz, default= 400)
 
@@ -124,113 +122,245 @@ def preprocess_raw_data(block_path, config):
     with NWBHDF5IO(block_path, 'r+', load_namespaces=True) as io:
         nwb = io.read()
 
-        # Storage of processed signals on NWB file -----------------------------
-        try:      # if ecephys module already exists
+        # Storage of processed signals on NWB file ----------------------------
+        if 'ecephys' in nwb.processing:
             ecephys_module = nwb.processing['ecephys']
-        except:   # creates ecephys ProcessingModule
-            ecephys_module = ProcessingModule(name='ecephys',
-                                              description='Extracellular electrophysiology data.')
+        else:   # creates ecephys ProcessingModule
+            ecephys_module = ProcessingModule(
+                name='ecephys',
+                description='Extracellular electrophysiology data.'
+            )
             # Add module to NWB file
             nwb.add_processing_module(ecephys_module)
             print('Created ecephys')
 
-        # LFP: Downsampled and power line signal removed -----------------------
-        if 'LFP' in nwb.processing['ecephys'].data_interfaces:    # if LFP already exists
+        # LFP: Downsampled and power line signal removed ----------------------
+        if 'LFP' in nwb.processing['ecephys'].data_interfaces:
+            ######
+            # What's the point of this?  Nothing is done with these vars...
             lfp = nwb.processing['ecephys'].data_interfaces['LFP']
-            lfp_ts = nwb.processing['ecephys'].data_interfaces['LFP'].electrical_series['preprocessed']
-        else: # creates LFP data interface container
+            lfp_ts = nwb.processing['ecephys'].data_interfaces[
+                'LFP'].electrical_series['preprocessed']
+            ######
+        else:  # creates LFP data interface container
             lfp = LFP()
 
             # Data source
-            lis = list(nwb.acquisition.keys())
-            for i in lis:  # Check if there is ElectricalSeries in acquisition group
-                if type(nwb.acquisition[i]).__name__ == 'ElectricalSeries':
-                    source = nwb.acquisition[i]
+            source_list = [acq for acq in nwb.acquisition.values()
+                           if type(acq) == ElectricalSeries]
+            assert len(source_list) == 1, (
+                'Not precisely one ElectricalSeries in acquisition!')
+            source = source_list[0]
             nChannels = source.data.shape[1]
 
             # Downsampling
-            extraBins0 = 0
-            fs = source.rate
             if config['Downsample'] is not None:
                 print("Downsampling signals to "+str(config['Downsample'])+" Hz.")
                 print("Please wait, this might take around 30 minutes.")
                 start = time.time()
-                #zeros to pad to make signal lenght a power of 2
+                # zeros to pad to make signal length a power of 2
                 nBins = source.data.shape[0]
                 extraBins0 = 2**(np.ceil(np.log2(nBins)).astype('int')) - nBins
                 extraZeros = np.zeros(extraBins0)
                 rate = config['Downsample']
-                #One channel at a time, to improve memory usage for long signals
-                for ch in np.arange(nChannels):
-                    #1e6 scaling helps with numerical accuracy
-                    Xch = source.data[:,ch]*1e6
-                    #Make lenght a power of 2, improves performance
-                    Xch = np.append(Xch,extraZeros)
-                    Xch = resample(Xch, rate, fs)
-                    if ch==0:
-                        X = Xch.reshape(1,-1)
-                    else:
-                        X = np.append(X, Xch.reshape(1,-1), axis=0)
-                print('Downsampling finished in {} seconds'.format(time.time()-start))
-            else:  # No downsample
-                rate = fs
-                X = source.data[:,:].T*1e6
 
-            # Subtract CAR
-            if config['CAR'] is not None:
-                print("Computing and subtracting Common Average Reference in "+str(config['CAR'])+" channel blocks.")
-                start = time.time()
-                X = subtract_CAR(X, b_size=config['CAR'])
-                print('CAR subtract time for {}: {} seconds'.format(block_name, time.time()-start))
+                # malloc
+                T = int(np.ceil((nBins + extraBins0)*rate/source.rate))
+                X = np.zeros((source.data.shape[1], T))
+
+                # One channel at a time, to improve memory usage for long signals
+                for ch in np.arange(nChannels):
+                    # 1e6 scaling helps with numerical accuracy
+                    Xch = source.data[:, ch]*1e6
+                    # Make length a power of 2, improves performance
+                    Xch = np.append(Xch, extraZeros)
+                    X[ch, :] = resample(Xch, rate, source.rate)
+                print('Downsampling finished in {} seconds'.format(
+                    time.time()-start))
+            else:  # No downsample
+                extraBins0 = 0
+                rate = source.rate
+                X = source.data[()].T*1e6
+
+            # re-reference the (scaled by 1e6!) data
+            electrodes = source.electrodes
+            if config['referencing'] is not None:
+                if config['referencing'][0] == 'CAR':
+                    print("Computing and subtracting Common Average Reference in "
+                          + str(config['referencing'][1])+" channel blocks.")
+                    start = time.time()
+                    X = subtract_CAR(X, b_size=config['referencing'][1])
+                    print('CAR subtract time for {}: {} seconds'.format(
+                        block_name, time.time()-start))
+                elif config['referencing'][0] == 'bipolar':
+                    X, bipolarTable, electrodes = get_bipolar_referenced_electrodes(
+                        X, electrodes, rate, grid_step=1)
+
+                    # add data interface for the metadata for saving
+                    ecephys_module.add_data_interface(bipolarTable)
+                    print('bipolarElectrodes stored for saving in '+block_path)
+                else:
+                    print('UNRECOGNIZED REFERENCING SCHEME; ', end='')
+                    print('SKIPPING REFERENCING!')
 
             # Apply Notch filters
             if config['Notch'] is not None:
-                print("Applying Notch filtering of "+str(config['Notch'])+" Hz")
+                print("Applying notch filtering of "+str(config['Notch'])+" Hz")
                 #  zeros to pad to make signal lenght a power of 2
                 nBins = X.shape[1]
                 extraBins1 = 2**(np.ceil(np.log2(nBins)).astype('int')) - nBins
                 extraZeros = np.zeros(extraBins1)
                 start = time.time()
                 for ch in np.arange(nChannels):
-                    Xch = np.append(X[ch,:],extraZeros).reshape(1,-1)
+                    Xch = np.append(X[ch, :], extraZeros).reshape(1, -1)
                     Xch = apply_linenoise_notch(Xch, rate)
-                    if ch==0:
-                        X2 = Xch.reshape(1,-1)
+                    if ch == 0:
+                        X2 = Xch.reshape(1, -1)
                     else:
-                        X2 = np.append(X2, Xch.reshape(1,-1), axis=0)
-                print('Notch filter time for {}: {} seconds'.format(block_name, time.time()-start))
+                        X2 = np.append(X2, Xch.reshape(1, -1), axis=0)
+                print('Notch filter time for {}: {} seconds'.format(
+                    block_name, time.time()-start))
 
                 X = np.copy(X2)
                 del X2
+            else:
+                extraBins1 = 0
 
-            #Remove excess bins (because of zero padding on previous steps)
-            excessBins = int(np.ceil(extraBins0*rate/fs) + extraBins1)
+            # Remove excess bins (because of zero padding on previous steps)
+            excessBins = int(np.ceil(extraBins0*rate/source.rate) + extraBins1)
             X = X[:, 0:-excessBins]
             X = X.astype('float32')     # signal (nChannels,nSamples)
-            X /= 1e6                    # Scales signals back to Volt
+            X /= 1e6                    # Scales signals back to volts
 
             # Add preprocessed downsampled signals as an electrical_series
-            if config['CAR'] is None:
-                car = 'None'
-            else: car = str(config['CAR'])
-            if config['Notch'] is None:
-                notch = 'None'
-            else: notch = str(config['Notch'])
-            if config['Downsample'] is None:
-                downs = 'No'
-            else: downs = 'Yes'
-            config_comment = 'CAR:'+car+', Notch:'+notch+', Downsampled:'+downs
-            lfp_ts = lfp.create_electrical_series(name='preprocessed',
-                                                  data=X.T,
-                                                  electrodes=source.electrodes,
-                                                  rate=rate,
-                                                  description='',
-                                                  comments=config_comment)
+            referencing = 'None' if config['referencing'] is None else config[
+                'referencing'][0]
+            notch = 'None' if config['Notch'] is None else str(config['Notch'])
+            downs = 'No' if config['Downsample'] is None else 'Yes'
+            config_comment = (
+                'referencing:' + referencing
+                + ',Notch:' + notch
+                + ', Downsampled:' + downs
+            )
+
+            # create an electrical series for the LFP and store it in lfp
+            lfp_ts = lfp.create_electrical_series(
+                name='preprocessed',
+                data=X.T,
+                electrodes=electrodes,
+                rate=rate,
+                description='',
+                comments=config_comment
+            )
             ecephys_module.add_data_interface(lfp)
 
             # Write LFP to NWB file
             io.write(nwb)
             print('LFP saved in '+block_path)
+
+
+def get_bipolar_referenced_electrodes(
+    X, electrodes, rate, grid_size=None, grid_step=1
+):
+    '''
+    Bipolar referencing of electrodes according to the scheme of Dr. John Burke
+
+    Each electrode (with obvious exceptions at the edges) yields two bipolar-
+    referenced channels, one for the "right" and one for the "below" neighbors.
+    These are returned as an ElectricalSeries.
+
+    Input arguments:
+    --------
+    X:
+        numpy array containing (raw) electrode traces (Nelectrodes x T)
+    electrodes:
+        DynamicTableRegion containing the metadata for the electrodes whose
+        traces are in X
+    rate:
+        sampling rate of X; for storage in ElectricalSeries
+    grid_size:
+        numpy array with the two dimensions of the grid (2, )
+
+    Returns:
+    --------
+    bipolarElectrodes:
+        ElectricalSeries containing the bipolar-referenced (pseudo) electrodes
+        and associated metadata.  (NB that a, e.g., 16x16 grid yields 960 of
+        these pseudo-electrodes.)
+    '''
+
+    # set mutable default argument(s)
+    if grid_size is None:
+        grid_size = np.array([16, 16])
+
+    # malloc
+    elec_layout = np.arange(np.prod(grid_size)-1, -1, -1).reshape(grid_size).T
+    elec_layout = elec_layout[::grid_step, ::grid_step]
+    grid_size = elec_layout.T.shape  # in case grid_step > 1
+    Nchannels = 2*np.prod(grid_size) - np.sum(grid_size)
+    XX = np.zeros((Nchannels, X.shape[1]))
+
+    # create a new dynamic table to hold the metadata
+    column_names = ['x', 'y', 'z', 'imp', 'location', 'label', 'bad']
+    columns = [
+        VectorData(
+            name=name,
+            description=electrodes.table[name].description)
+        for name in column_names
+    ]
+    bipolarTable = DynamicTable(
+        name='bipolar-referenced metadata',
+        description=('pseudo-channels derived via John Burke style'
+                     ' bipolar referencing'),
+        colnames=column_names,
+        columns=columns,
+    )
+
+    # compute bipolar-ref'd channel and add a new row of metadata to table
+    def add_new_channel(iChannel, iElectrode, jElectrode):
+        jElectrode = int(jElectrode)
+
+        # "bipolar referencing": the difference of neighboring electrodes
+        XX[iChannel, :] = X[iElectrode, :] - X[jElectrode, :]
+
+        # add a row to the table for this new pseudo-electrode
+        bipolarTable.add_row(
+            {
+                'location': '_'.join({
+                    electrodes.table['location'][iElectrode],
+                    electrodes.table['location'][jElectrode]
+                }),
+                'label': '-'.join([
+                    electrodes.table['label'][iElectrode],
+                    electrodes.table['label'][jElectrode]
+                ]),
+                'bad': (
+                    electrodes.table['bad'][iElectrode] or
+                    electrodes.table['bad'][jElectrode]
+                ),
+                **{name: electrodes.table[name][iElectrode]
+                   for name in ['x', 'y', 'z', 'imp']},
+            }
+        )
+        return iChannel+1
+
+    iChannel = 0
+
+    # loop across columns and rows (remembering that grid is transposed)
+    for i in range(grid_size[1]):
+        for j in range(grid_size[0]):
+            if j < grid_size[0]-1:
+                iChannel = add_new_channel(
+                    iChannel, elec_layout[i, j], elec_layout[i, j+1])
+            if i < grid_size[1]-1:
+                iChannel = add_new_channel(
+                    iChannel, elec_layout[i, j], elec_layout[i+1, j])
+
+    # create one big region for the entire table
+    bipolarTableRegion = bipolarTable.create_region(
+        'electrodes', [i for i in range(Nchannels)], 'all bipolar electrodes')
+
+    return XX, bipolarTable, bipolarTableRegion
 
 
 def spectral_decomposition(block_path, bands_vals):
@@ -266,12 +396,12 @@ def spectral_decomposition(block_path, bands_vals):
         nChannels = lfp.data.shape[1]
         Xp = np.zeros((nBands, nChannels, nSamples))  #power (nBands,nChannels,nSamples)
 
-        # Apply Hilbert transform ----------------------------------------------
+        # Apply Hilbert transform ---------------------------------------------
         print('Running Spectral Decomposition...')
         start = time.time()
         for ch in np.arange(nChannels):
-            Xch = lfp.data[:,ch]*1e6       # 1e6 scaling helps with numerical accuracy
-            Xch = Xch.reshape(1,-1)
+            Xch = lfp.data[:, ch]*1e6       # 1e6 scaling helps with numerical accuracy
+            Xch = Xch.reshape(1, -1)
             Xch = Xch.astype('float32')     # signal (nChannels,nSamples)
             X_fft_h = None
             for ii, (bp0, bp1) in enumerate(zip(band_param_0, band_param_1)):
@@ -285,24 +415,32 @@ def spectral_decomposition(block_path, bands_vals):
 
         # Spectral band power
         # bands: (DynamicTable) frequency bands that signal was decomposed into
-        band_param_0V = VectorData(name='filter_param_0',
-                                   description='frequencies for bandpass filters',
-                                   data=band_param_0)
-        band_param_1V = VectorData(name='filter_param_1',
-                                   description='frequencies for bandpass filters',
-                                   data=band_param_1)
-        bandsTable = DynamicTable(name='bands',
-                                  description='Series of filters used for Hilbert transform.',
-                                  columns=[band_param_0V, band_param_1V],
-                                  colnames=['filter_param_0', 'filter_param_1'])
-        decs = DecompositionSeries(name='DecompositionSeries',
-                                   data=Xp,
-                                   description='Analytic amplitude estimated with Hilbert transform.',
-                                   metric='amplitude',
-                                   unit='V',
-                                   bands=bandsTable,
-                                   rate=rate,
-                                   source_timeseries=lfp)
+        band_param_0V = VectorData(
+            name='filter_param_0',
+            description='frequencies for bandpass filters',
+            data=band_param_0
+        )
+        band_param_1V = VectorData(
+            name='filter_param_1',
+            description='frequencies for bandpass filters',
+            data=band_param_1
+        )
+        bandsTable = DynamicTable(
+            name='bands',
+            description='Series of filters used for Hilbert transform.',
+            columns=[band_param_0V, band_param_1V],
+            colnames=['filter_param_0', 'filter_param_1']
+        )
+        decs = DecompositionSeries(
+            name='DecompositionSeries',
+            data=Xp,
+            description='Analytic amplitude estimated with Hilbert transform.',
+            metric='amplitude',
+            unit='V',
+            bands=bandsTable,
+            rate=rate,
+            source_timeseries=lfp
+        )
 
         # Storage of spectral decomposition on NWB file ------------------------
         ecephys_module = nwb.processing['ecephys']
@@ -348,7 +486,7 @@ def high_gamma_estimation(block_path, bands_vals, new_file=''):
         nChannels = lfp.data.shape[1]
         Xp = np.zeros((nBands, nChannels, nSamples))  #power (nBands,nChannels,nSamples)
 
-        # Apply Hilbert transform ----------------------------------------------
+        # Apply Hilbert transform ---------------------------------------------
         print('Running High Gamma estimation...')
         start = time.time()
         for ch in np.arange(nChannels):
@@ -358,44 +496,64 @@ def high_gamma_estimation(block_path, bands_vals, new_file=''):
             X_fft_h = None
             for ii, (bp0, bp1) in enumerate(zip(band_param_0, band_param_1)):
                 kernel = gaussian(Xch.shape[-1], rate, bp0, bp1)
-                X_analytic, X_fft_h = hilbert_transform(Xch, rate, kernel, phase=None, X_fft_h=X_fft_h)
+                X_analytic, X_fft_h = hilbert_transform(
+                    Xch, rate, kernel, phase=None, X_fft_h=X_fft_h)
                 Xp[ii, ch, :] = abs(X_analytic).astype('float32')
-        print('High Gamma estimation finished in {} seconds'.format(time.time()-start))
+        print('High Gamma estimation finished in {} seconds'.format(
+            time.time()-start))
 
         # data: (ndarray) dims: num_times * num_channels * num_bands
         Xp = np.swapaxes(Xp, 0, 2)
-        HG = np.mean(Xp, 2)   #average of high gamma bands
+        HG = np.mean(Xp, 2)   # average of high gamma bands
 
         # Storage of High Gamma on NWB file -----------------------------
-        if new_file == '':  #on current file
-            #make electrodes table
+        if new_file == '' or new_file is None:  # on current file
+            # make electrodes table
             nElecs = HG.shape[1]
-            elecs_region = nwb.electrodes.create_region(name='electrodes',
-                                                        region=np.arange(nElecs).tolist(),
-                                                        description='all electrodes')
-            hg = ElectricalSeries(name='high_gamma',
-                                  data=HG,
-                                  electrodes=elecs_region,
-                                  rate=rate,
-                                  description='')
-
             ecephys_module = nwb.processing['ecephys']
+
+            # first check for a table among the file's data_interfaces
+            ####
+            if lfp.electrodes.table.name in ecephys_module.data_interfaces:
+                LFP_dynamic_table = ecephys_module.data_interfaces[
+                    lfp.electrodes.table.name]
+            else:
+                # othewise use the electrodes as the table
+                LFP_dynamic_table = nwb.electrodes
+            ####
+            elecs_region = LFP_dynamic_table.create_region(
+                name='electrodes',
+                region=[i for i in range(nChannels)],
+                description='all electrodes'
+            )
+            hg = ElectricalSeries(
+                name='high_gamma',
+                data=HG,
+                electrodes=elecs_region,
+                rate=rate,
+                description=''
+            )
+
             ecephys_module.add_data_interface(hg)
             io.write(nwb)
             print('High Gamma power saved in '+block_path)
-        else:           # on new file
+        else:  # on new file
             with NWBHDF5IO(new_file, 'r+', load_namespaces=True) as io_new:
                 nwb_new = io_new.read()
-                #make electrodes table
+                # make electrodes table
                 nElecs = HG.shape[1]
-                elecs_region = nwb_new.electrodes.create_region(name='electrodes',
-                                                                region=np.arange(nElecs).tolist(),
-                                                                description='all electrodes')
-                hg = ElectricalSeries(name='high_gamma',
-                                      data=HG,
-                                      electrodes=elecs_region,
-                                      rate=rate,
-                                      description='no description')
+                elecs_region = nwb_new.electrodes.create_region(
+                    name='electrodes',
+                    region=np.arange(nElecs).tolist(),
+                    description='all electrodes'
+                )
+                hg = ElectricalSeries(
+                    name='high_gamma',
+                    data=HG,
+                    electrodes=elecs_region,
+                    rate=rate,
+                    description=''
+                )
 
                 try:      # if ecephys module already exists
                     ecephys_module = nwb_new.processing['ecephys']
