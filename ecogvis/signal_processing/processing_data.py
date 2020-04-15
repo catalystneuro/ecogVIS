@@ -395,7 +395,7 @@ def high_gamma_estimation(block_path, bands_vals, new_file=''):
                                       data=HG,
                                       electrodes=elecs_region,
                                       rate=rate,
-                                      description='')
+                                      description='no description')
 
                 try:      # if ecephys module already exists
                     ecephys_module = nwb_new.processing['ecephys']
