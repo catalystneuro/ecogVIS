@@ -1,36 +1,33 @@
 from __future__ import print_function, division
 
-import argparse, h5py, time, os
+import time, os
 import numpy as np
 
-import nwbext_ecog
 from pynwb import NWBHDF5IO, ProcessingModule
 from pynwb.ecephys import LFP, ElectricalSeries
-from pynwb.core import DynamicTable, DynamicTableRegion, VectorData
+from pynwb.core import DynamicTable, VectorData
 from pynwb.misc import DecompositionSeries
-from pynwb.base import TimeSeries
-from pynwb.file import Subject
 
 from ecogvis.signal_processing.hilbert_transform import hilbert_transform
 from process_nwb.wavelet_transform import gaussian
 from process_nwb.resample import resample
 from process_nwb.linenoise_notch import apply_linenoise_notch
-from ecogvis.signal_processing.common_referencing import subtract_CAR,subtract_common_median_reference
-from ecogvis.signal_processing.bands import bands
+from ecogvis.signal_processing.common_referencing import subtract_CAR
 from ecogvis.functions.nwb_copy_file import nwb_copy_file
 
 
-def processing_data(path, subject, blocks, mode=None , config=None, new_file=''):
+def processing_data(path, subject, blocks, mode=None, config=None, new_file=''):
+
     for block in blocks:
         block_path = os.path.join(path, '{}_B{}.nwb'.format(subject, block))
-        if new_file!='':
+        if new_file != '':
             make_new_nwb(old_file=block_path, new_file=new_file)
 
-        if mode=='preprocess':
+        if mode == 'preprocess':
             preprocess_raw_data(block_path, config=config)
-        elif mode=='decomposition':
+        elif mode == 'decomposition':
             spectral_decomposition(block_path, bands_vals=config)
-        elif mode=='high_gamma':
+        elif mode == 'high_gamma':
             high_gamma_estimation(block_path, bands_vals=config, new_file=new_file)
 
 
@@ -189,7 +186,7 @@ def preprocess_raw_data(block_path, config):
             # Apply Notch filters
             if config['Notch'] is not None:
                 print("Applying Notch filtering of "+str(config['Notch'])+" Hz")
-                #zeros to pad to make signal lenght a power of 2
+                #  zeros to pad to make signal lenght a power of 2
                 nBins = X.shape[1]
                 extraBins1 = 2**(np.ceil(np.log2(nBins)).astype('int')) - nBins
                 extraZeros = np.zeros(extraBins1)
@@ -256,8 +253,8 @@ def spectral_decomposition(block_path, bands_vals):
     """
 
     # Get filter parameters
-    band_param_0 = bands_vals[0,:]
-    band_param_1 = bands_vals[1,:]
+    band_param_0 = bands_vals[0, :]
+    band_param_1 = bands_vals[1, :]
 
     with NWBHDF5IO(block_path, 'r+', load_namespaces=True) as io:
         nwb = io.read()
@@ -284,34 +281,34 @@ def spectral_decomposition(block_path, bands_vals):
         print('Spectral Decomposition finished in {} seconds'.format(time.time()-start))
 
         # data: (ndarray) dims: num_times * num_channels * num_bands
-        Xp = np.swapaxes(Xp,0,2)
+        Xp = np.swapaxes(Xp, 0, 2)
 
         # Spectral band power
         # bands: (DynamicTable) frequency bands that signal was decomposed into
         band_param_0V = VectorData(name='filter_param_0',
-                          description='frequencies for bandpass filters',
-                          data=band_param_0)
+                                   description='frequencies for bandpass filters',
+                                   data=band_param_0)
         band_param_1V = VectorData(name='filter_param_1',
-                          description='frequencies for bandpass filters',
-                          data=band_param_1)
+                                   description='frequencies for bandpass filters',
+                                   data=band_param_1)
         bandsTable = DynamicTable(name='bands',
                                   description='Series of filters used for Hilbert transform.',
-                                  columns=[band_param_0V,band_param_1V],
-                                  colnames=['filter_param_0','filter_param_1'])
+                                  columns=[band_param_0V, band_param_1V],
+                                  colnames=['filter_param_0', 'filter_param_1'])
         decs = DecompositionSeries(name='DecompositionSeries',
-                                    data=Xp,
-                                    description='Analytic amplitude estimated with Hilbert transform.',
-                                    metric='amplitude',
-                                    unit='V',
-                                    bands=bandsTable,
-                                    rate=rate,
-                                    source_timeseries=lfp)
+                                   data=Xp,
+                                   description='Analytic amplitude estimated with Hilbert transform.',
+                                   metric='amplitude',
+                                   unit='V',
+                                   bands=bandsTable,
+                                   rate=rate,
+                                   source_timeseries=lfp)
 
         # Storage of spectral decomposition on NWB file ------------------------
         ecephys_module = nwb.processing['ecephys']
         ecephys_module.add_data_interface(decs)
         io.write(nwb)
-        print('Spectral decomposition saved in '+block_path)
+        print('Spectral decomposition saved in ' + block_path)
 
 
 def high_gamma_estimation(block_path, bands_vals, new_file=''):
@@ -338,8 +335,8 @@ def high_gamma_estimation(block_path, bands_vals, new_file=''):
     """
 
     # Get filter parameters
-    band_param_0 = bands_vals[0,:]
-    band_param_1 = bands_vals[1,:]
+    band_param_0 = bands_vals[0, :]
+    band_param_1 = bands_vals[1, :]
 
     with NWBHDF5IO(block_path, 'r+', load_namespaces=True) as io:
         nwb = io.read()
@@ -355,8 +352,8 @@ def high_gamma_estimation(block_path, bands_vals, new_file=''):
         print('Running High Gamma estimation...')
         start = time.time()
         for ch in np.arange(nChannels):
-            Xch = lfp.data[:,ch]*1e6       # 1e6 scaling helps with numerical accuracy
-            Xch = Xch.reshape(1,-1)
+            Xch = lfp.data[:, ch] * 1e6       # 1e6 scaling helps with numerical accuracy
+            Xch = Xch.reshape(1, -1)
             Xch = Xch.astype('float32')     # signal (nChannels,nSamples)
             X_fft_h = None
             for ii, (bp0, bp1) in enumerate(zip(band_param_0, band_param_1)):
@@ -366,11 +363,11 @@ def high_gamma_estimation(block_path, bands_vals, new_file=''):
         print('High Gamma estimation finished in {} seconds'.format(time.time()-start))
 
         # data: (ndarray) dims: num_times * num_channels * num_bands
-        Xp = np.swapaxes(Xp,0,2)
+        Xp = np.swapaxes(Xp, 0, 2)
         HG = np.mean(Xp, 2)   #average of high gamma bands
 
         # Storage of High Gamma on NWB file -----------------------------
-        if new_file=='':  #on current file
+        if new_file == '':  #on current file
             #make electrodes table
             nElecs = HG.shape[1]
             elecs_region = nwb.electrodes.create_region(name='electrodes',
@@ -386,7 +383,7 @@ def high_gamma_estimation(block_path, bands_vals, new_file=''):
             ecephys_module.add_data_interface(hg)
             io.write(nwb)
             print('High Gamma power saved in '+block_path)
-        else:           #on new file
+        else:           # on new file
             with NWBHDF5IO(new_file, 'r+', load_namespaces=True) as io_new:
                 nwb_new = io_new.read()
                 #make electrodes table
