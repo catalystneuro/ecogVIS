@@ -1,7 +1,8 @@
 from __future__ import division
+from process_nwb.wavelet_transform import gaussian,hamming
 import numpy as np
 
-from .fft import fftfreq, fft, ifft
+from process_nwb.fft import fftfreq, fft, ifft
 try:
     from accelerate.mkl.fftpack import fft, ifft
 except ImportError:
@@ -12,36 +13,7 @@ except ImportError:
 
 
 __authors__ = "Alex Bujan, Jesse Livezey"
-__all__ = ['gaussian', 'hamming', 'hilbert_transform']
-
-
-def gaussian(X, rate, center, sd):
-    time = X.shape[-1]
-    freq = fftfreq(time, 1./rate)
-
-    k = np.exp((-(np.abs(freq) - center)**2)/(2 * (sd**2)))
-    k /= np.linalg.norm(k)
-
-    return k
-
-
-def hamming(X, rate, min_freq, max_freq):
-    time = X.shape[-1]
-    freq = fftfreq(time, 1./rate)
-
-    pos_in_window = np.logical_and(freq >= min_freq, freq <= max_freq)
-    neg_in_window = np.logical_and(freq <= -min_freq, freq >= -max_freq)
-
-    k = np.zeros(len(freq))
-    window_size = np.count_nonzero(pos_in_window)
-    window = np.hamming(window_size)
-    k[pos_in_window] = window
-    window_size = np.count_nonzero(neg_in_window)
-    window = np.hamming(window_size)
-    k[neg_in_window] = window
-    k /= np.linalg.norm(k)
-
-    return k
+__all__ = ['hilbert_transform']
 
 
 def hilbert_transform(X, rate, filters=None, phase=None, X_fft_h=None):

@@ -199,14 +199,14 @@ def preprocess_raw_data(block_path, config):
 
                     # add data interface for the metadata for saving
                     ecephys_module.add_data_interface(bipolarTable)
-                    print('bipolarElectrodes stored for saving in '+block_path)
+                    print('bipolarElectrodes stored for saving in ' + block_path)
                 else:
                     print('UNRECOGNIZED REFERENCING SCHEME; ', end='')
                     print('SKIPPING REFERENCING!')
 
             # Apply Notch filters
             if config['Notch'] is not None:
-                print("Applying notch filtering of "+str(config['Notch'])+" Hz")
+                print("Applying notch filtering of " + str(config['Notch']) + " Hz")
                 # zeros to pad to make signal lenght a power of 2
                 nBins = X.shape[1]
                 extraBins1 = 2**(np.ceil(np.log2(nBins)).astype('int')) - nBins
@@ -406,13 +406,13 @@ def spectral_decomposition(block_path, bands_vals):
             Xch = Xch.astype('float32')     # signal (nChannels,nSamples)
             X_fft_h = None
             for ii, (bp0, bp1) in enumerate(zip(band_param_0, band_param_1)):
-                kernel = gaussian(Xch, rate, bp0, bp1)
+                kernel = gaussian(Xch.shape[-1], rate, bp0, bp1)
                 X_analytic, X_fft_h = hilbert_transform(Xch, rate, kernel, phase=None, X_fft_h=X_fft_h)
                 Xp[ii, ch, :] = abs(X_analytic).astype('float32')
         print('Spectral Decomposition finished in {} seconds'.format(time.time()-start))
 
         # data: (ndarray) dims: num_times * num_channels * num_bands
-        Xp = np.swapaxes(Xp,0,2)
+        Xp = np.swapaxes(Xp, 0, 2)
 
         # Spectral band power
         # bands: (DynamicTable) frequency bands that signal was decomposed into
@@ -447,7 +447,7 @@ def spectral_decomposition(block_path, bands_vals):
         ecephys_module = nwb.processing['ecephys']
         ecephys_module.add_data_interface(decs)
         io.write(nwb)
-        print('Spectral decomposition saved in '+block_path)
+        print('Spectral decomposition saved in ' + block_path)
 
 
 def high_gamma_estimation(block_path, bands_vals, new_file=''):
@@ -492,7 +492,7 @@ def high_gamma_estimation(block_path, bands_vals, new_file=''):
         print('Running High Gamma estimation...')
         start = time.time()
         for ch in np.arange(nChannels):
-            Xch = lfp.data[:, ch]*1e6       # 1e6 scaling helps with numerical accuracy
+            Xch = lfp.data[:, ch] * 1e6       # 1e6 scaling helps with numerical accuracy
             Xch = Xch.reshape(1, -1)
             Xch = Xch.astype('float32')     # signal (nChannels,nSamples)
             X_fft_h = None

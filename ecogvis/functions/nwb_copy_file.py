@@ -48,8 +48,7 @@ def nwb_copy_file(old_file, new_file, cp_objs={}):
         nwb_new = NWBFile(session_description=str(nwb_old.session_description),
                           identifier='',
                           session_start_time=datetime.now(tzlocal()))
-        with NWBHDF5IO(new_file, mode='w', manager=manager,
-                       load_namespaces=False) as io2:
+        with NWBHDF5IO(new_file, mode='w', manager=manager, load_namespaces=False) as io2:
             # Institution name ------------------------------------------------
             if 'institution' in cp_objs:
                 nwb_new.institution = str(nwb_old.institution)
@@ -73,11 +72,9 @@ def nwb_copy_file(old_file, new_file, cp_objs={}):
                 for aux in list(nwb_old.electrode_groups.keys()):
                     nwb_new.create_electrode_group(
                         name=str(nwb_old.electrode_groups[aux].name),
-                        description=str(nwb_old.electrode_groups[
-                            aux].description),
+                        description=str(nwb_old.electrode_groups[aux].description),
                         location=str(nwb_old.electrode_groups[aux].location),
-                        device=nwb_new.get_device(
-                            nwb_old.electrode_groups[aux].device.name)
+                        device=nwb_new.get_device(nwb_old.electrode_groups[aux].device.name)
                     )
 
             # Electrodes ------------------------------------------------------
@@ -101,18 +98,16 @@ def nwb_copy_file(old_file, new_file, cp_objs={}):
                                 'group', 'group_name']
                 [new_vars.remove(var) for var in default_vars]
                 for var in new_vars:
-
                     if var == 'label':
-                        var_data = [str(elem) for elem in nwb_old.electrodes[
-                                                          var].data[:]]
+                        var_data = [str(elem) for elem in nwb_old.electrodes[var].data[:]]
                     else:
                         var_data = np.array(nwb_old.electrodes[var].data[:])
 
-                    nwb_new.add_electrode_column(name=str(var),
-                                                 description=
-                                                 str(nwb_old.electrodes[
-                                                     var].description),
-                                                 data=var_data)
+                    nwb_new.add_electrode_column(
+                        name=str(var),
+                        description=str(nwb_old.electrodes[var].description),
+                        data=var_data
+                    )
 
             # Epochs ----------------------------------------------------------
             if 'epochs' in cp_objs:
@@ -191,8 +186,7 @@ def nwb_copy_file(old_file, new_file, cp_objs={}):
             # Processing modules ----------------------------------------------
             if 'ecephys' in cp_objs:
                 if cp_objs['ecephys'] is True:
-                    interfaces = nwb_old.processing[
-                        'ecephys'].data_interfaces.keys()
+                    interfaces = nwb_old.processing['ecephys'].data_interfaces.keys()
                 else:  # list of items
                     interfaces = [
                         nwb_old.processing['ecephys'].data_interfaces[key]

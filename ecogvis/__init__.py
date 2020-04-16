@@ -1,1 +1,1 @@
-from ecogvis import *
+from .ecogvis import *

@@ -1,9 +1,8 @@
-# Standard libraries
-import os
-
-# Third party libraries
-import OpenGL.GL as ogl
-import numpy as np
+from PyQt5 import QtGui, QtCore, uic
+from PyQt5.QtWidgets import (QTableWidgetItem, QGridLayout, QGroupBox, QLineEdit,
+                             QWidget, QLabel, QPushButton, QVBoxLayout, QHBoxLayout,
+                             QComboBox, QScrollArea, QFileDialog, QHeaderView,
+                             QMainWindow, QCheckBox)
 import pyqtgraph as pg
 import pyqtgraph.opengl as gl
 from PyQt5 import QtGui, QtCore, uic
@@ -13,24 +12,20 @@ from PyQt5.QtWidgets import (QTableWidgetItem, QGridLayout, QGroupBox,
                              QHBoxLayout, QComboBox, QScrollArea,
                              QFileDialog, QHeaderView, QMainWindow, QCheckBox)
 from ecogvis.signal_processing import bands as default_bands
-from ecogvis.signal_processing.detect_events import detect_events
-from ecogvis.signal_processing.periodogram import psd_estimate
 from ecogvis.signal_processing.processing_data import processing_data
-from pynwb import NWBHDF5IO
-from pynwb.epoch import TimeIntervals
-
+from ecogvis.signal_processing.periodogram import psd_estimate
 from .FS_colorLUT import get_lut
 
-# from threading import Event, Thread
+import numpy as np
+import os
+
 
 # Path where UI files are
 ui_path = os.path.join(os.path.dirname(__file__), '..', 'ui')
 
-# Creates custom interval type -----------------------------------------------
-Ui_CustomInterval, _ = uic.loadUiType(
-    os.path.join(ui_path, "intervals_gui.ui"))
 
-
+# Creates custom interval type -------------------------------------------------
+Ui_CustomInterval, _ = uic.loadUiType(os.path.join(ui_path, "intervals_gui.ui"))
 class CustomIntervalDialog(QtGui.QDialog, Ui_CustomInterval):
     def __init__(self):
         super().__init__()
@@ -50,10 +45,9 @@ class CustomIntervalDialog(QtGui.QDialog, Ui_CustomInterval):
 class NoHighGammaDialog(QtGui.QDialog):
     def __init__(self):
         super().__init__()
-        self.text = QLabel(
-            "There is no high gamma data in the current NWB file.\n" +
-            "To calculate high gamma power traces, use button:\n" +
-            "High Gamma")
+        self.text = QLabel("There is no high gamma data in the current NWB file.\n"
+                           "To calculate high gamma power traces, use button:\n"
+                           "High Gamma")
         self.okButton = QtGui.QPushButton("OK")
         self.okButton.clicked.connect(self.onAccepted)
         vbox = QtGui.QVBoxLayout()
@@ -71,10 +65,9 @@ class NoHighGammaDialog(QtGui.QDialog):
 class NoPreprocessedDialog(QtGui.QDialog):
     def __init__(self):
         super().__init__()
-        self.text = QLabel(
-            "There is no preprocessed data in the current NWB file.\n" +
-            "To generate preprocessed voltage traces, use button:\n" +
-            "Preprocess")
+        self.text = QLabel("There is no preprocessed data in the current NWB file.\n"
+                           "To generate preprocessed voltage traces, use button:\n"
+                           "Preprocess")
         self.okButton = QtGui.QPushButton("OK")
         self.okButton.clicked.connect(self.onAccepted)
         vbox = QtGui.QVBoxLayout()
@@ -110,9 +103,8 @@ class NoRawDialog(QtGui.QDialog):
 class NoTrialsDialog(QtGui.QDialog):
     def __init__(self):
         super().__init__()
-        self.text = QLabel(
-            "There is no trials data in the current NWB file.\n" +
-            "Trial times are needed to generate ERP.")
+        self.text = QLabel("There is no trials data in the current NWB file.\n"
+                           "Trial times are needed to generate ERP.")
         self.okButton = QtGui.QPushButton("OK")
         self.okButton.clicked.connect(self.onAccepted)
         vbox = QtGui.QVBoxLayout()
@@ -130,10 +122,8 @@ class NoTrialsDialog(QtGui.QDialog):
 class ExistIntervalsDialog(QtGui.QDialog):
     def __init__(self):
         super().__init__()
-        self.text = QLabel(
-            "Speaker intervals data already exists in the current NWB "
-            "file.\n" +
-            "It is not possible to substitute it.")
+        self.text = QLabel("Speaker intervals data already exists in the current NWB file.\n"
+                           "It is not possible to substitute it.")
         self.okButton = QtGui.QPushButton("OK")
         self.okButton.clicked.connect(self.onAccepted)
         vbox = QtGui.QVBoxLayout()
@@ -172,11 +162,8 @@ class NoSpectrumDialog(QtGui.QDialog):
         self.parent = parent
         self.type = type
         self.val = -1
-        self.text = QLabel(
-            "There is no Spectrum data for " + self.type + " data in the "
-                                                           "current NWB "
-                                                           "file.\n" +
-            "To calculate the Power Spectral Density, click Calculate.")
+        self.text = QLabel("There is no Spectrum data for " + self.type + " data in the current NWB file.\n"
+                           "To calculate the Power Spectral Density, click Calculate.")
         self.cancelButton = QtGui.QPushButton("Cancel")
         self.cancelButton.clicked.connect(lambda: self.out_close(val=-1))
         self.calculateButton = QtGui.QPushButton("Calculate")
@@ -192,10 +179,8 @@ class NoSpectrumDialog(QtGui.QDialog):
         self.exec_()
 
     def run_estimation(self):
-        self.text.setText(
-            "Calculating the Power Spectral Density for " + self.type + " "
-                                                                        "data.\n" +
-            "Please wait, this might take around 5 minutes.")
+        self.text.setText("Calculating the Power Spectral Density for " + self.type + " data.\n"
+                          "Please wait, this might take around 5 minutes.")
         self.cancelButton.setEnabled(False)
         self.calculateButton.setEnabled(False)
         self.thread = PSDCalcFunction(self)
@@ -214,17 +199,15 @@ class PSDCalcFunction(QtCore.QThread):
         self.parent = parent
         self.data = parent.parent.model.source
         self.src_file = parent.parent.file
-        self.type = parent.type  # 'raw' or 'preprocessed'
+        self.type = parent.type   # 'raw' or 'preprocessed'
 
     def run(self):
         psd_estimate(src_file=self.src_file,
                      type=self.type)
 
 
-# Exit confirmation ----------------------------------------------------------
+# Exit confirmation ------------------------------------------------------------
 Ui_Exit, _ = uic.loadUiType(os.path.join(ui_path, "exit_gui.ui"))
-
-
 class ExitDialog(QtGui.QDialog, Ui_Exit):
     def __init__(self, parent):
         super().__init__()
@@ -235,8 +218,7 @@ class ExitDialog(QtGui.QDialog, Ui_Exit):
         self.pushButton_2.clicked.connect(self.cancel)
         self.pushButton_3.clicked.connect(self.exit)
 
-        if parent.model.unsaved_changes_annotation or \
-                parent.model.unsaved_changes_interval:
+        if parent.model.unsaved_changes_annotation or parent.model.unsaved_changes_interval:
             text = "There are unsaved changes in this session.\n" + \
                    "Do you want to save them before exit?"
             self.label.setText(text)
@@ -298,17 +280,13 @@ class SelectChannelsDialog(QtGui.QDialog):
         self.unselectButton.clicked.connect(self.unselect_all)
 
         self.select_all()
-        self.choices = [self.model.item(i).text() for i in
-                        range(self.model.rowCount())
-                        if self.model.item(i).checkState()
-                        == QtCore.Qt.Checked]
+        self.choices = [self.model.item(i).text() for i in range(self.model.rowCount())
+                        if self.model.item(i).checkState() == QtCore.Qt.Checked]
         self.exec_()
 
     def onAccepted(self):
-        self.choices = [self.model.item(i).text() for i in
-                        range(self.model.rowCount())
-                        if self.model.item(i).checkState()
-                        == QtCore.Qt.Checked]
+        self.choices = [self.model.item(i).text() for i in range(self.model.rowCount())
+                        if self.model.item(i).checkState() == QtCore.Qt.Checked]
         self.accept()
 
     def select_all(self):
@@ -322,11 +300,8 @@ class SelectChannelsDialog(QtGui.QDialog):
             item.setCheckState(QtCore.Qt.Unchecked)
 
 
-# Creates Spectral Analysis choice dialog ------------------------------------
-Ui_SpectralChoice, _ = uic.loadUiType(
-    os.path.join(ui_path, "spectral_choice_gui.ui"))
-
-
+# Creates Spectral Analysis choice dialog --------------------------------------
+Ui_SpectralChoice, _ = uic.loadUiType(os.path.join(ui_path, "spectral_choice_gui.ui"))
 class SpectralChoiceDialog(QtGui.QDialog, Ui_SpectralChoice):
     def __init__(self, parent):
         super().__init__()
@@ -334,8 +309,8 @@ class SpectralChoiceDialog(QtGui.QDialog, Ui_SpectralChoice):
         self.nwb = parent.model.nwb
         self.fpath = parent.model.pathName
         self.fname = parent.model.fileName
-        self.chosen_bands = None  # Values for custom filter bands (user input)
-        self.value = -1  # Reference value for user pressed exit button
+        self.chosen_bands = None    # Values for custom filter bands (user input)
+        self.value = -1             # Reference value for user pressed exit button
         self.radioButton_1.clicked.connect(self.choice_default)
         self.radioButton_2.clicked.connect(self.choice_custom)
         self.pushButton_1.clicked.connect(self.add_band)
@@ -383,16 +358,13 @@ class SpectralChoiceDialog(QtGui.QDialog, Ui_SpectralChoice):
         self.label_1.setText(text)
         self.runButton.setEnabled(True)
         # Populate table with values
-        self.tableWidget.setHorizontalHeaderLabels(
-            ['center [Hz]', 'sigma [Hz]'])
+        self.tableWidget.setHorizontalHeaderLabels(['center [Hz]', 'sigma [Hz]'])
         p0 = default_bands.chang_lab['cfs']
         p1 = default_bands.chang_lab['sds']
         self.tableWidget.setRowCount(len(p0))
         for i in np.arange(len(p0)):
-            self.tableWidget.setItem(i, 0,
-                                     QTableWidgetItem(str(round(p0[i], 1))))
-            self.tableWidget.setItem(i, 1,
-                                     QTableWidgetItem(str(round(p1[i], 1))))
+            self.tableWidget.setItem(i, 0, QTableWidgetItem(str(round(p0[i], 1))))
+            self.tableWidget.setItem(i, 1, QTableWidgetItem(str(round(p1[i], 1))))
 
     def choice_custom(self):  # default chosen
         text = "Spectral decomposition data does not exist in current " \
@@ -404,8 +376,7 @@ class SpectralChoiceDialog(QtGui.QDialog, Ui_SpectralChoice):
         self.runButton.setEnabled(True)
         # Allows user to populate table with values
         self.tableWidget.setRowCount(1)
-        self.tableWidget.setHorizontalHeaderLabels(
-            ['center [Hz]', 'sigma [Hz]'])
+        self.tableWidget.setHorizontalHeaderLabels(['center [Hz]', 'sigma [Hz]'])
         self.tableWidget.setItem(0, 0, QTableWidgetItem(str(0)))
         self.tableWidget.setItem(0, 1, QTableWidgetItem(str(0)))
         self.tableWidget.setEditTriggers(QtGui.QAbstractItemView.DoubleClicked)
@@ -426,17 +397,19 @@ class SpectralChoiceDialog(QtGui.QDialog, Ui_SpectralChoice):
         self.disable_all()
         nRows = self.tableWidget.rowCount()
         self.chosen_bands = np.zeros((2, nRows))
-        for i in np.arange(nRows):  # read bands from table
+        for i in np.arange(nRows):   # read bands from table
             self.chosen_bands[0, i] = float(self.tableWidget.item(i, 0).text())
             self.chosen_bands[1, i] = float(self.tableWidget.item(i, 1).text())
-        self.label_1.setText(
-            'Processing spectral decomposition.\nPlease wait...')
+        self.label_1.setText('Processing spectral decomposition.\nPlease wait...')
         subj, aux = self.fname.split('_')
         block = [aux.split('.')[0][1:]]
-        self.thread = ProcessingDataFunction(path=self.fpath, subject=subj,
-                                             blocks=block,
-                                             mode='decomposition',
-                                             config=self.chosen_bands)
+        self.thread = ProcessingDataFunction(
+            path=self.fpath,
+            subject=subj,
+            blocks=block,
+            mode='decomposition',
+            config=self.chosen_bands
+        )
         self.thread.finished.connect(lambda: self.out_close(val=1))
         self.thread.start()
 
@@ -453,7 +426,7 @@ class SpectralChoiceDialog(QtGui.QDialog, Ui_SpectralChoice):
         self.accept()
 
 
-# Runs 'processing_data' function, useful to wait for thread -----------------
+# Runs 'processing_data' function, useful to wait for thread -------------------
 class ProcessingDataFunction(QtCore.QThread):
     def __init__(self, path, subject, blocks, mode, config, new_file=''):
         super().__init__()
@@ -473,10 +446,8 @@ class ProcessingDataFunction(QtCore.QThread):
                         new_file=self.new_fname)
 
 
-# Creates High Gamma dialog --------------------------------------------------
+# Creates High Gamma dialog ----------------------------------------------------
 Ui_HighGamma, _ = uic.loadUiType(os.path.join(ui_path, "high_gamma_gui.ui"))
-
-
 class HighGammaDialog(QtGui.QDialog, Ui_HighGamma):
     def __init__(self, parent):
         super().__init__()
@@ -485,8 +456,8 @@ class HighGammaDialog(QtGui.QDialog, Ui_HighGamma):
         self.nwb = parent.model.nwb
         self.fpath = parent.model.pathName
         self.fname = parent.model.fileName
-        self.chosen_bands = None  # Values for custom filter bands (user input)
-        self.value = -1  # Reference value for user pressed exit button'
+        self.chosen_bands = None    # Values for custom filter bands (user input)
+        self.value = -1             # Reference value for user pressed exit button'
         self.new_fname = ''
 
         self.radioButton_1.setChecked(True)
@@ -543,11 +514,8 @@ class HighGammaDialog(QtGui.QDialog, Ui_HighGamma):
             self.check_hg_exists()
         elif flag == 1:  # save in new NWB file
             part0, part1 = self.fname.split('.')
-            default_path_name = os.path.join(self.fpath,
-                                             part0 + '_hg.' + part1)
-            filename, _ = QFileDialog.getSaveFileName(self, 'New file',
-                                                      default_path_name,
-                                                      "(*.nwb)")
+            default_path_name = os.path.join(self.fpath, part0 + '_hg.' + part1)
+            filename, _ = QFileDialog.getSaveFileName(self, 'New file', default_path_name, "(*.nwb)")
             self.lineEdit.setEnabled(True)
             self.lineEdit.setText(filename)
             self.new_fname = filename
@@ -584,8 +552,7 @@ class HighGammaDialog(QtGui.QDialog, Ui_HighGamma):
         self.label_1.setText(text)
         self.runButton.setEnabled(True)
         # Populate table with values
-        self.tableWidget.setHorizontalHeaderLabels(
-            ['', 'center [Hz]', 'sigma [Hz]'])
+        self.tableWidget.setHorizontalHeaderLabels(['', 'center [Hz]', 'sigma [Hz]'])
         self.tableWidget.setColumnWidth(0, 14)
         self.tableWidget.horizontalHeader().setSectionResizeMode(0,
                                                                  QHeaderView.ResizeToContents)
@@ -603,14 +570,10 @@ class HighGammaDialog(QtGui.QDialog, Ui_HighGamma):
             else:
                 chk_bx.setChecked(False)
             self.tableWidget.setCellWidget(i, 0, chk_bx)
-            self.tableWidget.setItem(i, 1,
-                                     QTableWidgetItem(str(round(p0[i], 1))))
-            self.tableWidget.setItem(i, 2,
-                                     QTableWidgetItem(str(round(p1[i], 1))))
-            self.tableWidget.item(i, 1).setTextAlignment(
-                QtCore.Qt.AlignRight | QtCore.Qt.AlignVCenter)
-            self.tableWidget.item(i, 2).setTextAlignment(
-                QtCore.Qt.AlignRight | QtCore.Qt.AlignVCenter)
+            self.tableWidget.setItem(i, 1, QTableWidgetItem(str(round(p0[i], 1))))
+            self.tableWidget.setItem(i, 2, QTableWidgetItem(str(round(p1[i], 1))))
+            self.tableWidget.item(i, 1).setTextAlignment(QtCore.Qt.AlignRight | QtCore.Qt.AlignVCenter)
+            self.tableWidget.item(i, 2).setTextAlignment(QtCore.Qt.AlignRight | QtCore.Qt.AlignVCenter)
 
     def choice_custom(self):  # default chosen
         self.pushButton_1.setEnabled(False)
@@ -625,8 +588,7 @@ class HighGammaDialog(QtGui.QDialog, Ui_HighGamma):
         self.label_1.setText(text)
         self.runButton.setEnabled(True)
         # Populate table with values
-        self.tableWidget.setHorizontalHeaderLabels(
-            ['', 'center [Hz]', 'sigma [Hz]'])
+        self.tableWidget.setHorizontalHeaderLabels(['', 'center [Hz]', 'sigma [Hz]'])
         self.tableWidget.setColumnWidth(0, 14)
         self.tableWidget.horizontalHeader().setSectionResizeMode(0,
                                                                  QHeaderView.ResizeToContents)
@@ -641,14 +603,10 @@ class HighGammaDialog(QtGui.QDialog, Ui_HighGamma):
             chk_bx.setChecked(True)
             chk_bx.setMaximumWidth(14)
             self.tableWidget.setCellWidget(i, 0, chk_bx)
-            self.tableWidget.setItem(i, 1,
-                                     QTableWidgetItem(str(round(p0[i], 1))))
-            self.tableWidget.setItem(i, 2,
-                                     QTableWidgetItem(str(round(p1[i], 1))))
-            self.tableWidget.item(i, 1).setTextAlignment(
-                QtCore.Qt.AlignRight | QtCore.Qt.AlignVCenter)
-            self.tableWidget.item(i, 2).setTextAlignment(
-                QtCore.Qt.AlignRight | QtCore.Qt.AlignVCenter)
+            self.tableWidget.setItem(i, 1, QTableWidgetItem(str(round(p0[i], 1))))
+            self.tableWidget.setItem(i, 2, QTableWidgetItem(str(round(p1[i], 1))))
+            self.tableWidget.item(i, 1).setTextAlignment(QtCore.Qt.AlignRight | QtCore.Qt.AlignVCenter)
+            self.tableWidget.item(i, 2).setTextAlignment(QtCore.Qt.AlignRight | QtCore.Qt.AlignVCenter)
         # Allows user to populate table with values
         self.tableWidget.setEditTriggers(QtGui.QAbstractItemView.DoubleClicked)
         self.pushButton_1.setEnabled(True)
@@ -680,13 +638,9 @@ class HighGammaDialog(QtGui.QDialog, Ui_HighGamma):
             if self.tableWidget.cellWidget(i, 0).isChecked():
                 val0 = float(self.tableWidget.item(i, 1).text())
                 val1 = float(self.tableWidget.item(i, 2).text())
-                self.chosen_bands = np.append(self.chosen_bands,
-                                              np.array([[val0], [val1]]),
-                                              axis=1)
-        # If Decomposition data does not exist in NWB file and user decides
-        # to create it
-        self.label_1.setText(
-            'Processing High Gamma power estimation. \nPlease wait...')
+                self.chosen_bands = np.append(self.chosen_bands, np.array([[val0], [val1]]), axis=1)
+        # If Decomposition data does not exist in NWB file and user decides to create it
+        self.label_1.setText('Processing High Gamma power estimation. \nPlease wait...')
         self.pushButton_1.setEnabled(False)
         self.pushButton_2.setEnabled(False)
         self.tableWidget.setEnabled(False)
@@ -696,12 +650,14 @@ class HighGammaDialog(QtGui.QDialog, Ui_HighGamma):
         self.cancelButton.setEnabled(False)
         subj, aux = self.fname.split('_')
         block = [aux.split('.')[0][1:]]
-        self.thread = ProcessingDataFunction(path=self.fpath,
-                                             subject=subj,
-                                             blocks=block,
-                                             mode='high_gamma',
-                                             config=self.chosen_bands,
-                                             new_file=self.new_fname)
+        self.thread = ProcessingDataFunction(
+            path=self.fpath,
+            subject=subj,
+            blocks=block,
+            mode='high_gamma',
+            config=self.chosen_bands,
+            new_file=self.new_fname
+        )
         self.thread.finished.connect(lambda: self.out_close(1))
         self.thread.start()
 
@@ -714,11 +670,8 @@ class HighGammaDialog(QtGui.QDialog, Ui_HighGamma):
         self.accept()
 
 
-# Creates preprocessing dialog -----------------------------------------------
-Ui_Preprocessing, _ = uic.loadUiType(
-    os.path.join(ui_path, "preprocessing_gui.ui"))
-
-
+# Creates preprocessing dialog -------------------------------------------------
+Ui_Preprocessing, _ = uic.loadUiType(os.path.join(ui_path, "preprocessing_gui.ui"))
 class PreprocessingDialog(QtGui.QDialog, Ui_Preprocessing):
     def __init__(self, parent):
         super().__init__()
@@ -755,9 +708,8 @@ class PreprocessingDialog(QtGui.QDialog, Ui_Preprocessing):
                     self.checkBox_3.setChecked(False)
                 self.lineEdit_3.setText(str(aux.rate))
                 self.pushButton_1.setEnabled(True)
-                self.label_2.setText(
-                    'Preprocessed data already exists in file,' \
-                    ' with the parameters shown above.')
+                self.label_2.setText('Preprocessed data already exists in file,'
+                                     ' with the parameters shown above.')
 
         self.setWindowTitle('Preprocessing ')
         self.exec_()
@@ -781,7 +733,10 @@ class PreprocessingDialog(QtGui.QDialog, Ui_Preprocessing):
         subj, aux = self.fname.split('_')
         block = [aux.split('.')[0][1:]]
         self.thread = ProcessingDataFunction(
-            path=self.fpath, subject=subj, blocks=block, mode='preprocess',
+            path=self.fpath,
+            subject=subj,
+            blocks=block,
+            mode='preprocess',
             config=config
         )
         self.thread.finished.connect(lambda: self.out_close(1))
@@ -919,8 +874,7 @@ class PeriodogramGridDialog(QMainWindow):
         background_color = self.palette().color(QtGui.QPalette.Background)
         self.win.setBackground(background_color)
         # this is to avoid the error:
-        # RuntimeError: wrapped C/C++ object of type GraphicsScene has been
-        # deleted
+        # RuntimeError: wrapped C/C++ object of type GraphicsScene has been deleted
         vb = CustomViewBoxPeriodogram(self, 0)
         p = self.win.addPlot(0, 0, viewBox=vb)
         p.hideAxis('left')
@@ -935,7 +889,7 @@ class PeriodogramGridDialog(QMainWindow):
         self.centralwidget = QWidget()
         self.setCentralWidget(self.centralwidget)
         self.hbox = QHBoxLayout(self.centralwidget)
-        self.hbox.addLayout(self.leftbox)  # add panels first
+        self.hbox.addLayout(self.leftbox)    # add panels first
         self.hbox.addWidget(self.scroll)
 
         self.show()
@@ -943,8 +897,7 @@ class PeriodogramGridDialog(QMainWindow):
     def initiate_sources(self):
         """Check sources available on file, 'raw' and 'preprocessed'."""
         # Populate combo box
-        if 'Spectrum_fft_raw' in self.parent.model.nwb.modules[
-            'ecephys'].data_interfaces:
+        if 'Spectrum_fft_raw' in self.parent.model.nwb.modules['ecephys'].data_interfaces:
             self.combo0.addItem('raw')
         if 'Spectrum_fft_preprocessed' in self.parent.model.nwb.modules[
             'ecephys'].data_interfaces:
@@ -954,38 +907,18 @@ class PeriodogramGridDialog(QMainWindow):
     def change_source(self):
         if self.combo0.currentText() == 'raw':
             # PSD shape: ('frequency', 'channel')
-            self.psd_fft = \
-                self.parent.model.nwb.processing['ecephys'].data_interfaces[
-                    'Spectrum_fft_raw'].power
-            self.xf_fft = \
-                self.parent.model.nwb.processing['ecephys'].data_interfaces[
-                    'Spectrum_fft_raw'].frequencies[:]
-            self.psd_welch = \
-                self.parent.model.nwb.processing['ecephys'].data_interfaces[
-                    'Spectrum_welch_raw'].power
-            self.xf_welch = \
-                self.parent.model.nwb.processing['ecephys'].data_interfaces[
-                    'Spectrum_welch_raw'].frequencies[:]
-            self.electrodes = \
-                self.parent.model.nwb.processing['ecephys'].data_interfaces[
-                    'Spectrum_fft_raw'].electrodes
+            self.psd_fft = self.parent.model.nwb.processing['ecephys'].data_interfaces['Spectrum_fft_raw'].power
+            self.xf_fft = self.parent.model.nwb.processing['ecephys'].data_interfaces['Spectrum_fft_raw'].frequencies[:]
+            self.psd_welch = self.parent.model.nwb.processing['ecephys'].data_interfaces['Spectrum_welch_raw'].power
+            self.xf_welch = self.parent.model.nwb.processing['ecephys'].data_interfaces['Spectrum_welch_raw'].frequencies[:]
+            self.electrodes = self.parent.model.nwb.processing['ecephys'].data_interfaces['Spectrum_fft_raw'].electrodes
         elif self.combo0.currentText() == 'preprocessed':
             # PSD shape: ('frequency', 'channel')
-            self.psd_fft = \
-                self.parent.model.nwb.processing['ecephys'].data_interfaces[
-                    'Spectrum_fft_preprocessed'].power
-            self.xf_fft = \
-                self.parent.model.nwb.processing['ecephys'].data_interfaces[
-                    'Spectrum_fft_preprocessed'].frequencies[:]
-            self.psd_welch = \
-                self.parent.model.nwb.processing['ecephys'].data_interfaces[
-                    'Spectrum_welch_preprocessed'].power
-            self.xf_welch = \
-                self.parent.model.nwb.processing['ecephys'].data_interfaces[
-                    'Spectrum_welch_preprocessed'].frequencies[:]
-            self.electrodes = \
-                self.parent.model.nwb.processing['ecephys'].data_interfaces[
-                    'Spectrum_fft_preprocessed'].electrodes
+            self.psd_fft = self.parent.model.nwb.processing['ecephys'].data_interfaces['Spectrum_fft_preprocessed'].power
+            self.xf_fft = self.parent.model.nwb.processing['ecephys'].data_interfaces['Spectrum_fft_preprocessed'].frequencies[:]
+            self.psd_welch = self.parent.model.nwb.processing['ecephys'].data_interfaces['Spectrum_welch_preprocessed'].power
+            self.xf_welch = self.parent.model.nwb.processing['ecephys'].data_interfaces['Spectrum_welch_preprocessed'].frequencies[:]
+            self.electrodes = self.parent.model.nwb.processing['ecephys'].data_interfaces['Spectrum_fft_preprocessed'].electrodes
 
     def find_groups(self):
         """Find electrodes groups present in current file."""
@@ -996,8 +929,7 @@ class PeriodogramGridDialog(QMainWindow):
     def set_elec_group(self):
         """Sets electrodes group to be plotted, resizes plot grid."""
         self.elec_group = self.combo1.currentText()
-        self.grid_order = np.where(
-            self.electrodes.table['group_name'].data[:] == self.elec_group)[0]
+        self.grid_order = np.where(self.electrodes.table['group_name'].data[:] == self.elec_group)[0]
         self.nElecs = len(self.grid_order)
         self.nCols = 16
         self.nRows = int(self.nElecs / self.nCols)
@@ -1024,11 +956,10 @@ class PeriodogramGridDialog(QMainWindow):
             row = np.floor(ind / self.nCols)
             col = ind % self.nCols
             p = self.win.getItem(row=row, col=col)
-            if p == None:
+            if p is None:
                 return
             else:
-                xrng, yrng = p.viewRange()  # list: [[xmin, xmax], [ymin,
-                # ymax]]
+                xrng, yrng = p.viewRange()   # list: [[xmin, xmax], [ymin, ymax]]
                 ylim = scale * yrng[1]
                 p.setYRange(0, ylim)
 
@@ -1041,7 +972,7 @@ class PeriodogramGridDialog(QMainWindow):
             row = np.floor(ind / self.nCols)
             col = ind % self.nCols
             p = self.win.getItem(row=row, col=col)
-            if p == None:
+            if p is None:
                 return
             else:
                 p.setXRange(x0, x1)
@@ -1051,8 +982,7 @@ class PeriodogramGridDialog(QMainWindow):
                 bottom.setTicks([ticks])
 
     def rearrange_grid(self, angle):
-        grid = self.grid_order.reshape(-1, self.nCols)  # re-arranges as 2D
-        # array
+        grid = self.grid_order.reshape(-1, self.nCols)  # re-arranges as 2D array
         # 90 degrees clockwise
         if angle == -90:
             grid = np.rot90(grid, axes=(1, 0))
@@ -1067,17 +997,17 @@ class PeriodogramGridDialog(QMainWindow):
                 aux = np.copy(self.nRows)
                 self.nRows = np.copy(self.nCols)
                 self.nCols = aux
-        # transpose
+        # Transpose
         elif angle == 'T':
             grid = grid.T
             if self.nRows != self.nCols:
                 aux = np.copy(self.nRows)
                 self.nRows = np.copy(self.nCols)
                 self.nCols = aux
-        # flip left-right
+        # Flip left-right
         elif angle == 'FLR':
             grid = np.flip(grid, 1)
-        # flip up-down
+        # Flip up-down
         elif angle == 'FUD':
             grid = np.flip(grid, 0)
         # Double flip
@@ -1129,7 +1059,7 @@ class PeriodogramGridDialog(QMainWindow):
             row = np.floor(ind / self.nCols)
             col = ind % self.nCols
             p = self.win.getItem(row=row, col=col)
-            if p == None:
+            if p is None:
                 vb = CustomViewBoxPeriodogram(self, ch)
                 p = self.win.addPlot(row=row, col=col, viewBox=vb)
             p.showAxis('left', False)
@@ -1138,23 +1068,19 @@ class PeriodogramGridDialog(QMainWindow):
             # p.hideAxis('bottom')
             p.clear()
             p.setMouseEnabled(x=False, y=False)
-            p.setToolTip('Ch ' + str(ch + 1) + '\n' + str(
-                self.parent.model.nwb.electrodes['location'][ch]))
+            p.setToolTip('Ch ' + str(ch + 1) + '\n' + str(self.parent.model.nwb.electrodes['location'][ch]))
             # Background
             loc = 'ctx-lh-' + self.parent.model.nwb.electrodes['location'][ch]
             vb = p.getViewBox()
-            color = tuple(cmap.get(loc, cmap['Unknown']))
-            vb.setBackgroundColor(
-                (*color, min(elem_alpha, 70)))  # append alpha to color tuple
+            color = tuple(cmap[loc])
+            vb.setBackgroundColor((*color, min(elem_alpha, 70)))  # append alpha to color tuple
             # Main plots
-            if self.b1.isChecked() == True:
+            if self.b1.isChecked():
                 Yp_fft = self.psd_fft[:, ch]
-                mean_fft = p.plot(x=self.xf_fft, y=Yp_fft, pen=pg.mkPen(
-                    (50, 50, 50, min(elem_alpha, 255)), width=1.))
-            if self.b2.isChecked() == True:
+                mean_fft = p.plot(x=self.xf_fft, y=Yp_fft, pen=pg.mkPen((50, 50, 50, min(elem_alpha, 255)), width=1.))
+            if self.b2.isChecked():
                 Yp_welch = self.psd_welch[:, ch]
-                mean_welch = p.plot(x=self.xf_welch, y=Yp_welch, pen=pg.mkPen(
-                    (17, 102, 0, min(elem_alpha, 255)), width=1.))
+                mean_welch = p.plot(x=self.xf_welch, y=Yp_welch, pen=pg.mkPen((17, 102, 0, min(elem_alpha, 255)), width=1.))
             p.hideButtons()
             # Axis control
             left = p.getAxis('left')
@@ -1166,7 +1092,7 @@ class PeriodogramGridDialog(QMainWindow):
             bottom.setTicks([ticks])
 
 
-## Viewbox for Periodogram plots ---------------------------------------------
+# Viewbox for Periodogram plots ----------------------------------------------
 class CustomViewBoxPeriodogram(pg.ViewBox):
     def __init__(self, parent, ch):
         pg.ViewBox.__init__(self)
@@ -1240,8 +1166,7 @@ class IndividualPeriodogramDialog(QtGui.QDialog):
     def initiate_sources(self):
         """Check sources available on file, 'raw' and 'preprocessed'."""
         # Populate combo box
-        if 'Spectrum_fft_raw' in self.ancestor.model.nwb.modules[
-            'ecephys'].data_interfaces:
+        if 'Spectrum_fft_raw' in self.ancestor.model.nwb.modules['ecephys'].data_interfaces:
             self.combo0.addItem('raw')
         if 'Spectrum_fft_preprocessed' in self.ancestor.model.nwb.modules[
             'ecephys'].data_interfaces:
@@ -1251,46 +1176,29 @@ class IndividualPeriodogramDialog(QtGui.QDialog):
     def change_source(self):
         if self.combo0.currentText() == 'raw':
             # PSD shape: ('frequency', 'channel')
-            self.psd_fft = \
-                self.ancestor.model.nwb.modules['ecephys'].data_interfaces[
-                    'Spectrum_fft_raw'].power
-            self.xf_fft = \
-                self.ancestor.model.nwb.modules['ecephys'].data_interfaces[
-                    'Spectrum_fft_raw'].frequencies[:]
-            self.psd_welch = \
-                self.ancestor.model.nwb.modules['ecephys'].data_interfaces[
-                    'Spectrum_welch_raw'].power
-            self.xf_welch = \
-                self.ancestor.model.nwb.modules['ecephys'].data_interfaces[
-                    'Spectrum_welch_raw'].frequencies[:]
+            self.psd_fft = self.ancestor.model.nwb.modules['ecephys'].data_interfaces['Spectrum_fft_raw'].power
+            self.xf_fft = self.ancestor.model.nwb.modules['ecephys'].data_interfaces['Spectrum_fft_raw'].frequencies[:]
+            self.psd_welch = self.ancestor.model.nwb.modules['ecephys'].data_interfaces['Spectrum_welch_raw'].power
+            self.xf_welch = self.ancestor.model.nwb.modules['ecephys'].data_interfaces['Spectrum_welch_raw'].frequencies[:]
         elif self.combo0.currentText() == 'preprocessed':
             # PSD shape: ('frequency', 'channel')
-            self.psd_fft = \
-                self.ancestor.model.nwb.modules['ecephys'].data_interfaces[
-                    'Spectrum_fft_preprocessed'].power
-            self.xf_fft = \
-                self.ancestor.model.nwb.modules['ecephys'].data_interfaces[
-                    'Spectrum_fft_preprocessed'].frequencies[:]
-            self.psd_welch = \
-                self.ancestor.model.nwb.modules['ecephys'].data_interfaces[
-                    'Spectrum_welch_preprocessed'].power
-            self.xf_welch = \
-                self.ancestor.model.nwb.modules['ecephys'].data_interfaces[
-                    'Spectrum_welch_preprocessed'].frequencies[:]
+            self.psd_fft = self.ancestor.model.nwb.modules['ecephys'].data_interfaces['Spectrum_fft_preprocessed'].power
+            self.xf_fft = self.ancestor.model.nwb.modules['ecephys'].data_interfaces['Spectrum_fft_preprocessed'].frequencies[:]
+            self.psd_welch = self.ancestor.model.nwb.modules['ecephys'].data_interfaces['Spectrum_welch_preprocessed'].power
+            self.xf_welch = self.ancestor.model.nwb.modules['ecephys'].data_interfaces['Spectrum_welch_preprocessed'].frequencies[:]
         self.draw_periodograms()
 
     def draw_periodograms(self):
         cmap = get_lut()
         p = self.win.getItem(row=0, col=0)
-        if p == None:
+        if p is None:
             p = self.win.addPlot(row=0, col=0)
         p.hideAxis('left')
         # p.hideAxis('bottom')
         p.clear()
         # p.setMouseEnabled(x=False, y=False)
         # Background
-        loc = 'ctx-lh-' + self.ancestor.model.nwb.electrodes['location'][
-            self.ch]
+        loc = 'ctx-lh-' + self.ancestor.model.nwb.electrodes['location'][self.ch]
         vb = p.getViewBox()
         color = tuple(cmap.get(loc, cmap['Unknown']))
         vb.setBackgroundColor((*color, 70))  # append alpha to color tuple
@@ -1452,7 +1360,7 @@ class Periodograms3D(QtGui.QDialog):
         zmax = z.max()
         zmin = z.min()
         zpercs = np.percentile(z, [10, 90])
-        ## Manually specified colors
+        # Manually specified colors
         csize = 101
         cmap = np.hstack((np.linspace(0, 1, csize).reshape(-1, 1),
                           np.zeros(csize).reshape(-1, 1) + .4,
@@ -1463,15 +1371,13 @@ class Periodograms3D(QtGui.QDialog):
             for ch in range(nY):
                 # rel = (z[f,ch]-zmin)/(zmax-zmin)
                 # relative position to choose color
-                rel = np.clip((z[f, ch] - zpercs[0]) / (zpercs[1] - zpercs[0]),
-                              0, 1)
+                rel = np.clip((z[f, ch] - zpercs[0]) / (zpercs[1] - zpercs[0]), 0, 1)
                 relc = int(rel * (csize - 1))
                 colors[f, ch, 0] = cmap[relc, 0]  # red
                 colors[f, ch, 1] = cmap[relc, 1]  # green
                 colors[f, ch, 2] = cmap[relc, 2]  # blue
         # Surface plot
-        p3 = gl.GLSurfacePlotItem(x=x, y=y, z=z,
-                                  colors=colors.reshape(nX * nY, 4),
+        p3 = gl.GLSurfacePlotItem(x=x, y=y, z=z, colors=colors.reshape(nX * nY, 4),
                                   shader='shaded', smooth=False)
         zscale = 200 / zmax
         p3.scale(1, 1, zscale)
@@ -1479,10 +1385,8 @@ class Periodograms3D(QtGui.QDialog):
         # Axes
         axis = Custom3DAxis(self.fig1)
         axis.setSize(x=self.freqMax, y=self.nChannels, z=zmax * zscale)
-        axis.add_labels(
-            labels=['Frequency [Hz]', 'Channel #', 'PSD [V**2/Hz]'])
-        xticks = np.arange(0, self.freqMax + 0.01, self.freqTickRes,
-                           dtype='int')
+        axis.add_labels(labels=['Frequency [Hz]', 'Channel #', 'PSD [V**2/Hz]'])
+        xticks = np.arange(0, self.freqMax + 0.01, self.freqTickRes, dtype='int')
         yticks = np.linspace(1, self.nChannels, self.chTickGrid, dtype='int')
         zticks = np.round(np.linspace(0, zmax * zscale, 4), 1)
         axis.add_tick_values(xticks=xticks, yticks=yticks, zticks=zticks)
@@ -1521,18 +1425,15 @@ class Custom3DAxis(gl.GLAxisItem):
         """Adds axes labels."""
         x, y, z = self.size()
         # X label
-        self.xLabel = CustomTextItem(X=x / 2, Y=-y / 10, Z=-z / 10,
-                                     text=labels[0])
+        self.xLabel = CustomTextItem(X=x / 2, Y=-y / 10, Z=-z / 10, text=labels[0])
         self.xLabel.setGLViewWidget(self.parent)
         self.parent.addItem(self.xLabel)
         # Y label
-        self.yLabel = CustomTextItem(X=x + x / 10, Y=y / 2, Z=-z / 10,
-                                     text=labels[1])
+        self.yLabel = CustomTextItem(X=x + x / 10, Y=y / 2, Z=-z / 10, text=labels[1])
         self.yLabel.setGLViewWidget(self.parent)
         self.parent.addItem(self.yLabel)
         # Z label
-        self.zLabel = CustomTextItem(X=-x / 8, Y=-y / 8, Z=z / 2,
-                                     text=labels[2])
+        self.zLabel = CustomTextItem(X=-x / 8, Y=-y / 8, Z=z / 2, text=labels[2])
         self.zLabel.setGLViewWidget(self.parent)
         self.parent.addItem(self.zLabel)
 
@@ -1544,20 +1445,17 @@ class Custom3DAxis(gl.GLAxisItem):
         ztpos = np.linspace(0, z, len(zticks))
         # X ticks
         for i, xt in enumerate(xticks):
-            val = CustomTextItem(X=xtpos[i], Y=-y / 50, Z=-z / 50,
-                                 text=str(xt))
+            val = CustomTextItem(X=xtpos[i], Y=-y / 50, Z=-z / 50, text=str(xt))
             val.setGLViewWidget(self.parent)
             self.parent.addItem(val)
         # Y ticks
         for i, yt in enumerate(yticks):
-            val = CustomTextItem(X=x + x / 50, Y=ytpos[i], Z=-z / 50,
-                                 text=str(yt))
+            val = CustomTextItem(X=x + x / 50, Y=ytpos[i], Z=-z / 50, text=str(yt))
             val.setGLViewWidget(self.parent)
             self.parent.addItem(val)
         # Z ticks
         for i, zt in enumerate(zticks):
-            val = CustomTextItem(X=-x / 15, Y=-y / 15, Z=ztpos[i],
-                                 text=str(zt))
+            val = CustomTextItem(X=-x / 15, Y=-y / 15, Z=ztpos[i], text=str(zt))
             val.setGLViewWidget(self.parent)
             self.parent.addItem(val)
 
@@ -1679,1119 +1577,9 @@ class CustomTextItem(gl.GLGraphicsItem.GLGraphicsItem):
         self.GLViewWidget.renderText(self.X, self.Y, self.Z, self.text)
 
 
-# Creates Event-Related Potential dialog ------------------------------------
-class ERPDialog(QMainWindow):
-    def __init__(self, parent):
-        super().__init__()
-        self.setWindowTitle('Event-Related Potentials')
-        self.resize(1300, 600)
-
-        self.parent = parent
-        self.nCols = 16
-        self.alignment = 'start_time'
-        self.interval_type = 'speaker'
-        self.grid_order = np.arange(256)
-        self.transparent = []
-        self.Y_start_speaker_mean = {}
-        self.Y_start_speaker_sem = {}
-        self.Y_stop_speaker_mean = {}
-        self.Y_stop_speaker_sem = {}
-        self.Y_start_mic_mean = {}
-        self.Y_start_mic_sem = {}
-        self.Y_stop_mic_mean = {}
-        self.Y_stop_mic_sem = {}
-        self.X = []
-        self.Yscale = {}
-
-        self.source = \
-            self.parent.model.nwb.processing['ecephys'].data_interfaces[
-                'high_gamma'].data
-        self.fs = self.parent.model.nwb.processing['ecephys'].data_interfaces[
-            'high_gamma'].rate
-        self.electrodes = \
-            self.parent.model.nwb.processing['ecephys'].data_interfaces[
-                'high_gamma'].electrodes
-        self.speaker_start_times = \
-            self.parent.model.nwb.intervals['TimeIntervals_speaker'][
-                'start_time'].data[:]
-        self.speaker_stop_times = \
-            self.parent.model.nwb.intervals['TimeIntervals_speaker'][
-                'stop_time'].data[:]
-        self.mic_start_times = \
-            self.parent.model.nwb.intervals['TimeIntervals_mic'][
-                'start_time'].data[:]
-        self.mic_stop_times = \
-            self.parent.model.nwb.intervals['TimeIntervals_mic'][
-                'stop_time'].data[
-            :]
-        # Get only reference times smaller than the main signal duration
-        self.maxTime = self.source.shape[0] / self.fs
-        self.speaker_start_times = self.speaker_start_times[
-            self.speaker_start_times < self.maxTime]
-        self.speaker_stop_times = self.speaker_stop_times[
-            self.speaker_stop_times < self.maxTime]
-        self.mic_start_times = self.mic_start_times[
-            self.mic_start_times < self.maxTime]
-        self.mic_stop_times = self.mic_stop_times[
-            self.mic_stop_times < self.maxTime]
-
-        # Left panel
-        self.push0_0 = QPushButton('Draw ERP')
-        self.push0_0.clicked.connect(self.set_elec_group)
-        label0 = QLabel('Group:')
-        self.combo0 = QComboBox()
-        self.find_groups()
-        self.combo0.activated.connect(self.set_elec_group)
-        label1 = QLabel('Alignment:')
-        self.push1_0 = QPushButton('Onset')
-        self.push1_0.setCheckable(True)
-        self.push1_0.setChecked(True)
-        self.push1_0.clicked.connect(self.set_onset)
-        self.push1_1 = QPushButton('Offset')
-        self.push1_1.setCheckable(True)
-        self.push1_1.setChecked(False)
-        self.push1_1.clicked.connect(self.set_offset)
-        self.push1_2 = QPushButton('Stimulus')
-        self.push1_2.setCheckable(True)
-        self.push1_2.setChecked(True)
-        self.push1_2.clicked.connect(self.set_stim)
-        self.push1_3 = QPushButton('Response')
-        self.push1_3.setCheckable(True)
-        self.push1_3.setChecked(False)
-        self.push1_3.clicked.connect(self.set_resp)
-        label2 = QLabel('Width (sec):')
-        self.qline2 = QLineEdit('2')
-        self.qline2.returnPressed.connect(self.set_width)
-        label3 = QLabel('Y scale:')
-        self.combo1 = QComboBox()
-        self.combo1.addItem('individual')
-        self.combo1.addItem('global max')
-        self.combo1.addItem('global std')
-        self.combo1.activated.connect(self.scale_plots)
-        self.push2_0 = QPushButton('Significant')
-        self.push2_0.setCheckable(True)
-        self.push2_0.setChecked(False)
-        self.push3_0 = QPushButton('Brain areas')
-        self.push3_0.clicked.connect(self.areas_select)
-        self.push4_0 = QPushButton('Save image')
-        self.push4_0.clicked.connect(self.save_image)
-        label4 = QLabel('Rotate grid:')
-        self.push5_0 = QPushButton('90°')
-        self.push5_0.clicked.connect(lambda: self.rearrange_grid(90))
-        self.push5_0.setToolTip('Counter-clockwise')
-        self.push5_1 = QPushButton('-90°')
-        self.push5_1.clicked.connect(lambda: self.rearrange_grid(-90))
-        self.push5_1.setToolTip('Clockwise')
-        self.push5_2 = QPushButton('T')
-        self.push5_2.clicked.connect(lambda: self.rearrange_grid('T'))
-        self.push5_2.setToolTip('Transpose')
-        label5 = QLabel('Rearrange grid:')
-        self.push5_3 = QPushButton('L-R')
-        self.push5_3.clicked.connect(lambda: self.rearrange_grid('FLR'))
-        self.push5_3.setToolTip('Flip Left-Right')
-        self.push5_4 = QPushButton('U-D')
-        self.push5_4.clicked.connect(lambda: self.rearrange_grid('FUD'))
-        self.push5_4.setToolTip('Flip Up-Down')
-        self.push5_5 = QPushButton('2FL')
-        self.push5_5.clicked.connect(lambda: self.rearrange_grid('2FL'))
-        self.push5_5.setToolTip('Double flip')
-
-        self.push1_0.setEnabled(False)
-        self.push1_1.setEnabled(False)
-        self.push1_2.setEnabled(False)
-        self.push1_3.setEnabled(False)
-        self.qline2.setEnabled(False)
-        self.combo1.setEnabled(False)
-        self.push2_0.setEnabled(False)
-        self.push3_0.setEnabled(False)
-        self.push4_0.setEnabled(False)
-        self.push5_0.setEnabled(False)
-        self.push5_1.setEnabled(False)
-        self.push5_2.setEnabled(False)
-        self.push5_3.setEnabled(False)
-        self.push5_4.setEnabled(False)
-        self.push5_5.setEnabled(False)
-
-        grid0 = QGridLayout()
-        grid0.addWidget(label0, 0, 0, 1, 2)
-        grid0.addWidget(self.combo0, 0, 2, 1, 4)
-        grid0.addWidget(label1, 1, 0, 1, 6)
-        grid0.addWidget(self.push1_0, 2, 0, 1, 3)
-        grid0.addWidget(self.push1_1, 2, 3, 1, 3)
-        grid0.addWidget(self.push1_2, 3, 0, 1, 3)
-        grid0.addWidget(self.push1_3, 3, 3, 1, 3)
-        grid0.addWidget(QHLine(), 4, 0, 1, 6)
-        grid0.addWidget(label2, 5, 0, 1, 6)
-        grid0.addWidget(self.qline2, 6, 0, 1, 6)
-        grid0.addWidget(QHLine(), 7, 0, 1, 6)
-        grid0.addWidget(label3, 8, 0, 1, 6)
-        grid0.addWidget(self.combo1, 9, 0, 1, 6)
-        grid0.addWidget(QHLine(), 10, 0, 1, 6)
-        grid0.addWidget(self.push2_0, 11, 0, 1, 6)
-        grid0.addWidget(self.push3_0, 12, 0, 1, 6)
-        grid0.addWidget(self.push4_0, 13, 0, 1, 6)
-        grid0.addWidget(QHLine(), 14, 0, 1, 6)
-        grid0.addWidget(label4, 15, 0, 1, 6)
-        grid0.addWidget(self.push5_0, 16, 0, 1, 2)
-        grid0.addWidget(self.push5_1, 16, 2, 1, 2)
-        grid0.addWidget(self.push5_2, 16, 4, 1, 2)
-        grid0.addWidget(label5, 17, 0, 1, 6)
-        grid0.addWidget(self.push5_3, 18, 0, 1, 2)
-        grid0.addWidget(self.push5_4, 18, 2, 1, 2)
-        grid0.addWidget(self.push5_5, 18, 4, 1, 2)
-        grid0.setAlignment(QtCore.Qt.AlignTop)
-
-        panel0 = QGroupBox('Controls:')
-        panel0.setFixedWidth(180)
-        panel0.setLayout(grid0)
-
-        self.leftbox = QVBoxLayout()
-        self.leftbox.addWidget(self.push0_0)
-        self.leftbox.addWidget(panel0)
-
-        # Right panel
-        self.win = pg.GraphicsLayoutWidget()
-        self.win.resize(1020, 1020)
-        background_color = self.palette().color(QtGui.QPalette.Background)
-        self.win.setBackground(background_color)
-        # this is to avoid the error:
-        # RuntimeError: wrapped C/C++ object of type GraphicsScene has been
-        # deleted
-        vb = CustomViewBox(self, 0)
-        p = self.win.addPlot(0, 0, viewBox=vb)
-        p.hideAxis('left')
-        p.hideAxis('bottom')
-        # Scroll Area Properties
-        self.scroll = QScrollArea()
-        self.scroll.setVerticalScrollBarPolicy(QtCore.Qt.ScrollBarAsNeeded)
-        self.scroll.setHorizontalScrollBarPolicy(QtCore.Qt.ScrollBarAsNeeded)
-        self.scroll.setWidgetResizable(False)
-        self.scroll.setWidget(self.win)
-
-        self.centralwidget = QWidget()
-        self.setCentralWidget(self.centralwidget)
-        self.hbox = QHBoxLayout(self.centralwidget)
-        self.hbox.addLayout(self.leftbox)  # add panels first
-        self.hbox.addWidget(self.scroll)
-        self.show()
-
-    def find_groups(self):
-        """Find electrodes groups present in current file."""
-        elec_groups = list(self.parent.model.nwb.electrode_groups.keys())
-        for grp in elec_groups:
-            self.combo0.addItem(grp)
-
-    def set_elec_group(self):
-        """Sets electrodes group to be plotted, resizes plot grid."""
-        self.elec_group = self.combo0.currentText()
-        self.grid_order = np.where(
-            self.electrodes.table['group_name'].data[:] == self.elec_group)[0]
-        self.nElecs = len(self.grid_order)
-        self.nCols = 16
-        self.nRows = max(int(self.nElecs / self.nCols), 1)
-        self.set_grid()
-        self.draw_erp()
-
-    def set_grid(self):
-        # remove previous items
-        for i in np.arange(16):
-            for j in np.arange(16):
-                it = self.win.getItem(i, j)
-                if it is not None:
-                    self.win.removeItem(it)
-        for j in np.arange(self.nCols):
-            self.win.ci.layout.setColumnFixedWidth(j, 60)
-            self.win.ci.layout.setColumnSpacing(j, 3)
-        for i in np.arange(self.nRows):
-            self.win.ci.layout.setRowFixedHeight(i, 60)
-            self.win.ci.layout.setRowSpacing(i, 3)
-
-    def set_onset(self):
-        self.alignment = 'start_time'
-        self.push1_1.setChecked(False)
-        self.draw_erp()
-
-    def set_offset(self):
-        self.alignment = 'stop_time'
-        self.push1_0.setChecked(False)
-        self.draw_erp()
-
-    def set_stim(self):
-        self.interval_type = 'speaker'
-        self.push1_3.setChecked(False)
-        self.draw_erp()
-
-    def set_resp(self):
-        self.interval_type = 'mic'
-        self.push1_2.setChecked(False)
-        self.draw_erp()
-
-    def set_width(self):
-        self.Y_start_speaker_mean = {}
-        self.Y_start_speaker_sem = {}
-        self.Y_stop_speaker_mean = {}
-        self.Y_stop_speaker_sem = {}
-        self.Y_start_mic_mean = {}
-        self.Y_start_mic_sem = {}
-        self.Y_stop_mic_mean = {}
-        self.Y_stop_mic_sem = {}
-        self.X = []
-        self.draw_erp()
-
-    def rearrange_grid(self, angle):
-        grid = self.grid_order.reshape(-1, self.nCols)  # re-arranges as 2D
-        # array
-        # 90 degrees clockwise
-        if angle == -90:
-            grid = np.rot90(grid, axes=(1, 0))
-            if self.nRows != self.nCols:
-                aux = np.copy(self.nRows)
-                self.nRows = np.copy(self.nCols)
-                self.nCols = aux
-        # 90 degrees conter-clockwise
-        elif angle == 90:
-            grid = np.rot90(grid, axes=(0, 1))
-            if self.nRows != self.nCols:
-                aux = np.copy(self.nRows)
-                self.nRows = np.copy(self.nCols)
-                self.nCols = aux
-        # transpose
-        elif angle == 'T':
-            grid = grid.T
-            if self.nRows != self.nCols:
-                aux = np.copy(self.nRows)
-                self.nRows = np.copy(self.nCols)
-                self.nCols = aux
-        # flip left-right
-        elif angle == 'FLR':
-            grid = np.flip(grid, 1)
-        # flip up-down
-        elif angle == 'FUD':
-            grid = np.flip(grid, 0)
-        # Double flip
-        elif angle == '2FL':
-            grid = np.flip(grid, 1)
-            grid = np.flip(grid, 0)
-        self.grid_order = grid.flatten()  # re-arranges as 1D array
-        self.draw_erp()
-
-    def save_image(self):
-        p = self.win.getItem(row=0, col=0)
-        self.win.sceneObj.contextMenuItem = p
-        self.win.sceneObj.showExportDialog()
-
-    def scale_plots(self):
-        for ind, ch in enumerate(self.grid_order):
-            row = np.floor(ind / self.nCols)
-            col = ind % self.nCols
-            p = self.win.getItem(row=row, col=col)
-            if p == None:
-                return
-            else:
-                curr_txt = self.combo1.currentText()
-                if curr_txt != 'individual':
-                    p.setYRange(self.Yscale[curr_txt][0],
-                                self.Yscale[curr_txt][1])
-                else:
-                    if (self.alignment == 'start_time') and (
-                            self.interval_type == 'speaker'):
-                        yrng = max(abs(self.Y_start_speaker_mean[str(ch)]))
-                    elif (self.alignment == 'start_time') and (
-                            self.interval_type == 'mic'):
-                        yrng = max(abs(self.Y_start_mic_mean[str(ch)]))
-                    elif (self.alignment == 'stop_time') and (
-                            self.interval_type == 'speaker'):
-                        yrng = max(abs(self.Y_stop_speaker_mean[str(ch)]))
-                    elif (self.alignment == 'stop_time') and (
-                            self.interval_type == 'mic'):
-                        yrng = max(abs(self.Y_stop_mic_mean[str(ch)]))
-                    p.setYRange(-yrng, yrng)
-
-    def get_erp(self, ch):
-        if (self.alignment == 'start_time') and (
-                self.interval_type == 'speaker'):
-            if str(
-                    ch) in self.Y_start_speaker_mean:  # If it was
-                # calculated already
-                return self.Y_start_speaker_mean[str(ch)], \
-                       self.Y_start_speaker_sem[str(ch)], self.X
-            else:  # If it isn't calculated yet
-                Y_mean, Y_sem, X = self.calc_erp(ch=ch)
-                self.Y_start_speaker_mean[str(ch)] = Y_mean
-                self.Y_start_speaker_sem[str(ch)] = Y_sem
-                self.X = X
-                return self.Y_start_speaker_mean[str(ch)], \
-                       self.Y_start_speaker_sem[str(ch)], self.X
-        if (self.alignment == 'start_time') and (self.interval_type == 'mic'):
-            if str(ch) in self.Y_start_mic_mean:  # If it was calculated
-                # already
-                return self.Y_start_mic_mean[str(ch)], self.Y_start_mic_sem[
-                    str(ch)], self.X
-            else:  # If it isn't calculated yet
-                Y_mean, Y_sem, X = self.calc_erp(ch=ch)
-                self.Y_start_mic_mean[str(ch)] = Y_mean
-                self.Y_start_mic_sem[str(ch)] = Y_sem
-                self.X = X
-                return self.Y_start_mic_mean[str(ch)], self.Y_start_mic_sem[
-                    str(ch)], self.X
-        if (self.alignment == 'stop_time') and (
-                self.interval_type == 'speaker'):
-            if str(
-                    ch) in self.Y_stop_speaker_mean:  # If it was calculated
-                # already
-                return self.Y_stop_speaker_mean[str(ch)], \
-                       self.Y_stop_speaker_sem[str(ch)], self.X
-            else:  # If it isn't calculated yet
-                Y_mean, Y_sem, X = self.calc_erp(ch=ch)
-                self.Y_stop_speaker_mean[str(ch)] = Y_mean
-                self.Y_stop_speaker_sem[str(ch)] = Y_sem
-                self.X = X
-                return self.Y_stop_speaker_mean[str(ch)], \
-                       self.Y_stop_speaker_sem[str(ch)], self.X
-        if (self.alignment == 'stop_time') and (self.interval_type == 'mic'):
-            if str(ch) in self.Y_stop_mic_mean:  # If it was calculated already
-                return self.Y_stop_mic_mean[str(ch)], self.Y_stop_mic_sem[
-                    str(ch)], self.X
-            else:  # If it isn't calculated yet
-                Y_mean, Y_sem, X = self.calc_erp(ch=ch)
-                self.Y_stop_mic_mean[str(ch)] = Y_mean
-                self.Y_stop_mic_sem[str(ch)] = Y_sem
-                self.X = X
-                return self.Y_stop_mic_mean[str(ch)], self.Y_stop_mic_sem[
-                    str(ch)], self.X
-
-    def calc_erp(self, ch):
-        if (self.alignment == 'start_time') and (
-                self.interval_type == 'speaker'):
-            ref_times = self.speaker_start_times
-        if (self.alignment == 'stop_time') and (
-                self.interval_type == 'speaker'):
-            ref_times = self.speaker_stop_times
-        if (self.alignment == 'start_time') and (self.interval_type == 'mic'):
-            ref_times = self.mic_start_times
-        if (self.alignment == 'stop_time') and (self.interval_type == 'mic'):
-            ref_times = self.mic_stop_times
-        ref_bins = (ref_times * self.fs).astype('int')
-        nBinsTr = int(float(self.qline2.text()) * self.fs / 2)
-        start_bins = ref_bins - nBinsTr
-        stop_bins = ref_bins + nBinsTr
-        nTrials = len(ref_times)
-        Y = np.zeros((nTrials, 2 * nBinsTr)) + np.nan
-        for tr in np.arange(nTrials):
-            Y[tr, :] = self.source[start_bins[tr]:stop_bins[tr], ch]
-        Y_mean = np.nanmean(Y, 0)
-        Y_sem = np.nanstd(Y, 0) / np.sqrt(Y.shape[0])
-        X = np.arange(0, 2 * nBinsTr) / self.fs
-        return Y_mean, Y_sem, X
-
-    def draw_erp(self):
-        self.push1_0.setEnabled(True)
-        self.push1_1.setEnabled(True)
-        self.push1_2.setEnabled(True)
-        self.push1_3.setEnabled(True)
-        self.qline2.setEnabled(True)
-        self.combo1.setEnabled(True)
-        self.push3_0.setEnabled(True)
-        self.push4_0.setEnabled(True)
-        self.push5_0.setEnabled(True)
-        self.push5_1.setEnabled(True)
-        self.push5_2.setEnabled(True)
-        self.push5_3.setEnabled(True)
-        self.push5_4.setEnabled(True)
-        self.push5_5.setEnabled(True)
-        self.combo1.setCurrentIndex(self.combo1.findText('individual'))
-        self.set_grid()
-        cmap = get_lut()
-        ymin, ymax = 0, 0
-        ystd = 0
-        for ind, ch in enumerate(self.grid_order):
-            if ch in self.transparent:  # if it should be made transparent
-                elem_alpha = 30
-            else:
-                elem_alpha = 255
-            Y_mean, Y_sem, X = self.get_erp(ch=ch)
-            dc = np.mean(Y_mean)
-            Y_mean -= dc
-            ymax = max(max(Y_mean), ymax)
-            ymin = min(min(Y_mean), ymin)
-            ystd = max(np.std(Y_mean), ystd)
-            # Include items
-            row = np.floor(ind / self.nCols).astype('int')
-            col = int(ind % self.nCols)
-            p = self.win.getItem(row=row, col=col)
-            if p == None:
-                vb = CustomViewBox(self, ch)
-                p = self.win.addPlot(row=row, col=col, viewBox=vb)
-            p.hideAxis('left')
-            p.hideAxis('bottom')
-            p.clear()
-            p.setMouseEnabled(x=False, y=False)
-            p.setToolTip('Ch ' + str(ch + 1) + '\n' + str(
-                self.parent.model.nwb.electrodes['location'][ch]))
-            # Background
-            loc = 'ctx-lh-' + self.parent.model.nwb.electrodes['location'][ch]
-            vb = p.getViewBox()
-            color = tuple(cmap.get(loc, cmap['Unknown']))
-            vb.setBackgroundColor(
-                (*color, min(elem_alpha, 70)))  # append alpha to color tuple
-            # Main plots
-            mean = p.plot(x=X, y=Y_mean, pen=pg.mkPen((50, 50, 50, min(
-                elem_alpha, 255)), width=1.))
-            semp = p.plot(x=X, y=Y_mean + Y_sem,
-                          pen=pg.mkPen((100, 100, 100, min(elem_alpha, 100)),
-                                       width=.1))
-            semm = p.plot(x=X, y=Y_mean - Y_sem,
-                          pen=pg.mkPen((100, 100, 100, min(elem_alpha, 100)),
-                                       width=.1))
-            fill = pg.FillBetweenItem(semm, semp, pg.mkBrush(100, 100, 100,
-                                                             min(elem_alpha,
-                                                                 100)))
-            p.addItem(fill)
-            p.hideButtons()
-            p.setXRange(X[0], X[-1])
-            yrng = max(abs(Y_mean))
-            p.setYRange(-yrng, yrng)
-            xref = [X[int(len(X) / 2)], X[int(len(X) / 2)]]
-            yref = [-1000 * yrng, 1000 * yrng]
-            p.plot(x=xref, y=yref,
-                   pen=(0, 0, 0, min(elem_alpha, 255)))  # reference mark
-            p.plot(x=X, y=np.zeros(len(X)),
-                   pen=(0, 0, 0, min(elem_alpha, 255)))  # Zero line
-            # Axis control
-            left = p.getAxis('left')
-            left.setStyle(showValues=False)
-            left.setTicks([])
-            bottom = p.getAxis('bottom')
-            bottom.setStyle(showValues=False)
-            bottom.setTicks([])
-        # store scale limits
-        self.Yscale['global max'] = [ymin, ymax]
-        self.Yscale['global std'] = [-ystd, ystd]
-
-    def areas_select(self):
-        # Dialog to choose channels from specific brain regions
-        w = SelectChannelsDialog(self.parent.model.all_regions,
-                                 self.parent.model.regions_mask)
-        self.transparent = []
-        for ind, ch in enumerate(self.grid_order):
-            loc = self.parent.model.nwb.electrodes['location'][ch]
-            if loc not in w.choices:
-                self.transparent.append(ch)
-        self.draw_erp()
-
-
-# Gray line for visual separation of buttons --------------------------------
+# Gray line for visual separation of buttons -----------------------------------
 class QHLine(QtGui.QFrame):
     def __init__(self):
         super().__init__()
         self.setFrameShape(QtGui.QFrame.HLine)
         self.setFrameShadow(QtGui.QFrame.Sunken)
-
-
-# Viewbox for ERP plots -----------------------------------------------------
-class CustomViewBox(pg.ViewBox):
-    def __init__(self, parent, ch):
-        pg.ViewBox.__init__(self)
-        self.parent = parent
-        self.ch = ch
-
-    def mouseDoubleClickEvent(self, ev):
-        IndividualERPDialog(self)
-
-
-# Individual Event-Related Potential dialog ---------------------------------
-class IndividualERPDialog(QtGui.QDialog):
-    def __init__(self, parent):
-        super().__init__()
-        # Enable antialiasing for prettier plots
-        pg.setConfigOptions(antialias=True)
-
-        self.parent = parent
-        self.ch = parent.ch
-        self.alignment = 'start_time'
-        self.interval_type = 'speaker'
-        self.source = self.parent.parent.source
-        self.fs = self.parent.parent.fs
-        self.speaker_start_times = self.parent.parent.speaker_start_times
-        self.speaker_stop_times = self.parent.parent.speaker_stop_times
-        self.mic_start_times = self.parent.parent.mic_start_times
-        self.mic_stop_times = self.parent.parent.mic_stop_times
-
-        # Left panel
-        label1 = QLabel('Alignment:')
-        self.push1_0 = QPushButton('Onset')
-        self.push1_0.setCheckable(True)
-        self.push1_0.setChecked(True)
-        self.push1_0.clicked.connect(self.set_onset)
-        self.push1_1 = QPushButton('Offset')
-        self.push1_1.setCheckable(True)
-        self.push1_1.setChecked(False)
-        self.push1_1.clicked.connect(self.set_offset)
-        self.push1_2 = QPushButton('Stimulus')
-        self.push1_2.setCheckable(True)
-        self.push1_2.setChecked(True)
-        self.push1_2.clicked.connect(self.set_stim)
-        self.push1_3 = QPushButton('Response')
-        self.push1_3.setCheckable(True)
-        self.push1_3.setChecked(False)
-        self.push1_3.clicked.connect(self.set_resp)
-        label2 = QLabel('Width (sec):')
-        self.qline2 = QLineEdit('2')
-        self.qline2.returnPressed.connect(self.draw_erp)
-
-        grid0 = QGridLayout()
-        grid0.addWidget(label1, 0, 0, 1, 2)
-        grid0.addWidget(self.push1_0, 1, 0, 1, 1)
-        grid0.addWidget(self.push1_1, 1, 1, 1, 1)
-        grid0.addWidget(self.push1_2, 2, 0, 1, 1)
-        grid0.addWidget(self.push1_3, 2, 1, 1, 1)
-        grid0.addWidget(label2, 3, 0, 1, 1)
-        grid0.addWidget(self.qline2, 3, 1, 1, 1)
-        grid0.setAlignment(QtCore.Qt.AlignTop)
-        panel0 = QGroupBox('Controls:')
-        panel0.setFixedWidth(180)
-        panel0.setLayout(grid0)
-        self.leftbox = QVBoxLayout()
-        self.leftbox.addWidget(panel0)
-
-        # Right panel
-        self.win = pg.GraphicsLayoutWidget()
-        self.win.resize(900, 600)
-        self.win.setBackground('w')
-        self.hbox = QHBoxLayout()
-        # self.hbox.addWidget(panel0)
-        self.hbox.addLayout(self.leftbox)
-        self.hbox.addWidget(self.win)
-        self.setLayout(self.hbox)
-        self.setWindowTitle(
-            'Individual Event-Related Potential - Ch ' + str(self.ch + 1))
-        self.resize(900, 600)
-
-        self.draw_erp()
-        self.exec_()
-
-    def set_onset(self):
-        self.alignment = 'start_time'
-        self.push1_1.setChecked(False)
-        self.draw_erp()
-
-    def set_offset(self):
-        self.alignment = 'stop_time'
-        self.push1_0.setChecked(False)
-        self.draw_erp()
-
-    def set_stim(self):
-        self.interval_type = 'speaker'
-        self.push1_3.setChecked(False)
-        self.draw_erp()
-
-    def set_resp(self):
-        self.interval_type = 'mic'
-        self.push1_2.setChecked(False)
-        self.draw_erp()
-
-    def calc_erp(self, ch):
-        if (self.alignment == 'start_time') and (
-                self.interval_type == 'speaker'):
-            ref_times = self.speaker_start_times
-        if (self.alignment == 'stop_time') and (
-                self.interval_type == 'speaker'):
-            ref_times = self.speaker_stop_times
-        if (self.alignment == 'start_time') and (self.interval_type == 'mic'):
-            ref_times = self.mic_start_times
-        if (self.alignment == 'stop_time') and (self.interval_type == 'mic'):
-            ref_times = self.mic_stop_times
-        ref_bins = (ref_times * self.fs).astype('int')
-        nBinsTr = int(float(self.qline2.text()) * self.fs / 2)
-        start_bins = ref_bins - nBinsTr
-        stop_bins = ref_bins + nBinsTr
-        nTrials = len(ref_times)
-        Y = np.zeros((nTrials, 2 * nBinsTr)) + np.nan
-        for tr in np.arange(nTrials):
-            Y[tr, :] = self.source[start_bins[tr]:stop_bins[tr], ch]
-        Y_mean = np.nanmean(Y, 0)
-        Y_sem = np.nanstd(Y, 0) / np.sqrt(Y.shape[0])
-        X = np.arange(0, 2 * nBinsTr) / self.fs
-        X -= X[-1] / 2
-        return Y_mean, Y_sem, X
-
-    def draw_erp(self):
-        cmap = get_lut()
-        Y_mean, Y_sem, X = self.calc_erp(ch=self.ch)
-        dc = np.mean(Y_mean)
-        Y_mean -= dc
-        p = self.win.getItem(row=0, col=0)
-        if p == None:
-            p = self.win.addPlot(row=0, col=0)
-        p.clear()
-        p.setMouseEnabled(x=False, y=True)
-        # Background color
-        loc = 'ctx-lh-' + \
-              self.parent.parent.parent.model.nwb.electrodes['location'][
-                  self.ch]
-        vb = p.getViewBox()
-        color = tuple(cmap.get(loc, cmap['Unknown']))
-        vb.setBackgroundColor((*color, 70))  # append alpha to color tuple
-        vb.border = pg.mkPen(color='w')
-        # Main plots
-        mean = p.plot(x=X, y=Y_mean, pen=pg.mkPen((60, 60, 60), width=2.))
-        semp = p.plot(x=X, y=Y_mean + Y_sem,
-                      pen=pg.mkPen((100, 100, 100, 100), width=.1))
-        semm = p.plot(x=X, y=Y_mean - Y_sem,
-                      pen=pg.mkPen((100, 100, 100, 100), width=.1))
-        fill = pg.FillBetweenItem(semm, semp, pg.mkBrush(100, 100, 100, 100))
-        p.addItem(fill)
-        p.hideButtons()
-        p.setXRange(X[0], X[-1])
-        p.setYRange(min(Y_mean), max(Y_mean))
-        xref = [X[int(len(X) / 2)], X[int(len(X) / 2)]]
-        yref = [-1000, 1000]
-        p.plot(x=xref, y=yref, pen=(0, 0, 0))  # reference mark
-        p.plot(x=X, y=np.zeros(len(X)), pen=(0, 0, 0))  # Zero line
-        # Axis control
-        left = p.getAxis('left')
-        left.setStyle(showValues=False)
-        left.setTicks([])
-        bottom = p.getAxis('bottom')
-        bottom.setStyle(showValues=True)
-        p.setLabel('bottom', 'Time', units='sec')
-
-
-# Creates Audio Event Detection window --------------------------------------
-class AudioEventDetection(QtGui.QDialog):
-    def __init__(self, parent):
-        super().__init__()
-        self.parent = parent
-        self.value = -1
-
-        # Plotting default values
-        self.speaker_offset = 3.3
-        self.mic_offset = 1
-        self.ylim = [-0.1, 4.3]
-        self.blue = (40, 116, 166)
-        self.blue_light = (40, 116, 166, 80)
-        self.red = (176, 58, 46)
-        self.red_light = (176, 58, 46, 80)
-        self.gray = (33, 47, 61)
-
-        # Left panel - Plot Preview ------------------------------------------
-        labelSpeaker = QLabel('Speaker:')
-        self.combo0 = QComboBox()
-        self.combo0.activated.connect(self.reset_draw)
-        labelMic = QLabel('Mic:')
-        self.combo1 = QComboBox()
-        self.combo1.activated.connect(self.reset_draw)
-        labelStart = QLabel('Interval Start (s):')
-        self.qline1 = QLineEdit('0')
-        self.qline1.returnPressed.connect(self.draw_scene)
-        labelStop = QLabel('Plot window (s):')
-        self.qline2 = QLineEdit('20')
-        self.qline2.returnPressed.connect(self.draw_scene)
-
-        self.push0_0 = QPushButton('<<')
-        self.push0_0.clicked.connect(self.page_backward)
-        self.push0_1 = QPushButton('refresh')
-        self.push0_1.clicked.connect(self.draw_scene)
-        self.push0_2 = QPushButton('>>')
-        self.push0_2.clicked.connect(self.page_forward)
-
-        grid0 = QGridLayout()
-        grid0.addWidget(labelSpeaker, 1, 0, 1, 3)
-        grid0.addWidget(self.combo0, 1, 3, 1, 4)
-        grid0.addWidget(labelMic, 2, 0, 1, 3)
-        grid0.addWidget(self.combo1, 2, 3, 1, 4)
-        grid0.addWidget(labelStart, 3, 0, 1, 5)
-        grid0.addWidget(self.qline1, 3, 5, 1, 2)
-        grid0.addWidget(labelStop, 4, 0, 1, 5)
-        grid0.addWidget(self.qline2, 4, 5, 1, 2)
-        grid0.addWidget(self.push0_0, 5, 0, 1, 2)
-        grid0.addWidget(self.push0_1, 5, 2, 1, 3)
-        grid0.addWidget(self.push0_2, 5, 5, 1, 2)
-        grid0.setAlignment(QtCore.Qt.AlignTop)
-        panel0 = QGroupBox('Plot')
-        panel0.setFixedWidth(200)
-        panel0.setLayout(grid0)
-
-        # Left panel - Detection Settings -----------------------------------
-        labelDetectStart = QLabel('Start (s):')
-        self.qline7 = QLineEdit('0')
-        labelDetectStop = QLabel('Stop (s):')
-        self.qline8 = QLineEdit('end')
-
-        labelDown = QLabel('Downsample\nFactor:')
-        self.qline3 = QLineEdit('800')
-        labelDown.setToolTip('Downsample rate of raw signal.\n'
-                             'Typical values: 500~900 Hz')
-        labelWidth = QLabel('Smoothing Filter\nWidth:')
-        self.qline4 = QLineEdit('0.4')
-        labelWidth.setToolTip('This will affect the width of \n'
-                              'the smoothing filter (seconds).\n'
-                              'Typical values: .1 ~ 1')
-        labelSpeakerThresh = QLabel('Speaker Threshold:')
-        self.qline5 = QLineEdit('0.05')
-        labelSpeakerThresh.setToolTip(
-            'Threshold on the smoothed signal (standard deviations from the '
-            'mean).\n'
-            'Typical values: .02 ~ .1')
-        labelMicThresh = QLabel('Mic Threshold:')
-        self.qline6 = QLineEdit('0.1')
-        labelMicThresh.setToolTip(
-            'Threshold on the smoothed signal (standard deviations from the '
-            'mean).\n'
-            'Typical values: .05 ~ .5')
-
-        labelRunTest = QLabel('Preview detection with\nthese settings.')
-        self.push1_0 = QPushButton('Run Test')
-        self.push1_0.clicked.connect(self.run_test)
-
-        grid1 = QGridLayout()
-        grid1.addWidget(labelDetectStart, 0, 0, 1, 3)
-        grid1.addWidget(self.qline7, 0, 3, 1, 3)
-        grid1.addWidget(labelDetectStop, 1, 0, 1, 3)
-        grid1.addWidget(self.qline8, 1, 3, 1, 3)
-        grid1.addWidget(labelDown, 2, 0, 1, 4)
-        grid1.addWidget(self.qline3, 2, 4, 1, 2)
-        grid1.addWidget(labelWidth, 3, 0, 1, 4)
-        grid1.addWidget(self.qline4, 3, 4, 1, 2)
-        grid1.addWidget(labelSpeakerThresh, 4, 0, 1, 4)
-        grid1.addWidget(self.qline5, 4, 4, 1, 2)
-        grid1.addWidget(labelMicThresh, 5, 0, 1, 4)
-        grid1.addWidget(self.qline6, 5, 4, 1, 2)
-        grid1.addWidget(labelRunTest, 6, 0, 1, 6)
-        grid1.addWidget(self.push1_0, 7, 0, 1, 6)
-
-        grid1.setAlignment(QtCore.Qt.AlignTop)
-        panel1 = QGroupBox('Detection - Settings')
-        panel1.setFixedWidth(200)
-        panel1.setLayout(grid1)
-
-        # Left panel - Detection Full --------------------------------------
-
-        labelRunDetection = QLabel('Run and save detection\nwith these '
-                                   'settings.')
-        self.push2_0 = QPushButton('Run Detection')
-        self.push2_0.clicked.connect(self.run_detection)
-
-        grid2 = QGridLayout()
-        grid2.addWidget(labelRunDetection, 0, 0, 1, 6)
-        grid2.addWidget(self.push2_0, 1, 0, 1, 6)
-
-        grid2.setAlignment(QtCore.Qt.AlignTop)
-        panel2 = QGroupBox('Detection - Run')
-        panel2.setFixedWidth(200)
-        panel2.setLayout(grid2)
-
-        self.leftbox = QVBoxLayout()
-        self.leftbox.addWidget(panel0)
-        self.leftbox.addWidget(panel1)
-        self.leftbox.addWidget(panel2)
-        self.leftbox.addStretch()
-
-        # Right panel --------------------------------------------------------
-        self.win = pg.PlotWidget()
-        self.win.resize(1000, 300)
-        background_color = self.palette().color(QtGui.QPalette.Background)
-        self.win.setBackground(background_color)
-
-        self.rightbox = QVBoxLayout()
-        self.plotTitle = QLabel('Preview detection results:')
-        self.rightbox.addWidget(self.plotTitle)
-        self.rightbox.addWidget(self.win)
-
-        self.hbox = QHBoxLayout()
-        self.hbox.addLayout(self.leftbox)  # add panels in the left
-        self.hbox.addLayout(self.rightbox)  # add plot on the right
-
-        self.setLayout(self.hbox)
-        self.setWindowTitle('Audio Event Detection')
-        self.resize(1100, 300)
-        self.find_signals()
-        self.reset_draw()
-        self.set_detect_interval()
-        self.exec_()
-
-    def find_signals(self):
-        # Find speaker signals
-        self.stimuli = {}  # Dictionary {'stimName':stim.source}
-        for stim in list(self.parent.model.nwb.stimulus.keys()):
-            self.combo0.addItem(stim)
-            self.stimuli[stim] = self.parent.model.nwb.stimulus[stim]
-        self.combo0.setCurrentIndex(0)
-        # Find microphone signals
-        self.responses = {}  # Dictionary {'respName':resp.source}
-        for resp in list(self.parent.model.nwb.acquisition.keys()):
-            # if type(self.parent.model.nwb.acquisition[resp]).__name__ ==
-            # 'TimeSeries':
-            if resp == 'microphone':
-                self.combo1.addItem(resp)
-                self.responses[resp] = self.parent.model.nwb.acquisition[resp]
-        self.combo1.setCurrentIndex(0)
-
-    def reset_draw(self):
-        """Reset draw."""
-        # Stimuli variables
-        stim = self.combo0.currentText()
-        self.source_stim = self.stimuli[stim]
-        self.signal_stim = self.source_stim.data
-        self.stimTimes = []  # clears any previous stim times
-        self.signal_stim_filt = None # clears any previous smoothed speaker
-
-        # Response variables
-        resp = self.combo1.currentText()
-        self.source_resp = self.responses[resp]
-        self.signal_resp = self.source_resp.data
-        self.respTimes = []  # clears any previous resp times
-        self.signal_resp_filt = None
-
-        # Common to both stim and resp
-        self.fs = self.source_stim.rate
-        self.nTotalBins = self.signal_stim.shape[0]
-        self.timeaxis = np.arange(self.nTotalBins)/self.fs
-        self.maxTime = self.timeaxis[-1]
-        self.draw_scene()
-
-    def set_plot_interval(self):
-        """Sets new interval."""
-        # Control for invalid values and ranges
-        interval = float(self.qline2.text())
-        self.startTime = np.clip(float(self.qline1.text()), 0,
-                                 self.maxTime - interval)
-        self.stopTime = np.clip(self.startTime + interval, 1.1,
-                                self.maxTime)
-        if (self.stopTime - self.startTime) < 1:
-            self.stopTime = self.startTime + 1
-        self.qline1.setText(str(np.round(self.startTime, 1)))
-        self.qline2.setText(str(np.round(self.stopTime-self.startTime, 1)))
-
-    def page_forward(self):
-        start = float(self.qline1.text())
-        interval = float(self.qline2.text())
-        self.qline1.setText(str(start + interval))
-        self.set_plot_interval()
-        self.draw_scene()
-
-    def page_backward(self):
-        start = float(self.qline1.text())
-        interval = float(self.qline2.text())
-        self.qline1.setText(str(start - interval))
-        self.set_plot_interval()
-        self.draw_scene()
-
-    def set_detect_interval(self):
-        """Sets new detect interval"""
-        # Control for invalid values and ranges
-        if self.qline8.text() == 'end':
-            self.qline8.setText(str(np.round(self.maxTime, 1)))
-        self.detectStartTime = np.clip(float(self.qline7.text()), 0,
-                                       self.maxTime - 1.1)
-        self.detectStopTime = np.clip(float(self.qline8.text()), 1.1,
-                                      self.maxTime)
-        if (self.detectStopTime - self.detectStartTime) < 1:
-            self.detectStopTime = self.detectStartTime + 1
-        self.qline7.setText(str(np.round(self.detectStartTime, 1)))
-        self.qline8.setText(str(np.round(self.detectStopTime, 1)))
-
-        # Calculate correspondent bins
-        self.detectStartBin = int(self.detectStartTime * self.fs)
-        self.detectStopBin = int(self.detectStopTime * self.fs)
-
-    def draw_scene(self):
-        """Draws signal and detection points."""
-        self.set_plot_interval()
-        self.win.clear()
-        # self.win.addLegend()
-
-        # Plot stimuli
-        plotBins = np.logical_and(self.timeaxis>=self.startTime,
-                                  self.timeaxis<=self.stopTime)
-        x = self.timeaxis[plotBins]
-        y0 = self.signal_stim[plotBins].astype(float)
-        y0 /= np.max(np.abs(y0))
-        self.win.plot(x, y0 + self.speaker_offset,
-                      pen=pg.mkPen(self.blue_light, width=1.),
-                      name='Speaker')
-
-        # Plot responses
-        y1 = self.signal_resp[plotBins].astype(float)
-        y1 /= np.max(np.abs(y1))
-        self.win.plot(x, y1 + self.mic_offset,
-                      pen=pg.mkPen(self.red_light, width=1.), name='Mic')
-
-        if self.signal_stim_filt is not None \
-                and self.signal_resp_filt is not None:
-
-            plotBinsFilt = np.logical_and(self.timeaxis_filt>=self.startTime,
-                                          self.timeaxis_filt<=self.stopTime)
-            x_filt = self.timeaxis_filt[plotBinsFilt]
-
-            # Plot filtered stimulus and threshold
-            y0 = [self.signal_stim_filt[plotBinsFilt],
-                  np.ones(np.sum(plotBinsFilt)) * self.speakerThresh]
-            y0_names = ['SpeakerFilt', 'SpeakerThresh']
-            y0_kargs = [{'color': self.gray, 'width': 2.},
-                        {
-                            'color': self.blue, 'width': 1.5,
-                            'style': QtCore.Qt.DashLine
-                        }]
-            for name, kargs, column in zip(y0_names, y0_kargs, y0):
-                self.win.plot(x_filt, column + self.speaker_offset,
-                              pen=pg.mkPen(**kargs), name=name)
-
-            for st in self.stimTimes:
-                if st>self.startTime and st<=self.stopTime:
-                    self.win.plot([st, st], self.ylim,
-                                  pen=pg.mkPen(self.blue, width=2.))
-
-            # Plot filtered response and threshold
-            y1 = [self.signal_resp_filt[plotBinsFilt],
-                  np.ones(np.sum(plotBinsFilt)) * self.micThresh]
-            y1_names = ['MicFilt', 'MicThresh']
-            y1_kargs = [{'color': self.gray, 'width': 2.},
-                        {
-                            'color': self.red, 'width': 1.5,
-                            'style': QtCore.Qt.DashLine
-                        }]
-            for name, kargs, column in zip(y1_names, y1_kargs, y1):
-                self.win.plot(x_filt, column + self.mic_offset,
-                              pen=pg.mkPen(**kargs), name=name)
-
-            for rt in self.respTimes:
-                if rt>self.startTime and rt<=self.stopTime:
-                    self.win.plot([rt, rt], self.ylim,
-                                  pen=pg.mkPen(self.red, width=2.))
-
-        # Axes parameters
-        self.win.setXRange(self.startTime, self.stopTime)
-        self.win.setYRange(self.ylim[0], self.ylim[1])
-        self.win.getAxis('left').setStyle(showValues=False)
-        self.win.getAxis('left').setTicks([])
-        self.win.getAxis('left').setPen(pg.mkPen(color=(50, 50, 50)))
-        self.win.setLabel('bottom', 'Time', units='sec')
-        self.win.getAxis('bottom').setPen(pg.mkPen(color=(50, 50, 50)))
-
-    def run_test(self):
-
-        # Assign the threshold values.
-        self.speakerThresh = float(self.qline5.text())
-        self.micThresh = float(self.qline6.text())
-
-        # Use the full signal based on the interval specified (different
-        # from the interval plotted.
-        self.set_detect_interval()
-
-        speakerDS, speakerEventDS, speakerFilt, micDS, micEventDS, micFilt =\
-            detect_events(
-            speaker_data=self.source_stim,
-            mic_data=self.source_resp,
-            interval=[self.detectStartBin, self.detectStopBin + 1],
-            dfact=self.fs / float(self.qline3.text()),
-            smooth_width=float(self.qline4.text()),
-            speaker_threshold=self.speakerThresh,
-            mic_threshold=self.micThresh
-        )
-
-        self.stimTimes = speakerEventDS
-        self.respTimes = micEventDS
-        self.timeaxis_filt = self.detectStartTime + np.arange(len(speakerDS)) / float(
-            self.qline3.text())
-        self.signal_stim_filt = speakerFilt
-        self.signal_resp_filt = micFilt
-
-        self.draw_scene()
-
-
-    def run_detection(self):
-        self.set_detect_interval()
-        self.disable_all()
-        self.plotTitle.setText(
-            f'Running event detection {self.detectStartTime}-'
-            f'{self.detectStopTime}s. Please wait...')
-        self.thread = EventDetectionFunction(
-            speaker_data=self.source_stim,
-            mic_data=self.source_resp,
-            interval=[self.detectStartBin, self.detectStopBin + 1],
-            dfact=self.fs / float(self.qline3.text()),
-            smooth_width=float(self.qline4.text()),
-            speaker_threshold=float(self.qline5.text()),
-            mic_threshold=float(self.qline6.text())
-        )
-        self.thread.finished.connect(lambda: self.out_close(1))
-        self.thread.start()
-
-    def disable_all(self):
-        self.win.clear()
-        self.push0_0.setEnabled(False)
-        self.push0_1.setEnabled(False)
-        self.push0_2.setEnabled(False)
-        self.combo0.setEnabled(False)
-        self.combo1.setEnabled(False)
-        self.qline1.setEnabled(False)
-        self.qline2.setEnabled(False)
-        self.qline3.setEnabled(False)
-        self.qline4.setEnabled(False)
-        self.qline5.setEnabled(False)
-        self.qline6.setEnabled(False)
-        self.qline7.setEnabled(False)
-        self.qline8.setEnabled(False)
-        self.push1_0.setEnabled(False)
-        self.push2_0.setEnabled(False)
-
-    def out_close(self, val):
-        self.value = val
-        if val == 1:  # finished auto-detection of events
-            self.stimTimes = self.thread.stimTimes
-            self.respTimes = self.thread.respTimes
-            fname = self.parent.model.fullpath
-            with NWBHDF5IO(fname, 'r+', load_namespaces=True) as io:
-                nwb = io.read()
-
-                # Speaker stimuli times
-                ti_stim = TimeIntervals(name='TimeIntervals_speaker')
-                times = self.stimTimes.reshape((-1, 2)).astype('float')
-                for start, stop in times:
-                    ti_stim.add_interval(start, stop)
-
-                # Microphone responses times
-                ti_resp = TimeIntervals(name='TimeIntervals_mic')
-                times = self.respTimes.reshape((-1, 2)).astype('float')
-                for start, stop in times:
-                    ti_resp.add_interval(start, stop)
-
-                # Add both to file
-                nwb.add_time_intervals(ti_stim)
-                nwb.add_time_intervals(ti_resp)
-                # Write file
-                io.write(nwb)
-            self.parent.model.refresh_file()
-            self.parent.model.SpeakerAndMicIntervalAdd()
-            self.parent.model.refreshScreen()
-        self.accept()
-
-
-# Runs 'detect_events' function, useful to wait for thread -----------------
-class EventDetectionFunction(QtCore.QThread):
-    def __init__(self, speaker_data, mic_data, interval, dfact,
-                 smooth_width,
-                 speaker_threshold, mic_threshold):
-        super().__init__()
-        self.source_stim = speaker_data
-        self.source_resp = mic_data
-        self.interval = interval
-        self.dfact = dfact
-        self.smooth_width = smooth_width
-        self.stim_threshold = speaker_threshold
-        self.resp_threshold = mic_threshold
-
-    def run(self):
-        speakerDS, speakerEventDS, _, micDS, micEventDS, _ = detect_events(
-            speaker_data=self.source_stim,
-            mic_data=self.source_resp,
-            interval=self.interval,
-            dfact=self.dfact,
-            smooth_width=self.smooth_width,
-            speaker_threshold=self.stim_threshold,
-            mic_threshold=self.resp_threshold,
-            direction='both'
-        )
-        self.stimTimes = speakerEventDS
-        self.respTimes = micEventDS
