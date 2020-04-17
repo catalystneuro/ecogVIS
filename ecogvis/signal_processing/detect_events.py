@@ -8,6 +8,7 @@ import numpy as np
 import scipy.signal as sgn
 from process_nwb.resample import resample
 
+
 def detect_events(speaker_data, mic_data=None, interval=None, dfact=30,
                   smooth_width=0.4, speaker_threshold=0.05, mic_threshold=0.05,
                   direction='both'):
@@ -78,7 +79,8 @@ def detect_events(speaker_data, mic_data=None, interval=None, dfact=30,
         # Kernel size must be an odd number
         speakerFilt = sgn.medfilt(
             volume=np.diff(np.append(speakerDS, speakerDS[-1])) ** 2,
-            kernel_size=int((smooth_width * ds // 2) * 2 + 1))
+            kernel_size=int((smooth_width * ds // 2) * 2 + 1)
+        )
 
         # Normalize the filtered signal.
         speakerFilt /= np.max(np.abs(speakerFilt))
@@ -93,7 +95,10 @@ def detect_events(speaker_data, mic_data=None, interval=None, dfact=30,
         stimBinsDS = speaker_events.reshape((-1))
 
         # Transform bins to time
-        speakerEventDS = (stimBinsDS  / ds) + (interval[0] / fs)
+        if interval is None:
+            speakerEventDS = (stimBinsDS / ds)
+        else:
+            speakerEventDS = (stimBinsDS / ds) + (interval[0] / fs)
 
     # Downsampling Mic -------------------------------------------------------
 
@@ -138,7 +143,10 @@ def detect_events(speaker_data, mic_data=None, interval=None, dfact=30,
         micBinsDS = mic_events.reshape((-1))
 
         # Transform bins to time
-        micEventDS = (micBinsDS / ds) + (interval[0] / fs)
+        if interval is None:
+            micEventDS = (micBinsDS / ds)
+        else:
+            micEventDS = (micBinsDS / ds) + (interval[0] / fs)
 
     return speakerDS, speakerEventDS, speakerFilt, micDS, micEventDS, micFilt
 
