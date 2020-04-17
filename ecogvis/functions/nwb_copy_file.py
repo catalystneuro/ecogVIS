@@ -191,12 +191,17 @@ def nwb_copy_file(old_file, new_file, cp_objs={}):
             # Processing modules ----------------------------------------------
             if 'ecephys' in cp_objs:
                 if cp_objs['ecephys'] is True:
-                    all_proc_names = list(nwb_old.processing['ecephys'].data_interfaces.keys())
+                    interfaces = nwb_old.processing['ecephys'].data_interfaces.keys()
                 else:  # list of items
-                    all_proc_names = cp_objs['ecephys']
+                    interfaces = [
+                        nwb_old.processing['ecephys'].data_interfaces[key]
+                        for key in cp_objs['ecephys']
+                    ]
                 # Add ecephys module to NWB file
-                ecephys_module = ProcessingModule(name='ecephys',
-                                                  description='Extracellular electrophysiology data.')
+                ecephys_module = ProcessingModule(
+                    name='ecephys',
+                    description='Extracellular electrophysiology data.'
+                )
                 nwb_new.add_processing_module(ecephys_module)
                 for interface_old in interfaces:
                     obj = copy_obj(interface_old, nwb_old, nwb_new)
