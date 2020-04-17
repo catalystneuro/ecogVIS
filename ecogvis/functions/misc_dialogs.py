@@ -28,8 +28,8 @@ ui_path = os.path.join(os.path.dirname(__file__), '..', 'ui')
 
 
 # Creates custom interval type -----------------------------------------------
-Ui_CustomInterval, _ = uic.loadUiType(
-    os.path.join(ui_path, "intervals_gui.ui"))
+Ui_CustomInterval, _ = uic.loadUiType(os.path.join(ui_path, "intervals_gui.ui"))
+
 
 class CustomIntervalDialog(QtGui.QDialog, Ui_CustomInterval):
     def __init__(self):
@@ -51,8 +51,8 @@ class NoHighGammaDialog(QtGui.QDialog):
     def __init__(self):
         super().__init__()
         self.text = QLabel(
-            "There is no high gamma data in the current NWB file.\n" +
-            "To calculate high gamma power traces, use button:\n" +
+            "There is no high gamma data in the current NWB file.\n"
+            "To calculate high gamma power traces, use button:\n"
             "High Gamma")
         self.okButton = QtGui.QPushButton("OK")
         self.okButton.clicked.connect(self.onAccepted)
@@ -72,8 +72,8 @@ class NoPreprocessedDialog(QtGui.QDialog):
     def __init__(self):
         super().__init__()
         self.text = QLabel(
-            "There is no preprocessed data in the current NWB file.\n" +
-            "To generate preprocessed voltage traces, use button:\n" +
+            "There is no preprocessed data in the current NWB file.\n"
+            "To generate preprocessed voltage traces, use button:\n"
             "Preprocess")
         self.okButton = QtGui.QPushButton("OK")
         self.okButton.clicked.connect(self.onAccepted)
@@ -111,7 +111,7 @@ class NoTrialsDialog(QtGui.QDialog):
     def __init__(self):
         super().__init__()
         self.text = QLabel(
-            "There is no trials data in the current NWB file.\n" +
+            "There is no trials data in the current NWB file.\n"
             "Trial times are needed to generate ERP.")
         self.okButton = QtGui.QPushButton("OK")
         self.okButton.clicked.connect(self.onAccepted)
@@ -131,8 +131,7 @@ class ExistIntervalsDialog(QtGui.QDialog):
     def __init__(self):
         super().__init__()
         self.text = QLabel(
-            "Speaker intervals data already exists in the current NWB "
-            "file.\n" +
+            "Speaker intervals data already exists in the current NWB file.\n"
             "It is not possible to substitute it.")
         self.okButton = QtGui.QPushButton("OK")
         self.okButton.clicked.connect(self.onAccepted)
@@ -173,9 +172,7 @@ class NoSpectrumDialog(QtGui.QDialog):
         self.type = type
         self.val = -1
         self.text = QLabel(
-            "There is no Spectrum data for " + self.type + " data in the "
-                                                           "current NWB "
-                                                           "file.\n" +
+            "There is no Spectrum data for " + self.type + " data in the current NWB file.\n"
             "To calculate the Power Spectral Density, click Calculate.")
         self.cancelButton = QtGui.QPushButton("Cancel")
         self.cancelButton.clicked.connect(lambda: self.out_close(val=-1))
@@ -193,8 +190,7 @@ class NoSpectrumDialog(QtGui.QDialog):
 
     def run_estimation(self):
         self.text.setText(
-            "Calculating the Power Spectral Density for " + self.type + " "
-                                                                        "data.\n" +
+            "Calculating the Power Spectral Density for " + self.type + " data.\n"
             "Please wait, this might take around 5 minutes.")
         self.cancelButton.setEnabled(False)
         self.calculateButton.setEnabled(False)
@@ -341,16 +337,14 @@ class SpectralChoiceDialog(QtGui.QDialog, Ui_SpectralChoice):
 
         if 'ecephys' in parent.model.nwb.processing:
             # If there's no preprocessed data in NWB file
-            if 'LFP' not in parent.model.nwb.processing[
-                'ecephys'].data_interfaces:
+            if 'LFP' not in parent.model.nwb.processing['ecephys'].data_interfaces:
                 self.disable_all()
                 text = "There's no preprocessed data in the current file.\n" \
                        "Run 'Preprocess' to generate it."
                 self.label_1.setText(text)
                 self.cancelButton.setEnabled(True)
             # If there's already Bandpower data in NWB file
-            if 'DecompositionSeries' in self.nwb.processing[
-                'ecephys'].data_interfaces:
+            if 'DecompositionSeries' in self.nwb.processing['ecephys'].data_interfaces:
                 self.disable_all()
                 text = "Frequency decomposition data already exists in " \
                        "current file."
@@ -379,8 +373,7 @@ class SpectralChoiceDialog(QtGui.QDialog, Ui_SpectralChoice):
         self.label_1.setText(text)
         self.runButton.setEnabled(True)
         # Populate table with values
-        self.tableWidget.setHorizontalHeaderLabels(
-            ['center [Hz]', 'sigma [Hz]'])
+        self.tableWidget.setHorizontalHeaderLabels(['center [Hz]', 'sigma [Hz]'])
         p0 = default_bands.chang_lab['cfs']
         p1 = default_bands.chang_lab['sds']
         self.tableWidget.setRowCount(len(p0))
@@ -469,6 +462,7 @@ class ProcessingDataFunction(QtCore.QThread):
 # Creates High Gamma dialog --------------------------------------------------
 Ui_HighGamma, _ = uic.loadUiType(os.path.join(ui_path, "high_gamma_gui.ui"))
 
+
 class HighGammaDialog(QtGui.QDialog, Ui_HighGamma):
     def __init__(self, parent):
         super().__init__()
@@ -500,8 +494,7 @@ class HighGammaDialog(QtGui.QDialog, Ui_HighGamma):
     def check_hg_exists(self):
         if 'ecephys' in self.parent.model.nwb.processing:
             # If there's no preprocessed data in NWB file
-            if 'LFP' not in self.parent.model.nwb.processing[
-                'ecephys'].data_interfaces:
+            if 'LFP' not in self.parent.model.nwb.processing['ecephys'].data_interfaces:
                 self.disable_all()
                 text = "There's no preprocessed data in the current file.\n" \
                        "Run 'Preprocess' to generate it."
@@ -683,8 +676,8 @@ class HighGammaDialog(QtGui.QDialog, Ui_HighGamma):
 
 
 # Creates preprocessing dialog -----------------------------------------------
-Ui_Preprocessing, _ = uic.loadUiType(
-    os.path.join(ui_path, "preprocessing_gui.ui"))
+Ui_Preprocessing, _ = uic.loadUiType(os.path.join(ui_path, "preprocessing_gui.ui"))
+
 
 class PreprocessingDialog(QtGui.QDialog, Ui_Preprocessing):
     def __init__(self, parent):
@@ -722,7 +715,7 @@ class PreprocessingDialog(QtGui.QDialog, Ui_Preprocessing):
                 self.lineEdit_3.setText(str(aux.rate))
                 self.pushButton_1.setEnabled(True)
                 self.label_2.setText(
-                    'Preprocessed data already exists in file,' 
+                    'Preprocessed data already exists in file,'
                     ' with the parameters shown above.')
 
         self.setWindowTitle('Preprocessing ')
@@ -1623,36 +1616,24 @@ class ERPDialog(QMainWindow):
         self.Yscale = {}
 
         self.source = \
-            self.parent.model.nwb.processing['ecephys'].data_interfaces[
-                'high_gamma'].data
-        self.fs = self.parent.model.nwb.processing['ecephys'].data_interfaces[
-            'high_gamma'].rate
+            self.parent.model.nwb.processing['ecephys'].data_interfaces['high_gamma'].data
+        self.fs = self.parent.model.nwb.processing['ecephys'].data_interfaces['high_gamma'].rate
         self.electrodes = \
-            self.parent.model.nwb.processing['ecephys'].data_interfaces[
-                'high_gamma'].electrodes
+            self.parent.model.nwb.processing['ecephys'].data_interfaces['high_gamma'].electrodes
         self.speaker_start_times = \
-            self.parent.model.nwb.intervals['TimeIntervals_speaker'][
-                'start_time'].data[:]
+            self.parent.model.nwb.intervals['TimeIntervals_speaker']['start_time'].data[:]
         self.speaker_stop_times = \
-            self.parent.model.nwb.intervals['TimeIntervals_speaker'][
-                'stop_time'].data[:]
+            self.parent.model.nwb.intervals['TimeIntervals_speaker']['stop_time'].data[:]
         self.mic_start_times = \
-            self.parent.model.nwb.intervals['TimeIntervals_mic'][
-                'start_time'].data[:]
+            self.parent.model.nwb.intervals['TimeIntervals_mic']['start_time'].data[:]
         self.mic_stop_times = \
-            self.parent.model.nwb.intervals['TimeIntervals_mic'][
-                'stop_time'].data[
-            :]
+            self.parent.model.nwb.intervals['TimeIntervals_mic']['stop_time'].data[:]
         # Get only reference times smaller than the main signal duration
         self.maxTime = self.source.shape[0] / self.fs
-        self.speaker_start_times = self.speaker_start_times[
-            self.speaker_start_times < self.maxTime]
-        self.speaker_stop_times = self.speaker_stop_times[
-            self.speaker_stop_times < self.maxTime]
-        self.mic_start_times = self.mic_start_times[
-            self.mic_start_times < self.maxTime]
-        self.mic_stop_times = self.mic_stop_times[
-            self.mic_stop_times < self.maxTime]
+        self.speaker_start_times = self.speaker_start_times[self.speaker_start_times < self.maxTime]
+        self.speaker_stop_times = self.speaker_stop_times[self.speaker_stop_times < self.maxTime]
+        self.mic_start_times = self.mic_start_times[self.mic_start_times < self.maxTime]
+        self.mic_stop_times = self.mic_stop_times[self.mic_stop_times < self.maxTime]
 
         # Left panel
         self.push0_0 = QPushButton('Draw ERP')
@@ -1904,7 +1885,7 @@ class ERPDialog(QMainWindow):
             row = np.floor(ind / self.nCols)
             col = ind % self.nCols
             p = self.win.getItem(row=row, col=col)
-            if p == None:
+            if p is None:
                 return
             else:
                 curr_txt = self.combo1.currentText()
@@ -1932,15 +1913,13 @@ class ERPDialog(QMainWindow):
             if str(
                     ch) in self.Y_start_speaker_mean:  # If it was
                 # calculated already
-                return self.Y_start_speaker_mean[str(ch)], \
-                       self.Y_start_speaker_sem[str(ch)], self.X
+                return self.Y_start_speaker_mean[str(ch)], self.Y_start_speaker_sem[str(ch)], self.X
             else:  # If it isn't calculated yet
                 Y_mean, Y_sem, X = self.calc_erp(ch=ch)
                 self.Y_start_speaker_mean[str(ch)] = Y_mean
                 self.Y_start_speaker_sem[str(ch)] = Y_sem
                 self.X = X
-                return self.Y_start_speaker_mean[str(ch)], \
-                       self.Y_start_speaker_sem[str(ch)], self.X
+                return self.Y_start_speaker_mean[str(ch)], self.Y_start_speaker_sem[str(ch)], self.X
         if (self.alignment == 'start_time') and (self.interval_type == 'mic'):
             if str(ch) in self.Y_start_mic_mean:  # If it was calculated
                 # already
@@ -1958,15 +1937,13 @@ class ERPDialog(QMainWindow):
             if str(
                     ch) in self.Y_stop_speaker_mean:  # If it was calculated
                 # already
-                return self.Y_stop_speaker_mean[str(ch)], \
-                       self.Y_stop_speaker_sem[str(ch)], self.X
+                return self.Y_stop_speaker_mean[str(ch)], self.Y_stop_speaker_sem[str(ch)], self.X
             else:  # If it isn't calculated yet
                 Y_mean, Y_sem, X = self.calc_erp(ch=ch)
                 self.Y_stop_speaker_mean[str(ch)] = Y_mean
                 self.Y_stop_speaker_sem[str(ch)] = Y_sem
                 self.X = X
-                return self.Y_stop_speaker_mean[str(ch)], \
-                       self.Y_stop_speaker_sem[str(ch)], self.X
+                return self.Y_stop_speaker_mean[str(ch)], self.Y_stop_speaker_sem[str(ch)], self.X
         if (self.alignment == 'stop_time') and (self.interval_type == 'mic'):
             if str(ch) in self.Y_stop_mic_mean:  # If it was calculated already
                 return self.Y_stop_mic_mean[str(ch)], self.Y_stop_mic_sem[
@@ -1976,15 +1953,12 @@ class ERPDialog(QMainWindow):
                 self.Y_stop_mic_mean[str(ch)] = Y_mean
                 self.Y_stop_mic_sem[str(ch)] = Y_sem
                 self.X = X
-                return self.Y_stop_mic_mean[str(ch)], self.Y_stop_mic_sem[
-                    str(ch)], self.X
+                return self.Y_stop_mic_mean[str(ch)], self.Y_stop_mic_sem[str(ch)], self.X
 
     def calc_erp(self, ch):
-        if (self.alignment == 'start_time') and (
-                self.interval_type == 'speaker'):
+        if (self.alignment == 'start_time') and (self.interval_type == 'speaker'):
             ref_times = self.speaker_start_times
-        if (self.alignment == 'stop_time') and (
-                self.interval_type == 'speaker'):
+        if (self.alignment == 'stop_time') and (self.interval_type == 'speaker'):
             ref_times = self.speaker_stop_times
         if (self.alignment == 'start_time') and (self.interval_type == 'mic'):
             ref_times = self.mic_start_times
@@ -2038,7 +2012,7 @@ class ERPDialog(QMainWindow):
             row = np.floor(ind / self.nCols).astype('int')
             col = int(ind % self.nCols)
             p = self.win.getItem(row=row, col=col)
-            if p == None:
+            if p is None:
                 vb = CustomViewBox(self, ch)
                 p = self.win.addPlot(row=row, col=col, viewBox=vb)
             p.hideAxis('left')
@@ -2057,14 +2031,10 @@ class ERPDialog(QMainWindow):
             mean = p.plot(x=X, y=Y_mean, pen=pg.mkPen((50, 50, 50, min(
                 elem_alpha, 255)), width=1.))
             semp = p.plot(x=X, y=Y_mean + Y_sem,
-                          pen=pg.mkPen((100, 100, 100, min(elem_alpha, 100)),
-                                       width=.1))
+                          pen=pg.mkPen((100, 100, 100, min(elem_alpha, 100)), width=.1))
             semm = p.plot(x=X, y=Y_mean - Y_sem,
-                          pen=pg.mkPen((100, 100, 100, min(elem_alpha, 100)),
-                                       width=.1))
-            fill = pg.FillBetweenItem(semm, semp, pg.mkBrush(100, 100, 100,
-                                                             min(elem_alpha,
-                                                                 100)))
+                          pen=pg.mkPen((100, 100, 100, min(elem_alpha, 100)), width=.1))
+            fill = pg.FillBetweenItem(semm, semp, pg.mkBrush(100, 100, 100, min(elem_alpha, 100)))
             p.addItem(fill)
             p.hideButtons()
             p.setXRange(X[0], X[-1])
@@ -2210,11 +2180,9 @@ class IndividualERPDialog(QtGui.QDialog):
         self.draw_erp()
 
     def calc_erp(self, ch):
-        if (self.alignment == 'start_time') and (
-                self.interval_type == 'speaker'):
+        if (self.alignment == 'start_time') and (self.interval_type == 'speaker'):
             ref_times = self.speaker_start_times
-        if (self.alignment == 'stop_time') and (
-                self.interval_type == 'speaker'):
+        if (self.alignment == 'stop_time') and (self.interval_type == 'speaker'):
             ref_times = self.speaker_stop_times
         if (self.alignment == 'start_time') and (self.interval_type == 'mic'):
             ref_times = self.mic_start_times
@@ -2240,7 +2208,7 @@ class IndividualERPDialog(QtGui.QDialog):
         dc = np.mean(Y_mean)
         Y_mean -= dc
         p = self.win.getItem(row=0, col=0)
-        if p == None:
+        if p is None:
             p = self.win.addPlot(row=0, col=0)
         p.clear()
         p.setMouseEnabled(x=False, y=True)
@@ -2349,14 +2317,12 @@ class AudioEventDetection(QtGui.QDialog):
         labelSpeakerThresh = QLabel('Speaker Threshold:')
         self.qline5 = QLineEdit('0.05')
         labelSpeakerThresh.setToolTip(
-            'Threshold on the smoothed signal (standard deviations from the '
-            'mean).\n'
+            'Threshold on the smoothed signal (standard deviations from the mean).\n'
             'Typical values: .02 ~ .1')
         labelMicThresh = QLabel('Mic Threshold:')
         self.qline6 = QLineEdit('0.1')
         labelMicThresh.setToolTip(
-            'Threshold on the smoothed signal (standard deviations from the '
-            'mean).\n'
+            'Threshold on the smoothed signal (standard deviations from the mean).\n'
             'Typical values: .05 ~ .5')
 
         labelRunTest = QLabel('Preview detection with\nthese settings.')
@@ -2453,7 +2419,7 @@ class AudioEventDetection(QtGui.QDialog):
         self.source_stim = self.stimuli[stim]
         self.signal_stim = self.source_stim.data
         self.stimTimes = []  # clears any previous stim times
-        self.signal_stim_filt = None # clears any previous smoothed speaker
+        self.signal_stim_filt = None  # clears any previous smoothed speaker
 
         # Response variables
         resp = self.combo1.currentText()
@@ -2465,7 +2431,7 @@ class AudioEventDetection(QtGui.QDialog):
         # Common to both stim and resp
         self.fs = self.source_stim.rate
         self.nTotalBins = self.signal_stim.shape[0]
-        self.timeaxis = np.arange(self.nTotalBins)/self.fs
+        self.timeaxis = np.arange(self.nTotalBins) / self.fs
         self.maxTime = self.timeaxis[-1]
         self.draw_scene()
 
@@ -2480,7 +2446,7 @@ class AudioEventDetection(QtGui.QDialog):
         if (self.stopTime - self.startTime) < 1:
             self.stopTime = self.startTime + 1
         self.qline1.setText(str(np.round(self.startTime, 1)))
-        self.qline2.setText(str(np.round(self.stopTime-self.startTime, 1)))
+        self.qline2.setText(str(np.round(self.stopTime - self.startTime, 1)))
 
     def page_forward(self):
         start = float(self.qline1.text())
@@ -2521,8 +2487,8 @@ class AudioEventDetection(QtGui.QDialog):
         # self.win.addLegend()
 
         # Plot stimuli
-        plotBins = np.logical_and(self.timeaxis>=self.startTime,
-                                  self.timeaxis<=self.stopTime)
+        plotBins = np.logical_and(self.timeaxis >= self.startTime,
+                                  self.timeaxis <= self.stopTime)
         x = self.timeaxis[plotBins]
         y0 = self.signal_stim[plotBins].astype(float)
         y0 /= np.max(np.abs(y0))
@@ -2539,8 +2505,8 @@ class AudioEventDetection(QtGui.QDialog):
         if self.signal_stim_filt is not None \
                 and self.signal_resp_filt is not None:
 
-            plotBinsFilt = np.logical_and(self.timeaxis_filt>=self.startTime,
-                                          self.timeaxis_filt<=self.stopTime)
+            plotBinsFilt = np.logical_and(self.timeaxis_filt >= self.startTime,
+                                          self.timeaxis_filt <= self.stopTime)
             x_filt = self.timeaxis_filt[plotBinsFilt]
 
             # Plot filtered stimulus and threshold
@@ -2548,16 +2514,14 @@ class AudioEventDetection(QtGui.QDialog):
                   np.ones(np.sum(plotBinsFilt)) * self.speakerThresh]
             y0_names = ['SpeakerFilt', 'SpeakerThresh']
             y0_kargs = [{'color': self.gray, 'width': 2.},
-                        {
-                            'color': self.blue, 'width': 1.5,
-                            'style': QtCore.Qt.DashLine
-                        }]
+                        {'color': self.blue, 'width': 1.5,
+                         'style': QtCore.Qt.DashLine}]
             for name, kargs, column in zip(y0_names, y0_kargs, y0):
                 self.win.plot(x_filt, column + self.speaker_offset,
                               pen=pg.mkPen(**kargs), name=name)
 
             for st in self.stimTimes:
-                if st>self.startTime and st<=self.stopTime:
+                if st > self.startTime and st <= self.stopTime:
                     self.win.plot([st, st], self.ylim,
                                   pen=pg.mkPen(self.blue, width=2.))
 
@@ -2566,16 +2530,14 @@ class AudioEventDetection(QtGui.QDialog):
                   np.ones(np.sum(plotBinsFilt)) * self.micThresh]
             y1_names = ['MicFilt', 'MicThresh']
             y1_kargs = [{'color': self.gray, 'width': 2.},
-                        {
-                            'color': self.red, 'width': 1.5,
-                            'style': QtCore.Qt.DashLine
-                        }]
+                        {'color': self.red, 'width': 1.5,
+                         'style': QtCore.Qt.DashLine}]
             for name, kargs, column in zip(y1_names, y1_kargs, y1):
                 self.win.plot(x_filt, column + self.mic_offset,
                               pen=pg.mkPen(**kargs), name=name)
 
             for rt in self.respTimes:
-                if rt>self.startTime and rt<=self.stopTime:
+                if rt > self.startTime and rt <= self.stopTime:
                     self.win.plot([rt, rt], self.ylim,
                                   pen=pg.mkPen(self.red, width=2.))
 
@@ -2600,14 +2562,14 @@ class AudioEventDetection(QtGui.QDialog):
 
         speakerDS, speakerEventDS, speakerFilt, micDS, micEventDS, micFilt =\
             detect_events(
-            speaker_data=self.source_stim,
-            mic_data=self.source_resp,
-            interval=[self.detectStartBin, self.detectStopBin + 1],
-            dfact=self.fs / float(self.qline3.text()),
-            smooth_width=float(self.qline4.text()),
-            speaker_threshold=self.speakerThresh,
-            mic_threshold=self.micThresh
-        )
+                speaker_data=self.source_stim,
+                mic_data=self.source_resp,
+                interval=[self.detectStartBin, self.detectStopBin + 1],
+                dfact=self.fs / float(self.qline3.text()),
+                smooth_width=float(self.qline4.text()),
+                speaker_threshold=self.speakerThresh,
+                mic_threshold=self.micThresh
+            )
 
         self.stimTimes = speakerEventDS
         self.respTimes = micEventDS
@@ -2617,7 +2579,6 @@ class AudioEventDetection(QtGui.QDialog):
         self.signal_resp_filt = micFilt
 
         self.draw_scene()
-
 
     def run_detection(self):
         self.set_detect_interval()
