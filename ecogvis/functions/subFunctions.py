@@ -156,15 +156,18 @@ class TimeSeriesPlotter:
                 if type(self.nwb.acquisition[i]).__name__ == 'ElectricalSeries':
                     self.source = self.nwb.acquisition[i]
                     self.parent.combo3.setCurrentIndex(self.parent.combo3.findText('raw'))
-        except: None
+        except:
+            None
         try:  # Tries to load preprocessed data
             self.source = self.nwb.processing['ecephys'].data_interfaces['LFP'].electrical_series['preprocessed']
             self.parent.combo3.setCurrentIndex(self.parent.combo3.findText('preprocessed'))
-        except: None
+        except:
+            None
         try:  # Tries to load High Gamma data
             self.source = self.nwb.processing['ecephys'].data_interfaces['high_gamma']
             self.parent.combo3.setCurrentIndex(self.parent.combo3.findText('high gamma'))
-        except: None
+        except:
+            None
         self.plotData = self.source.data
         self.fs_signal = self.source.rate      # sampling frequency [Hz]
         self.tbin_signal = 1 / self.fs_signal  # time bin duration [seconds]
@@ -289,7 +292,7 @@ class TimeSeriesPlotter:
         # Bottom plot - Stimuli
         plt3 = self.parent.win3
         plt3.clear()
-        if self.parent.combo4.currentText() is not '':
+        if self.parent.combo4.currentText() != '':
             try:
                 xmask = (self.stimX > timebaseGuiUnits[0]) * (self.stimX < timebaseGuiUnits[-1])
                 stimName = self.parent.combo4.currentText()
@@ -681,12 +684,11 @@ class TimeSeriesPlotter:
             # TO-DO
         self.refreshScreen()
 
-
     def SpeakerAndMicIntervalAdd(self):
         if self.nwb.intervals is not None:
-            keys = ['TimeIntervals_speaker','TimeIntervals_mic']
-            colors = ['blue','green']
-            for name,color in zip(keys,colors):
+            keys = ['TimeIntervals_speaker', 'TimeIntervals_mic']
+            colors = ['blue', 'green']
+            for name, color in zip(keys, colors):
                 if name in self.nwb.intervals:
                     ti = self.nwb.intervals[name]
                     nI = len(ti)
@@ -696,8 +698,6 @@ class TimeSeriesPlotter:
                         color = color
                         session = ''
                         self.IntervalAdd(interval, int_type, color, session)
-
-
 
     # Channels functions -------------------------------------------------------
     def BadChannelAdd(self, ch_list):
