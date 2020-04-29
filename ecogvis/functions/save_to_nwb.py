@@ -136,6 +136,7 @@ class SaveToNWBDialog(QtGui.QDialog):
             'electrodes': True,
             'epochs': True,
             'trials': True,
+            'subject': True,
             'acquisition': [],
             'stimulus': [],
             'ecephys': []

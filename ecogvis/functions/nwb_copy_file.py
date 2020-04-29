@@ -1,8 +1,5 @@
 # -*- coding: utf-8 -*-
-from datetime import datetime
-
 import numpy as np
-from dateutil.tz import tzlocal
 from hdmf.common.table import DynamicTable, VectorData
 from ndx_spectrum import Spectrum
 from nwbext_ecog import CorticalSurfaces, ECoGSubject
@@ -13,6 +10,12 @@ from pynwb.ecephys import LFP, ElectricalSeries
 from pynwb.epoch import TimeIntervals
 from pynwb.file import Subject
 from pynwb.misc import DecompositionSeries
+import string
+import random
+
+
+def id_generator(size=6, chars=string.ascii_uppercase + string.digits):
+    return ''.join(random.choice(chars) for _ in range(size))
 
 
 def nwb_copy_file(old_file, new_file, cp_objs={}, save_to_file=True):
@@ -46,16 +49,16 @@ def nwb_copy_file(old_file, new_file, cp_objs={}, save_to_file=True):
     manager = get_manager()
 
     # Open original signal file
-    with NWBHDF5IO(old_file, 'r', manager=manager,
-                   load_namespaces=True) as io1:
+    with NWBHDF5IO(old_file, 'r', manager=manager, load_namespaces=True) as io1:
         nwb_old = io1.read()
 
         # Creates new file
-        nwb_new = NWBFile(session_description=str(nwb_old.session_description),
-                          identifier='',
-                          session_start_time=datetime.now(tzlocal()))
-        with NWBHDF5IO(new_file, mode='w', manager=manager,
-                       load_namespaces=False) as io2:
+        nwb_new = NWBFile(
+            session_description=str(nwb_old.session_description),
+            identifier=id_generator(),
+            session_start_time=nwb_old.session_start_time,
+        )
+        with NWBHDF5IO(new_file, mode='w', manager=manager, load_namespaces=False) as io2:
             # Institution name ------------------------------------------------
             if 'institution' in cp_objs:
                 nwb_new.institution = str(nwb_old.institution)
