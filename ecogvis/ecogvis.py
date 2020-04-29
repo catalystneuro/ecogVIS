@@ -30,6 +30,7 @@ from ecogvis.functions.misc_dialogs import (CustomIntervalDialog, SelectChannels
 from ecogvis.functions.audio_event_detection import AudioEventDetection
 from ecogvis.functions.event_related_potential import ERPDialog
 from ecogvis.functions.save_to_nwb import SaveToNWBDialog
+from ecogvis.functions.nwb_copy_file import nwb_copy_file
 
 annotationAdd_ = False
 annotationDel_ = False
@@ -444,16 +445,18 @@ class Application(QMainWindow):
     def save_file(self):
         """
         Saves chosen data and info to new NWB file.
-        The dialog returns a dictionary with fields to be copied from the current
+        The dialog assembles a dictionary with fields to be copied from the current
         nwb file to the new file. This dictionary is passed to nwb_copy_file()
         function.
         """
         save_dialog = SaveToNWBDialog(parent=self)
-        print(save_dialog.value)
         if save_dialog.value:
-            filename, _ = QFileDialog.getSaveFileName(None, 'Save to file', '', "(*.nwb)")
-            if os.path.isfile(filename):
-                self.file = filename
+            nwb_copy_file(
+                old_file=self.file,
+                new_file=save_dialog.newfile,
+                cp_objs=save_dialog.cp_objs,
+                save_to_file=True
+            )
 
     def change_session(self):
         """Changes session name."""

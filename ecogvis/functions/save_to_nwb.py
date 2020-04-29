@@ -24,46 +24,50 @@ class SaveToNWBDialog(QtGui.QDialog):
         self.panel_0.addWidget(self.btn_newfile, 0, 0)
         self.panel_0.addWidget(self.lin_newfile, 0, 1)
 
-        # Include data
+        # Include raw data
         self.chk_raw = QCheckBox('Raw data')
         self.chk_raw.setChecked(False)
         self.chk_raw.setEnabled(False)
         for v in self.curr_nwbfile.acquisition.values():
             if v.__class__ is pynwb.ecephys.ElectricalSeries:
                 self.chk_raw.setEnabled(True)
-        self.chk_preprocessed = QCheckBox('Preprocessed data')
-        self.chk_preprocessed.setChecked(False)
-        self.chk_preprocessed.setEnabled(False)
-        if 'ecephys' in self.curr_nwbfile.processing:
-            if 'LFP' in self.curr_nwbfile.processing['ecephys'].data_interfaces:
-                if 'preprocessed' in self.curr_nwbfile.processing['ecephys'].data_interfaces['LFP'].electrical_series:
-                    self.chk_preprocessed.setEnabled(True)
-        self.chk_gamma = QCheckBox('High gamma')
-        self.chk_gamma.setChecked(False)
-        self.chk_gamma.setEnabled(False)
-        if 'ecephys' in self.curr_nwbfile.processing:
-            if 'high_gamma' in self.curr_nwbfile.processing['ecephys'].data_interfaces:
-                self.chk_gamma.setEnabled(True)
+                self.raw_name = v.name
+        self.form_1 = QVBoxLayout()
+        self.form_1.addWidget(self.chk_raw)
 
-        self.form_1 = QGridLayout()
-        self.form_1.addWidget(self.chk_raw, 0, 0)
-        self.form_1.addWidget(self.chk_preprocessed, 1, 0)
-        self.form_1.addWidget(self.chk_gamma, 2, 0)
-
+        # Include processing
+        self.checks_processing = []
+        if 'ecephys' in self.curr_nwbfile.processing:
+            for k, v in self.curr_nwbfile.processing['ecephys'].data_interfaces.items():
+                chk = QCheckBox(k)
+                chk.setChecked(False)
+                self.checks_processing.append(chk)
+                self.form_1.addWidget(chk)
         self.panel_1 = QGroupBox('Include data:')
         self.panel_1.setLayout(self.form_1)
 
-        # Include Stimuli
+        # Include mic recording
         self.form_2 = QVBoxLayout()
+        self.checks_mic = []
+        for k, v in self.curr_nwbfile.acquisition.items():
+            if v.__class__ is pynwb.ecephys.TimeSeries:
+                chk = QCheckBox(k)
+                chk.setChecked(False)
+                self.checks_mic.append(chk)
+                self.form_2.addWidget(chk)
+        self.panel_2 = QGroupBox('Include microphone:')
+        self.panel_2.setLayout(self.form_2)
+
+        # Speaker stimuli
+        self.form_3 = QVBoxLayout()
         self.checks_stimuli = []
         for k, v in self.curr_nwbfile.stimulus.items():
             chk = QCheckBox(k)
             chk.setChecked(False)
             self.checks_stimuli.append(chk)
-            self.form_2.addWidget(chk)
-
-        self.panel_2 = QGroupBox('Include stimuli:')
-        self.panel_2.setLayout(self.form_2)
+            self.form_3.addWidget(chk)
+        self.panel_3 = QGroupBox('Include stimuli:')
+        self.panel_3.setLayout(self.form_3)
 
         # Include user-edited information
         self.chk_intervals = QCheckBox('Intervals')
@@ -71,12 +75,12 @@ class SaveToNWBDialog(QtGui.QDialog):
         self.chk_annotations = QCheckBox('Annotations')
         self.chk_annotations.setChecked(False)
 
-        self.form_3 = QGridLayout()
-        self.form_3.addWidget(self.chk_intervals, 0, 0)
-        self.form_3.addWidget(self.chk_annotations, 1, 0)
+        self.form_4 = QGridLayout()
+        self.form_4.addWidget(self.chk_intervals, 0, 0)
+        self.form_4.addWidget(self.chk_annotations, 1, 0)
 
-        self.panel_3 = QGroupBox('Include info:')
-        self.panel_3.setLayout(self.form_3)
+        self.panel_4 = QGroupBox('Include info:')
+        self.panel_4.setLayout(self.form_4)
 
         # Buttons
         self.btn_save = QPushButton("Save")
@@ -99,6 +103,7 @@ class SaveToNWBDialog(QtGui.QDialog):
         self.vbox_1.addWidget(self.panel_1)
         self.vbox_1.addWidget(self.panel_2)
         self.vbox_1.addWidget(self.panel_3)
+        self.vbox_1.addWidget(self.panel_4)
         self.vbox_1.addLayout(self.hbox_1)
 
         self.setLayout(self.vbox_1)
@@ -113,8 +118,6 @@ class SaveToNWBDialog(QtGui.QDialog):
 
     def save(self):
         self.value = True
-        print(self.parent.model.nwb)
-
         self.make_cp_objs()
         self.accept()
 
@@ -133,22 +136,25 @@ class SaveToNWBDialog(QtGui.QDialog):
             'electrodes': True,
             'epochs': True,
             'trials': True,
+            'acquisition': [],
+            'stimulus': [],
+            'ecephys': []
         }
-        # Data
+        # Raw data
         if self.chk_raw.isChecked():
-            self.cp_objs.update({'acquisition': True})
-        procs = []
-        if self.chk_preprocessed.isChecked():
-            procs.append('preprocessed')
-        if self.chk_gamma.isChecked():
-            procs.append('high_gamma')
-        self.cp_objs.update({'ecephys': procs})
-        # Stimuli
-        for chk in self.checks_stimuli:
-            stims = []
+            self.cp_objs['acquisition'].append(self.raw_name)
+        # Processed data
+        for chk in self.checks_processing:
             if chk.isChecked():
-                stims.append(chk.text())
-            self.cp_objs.update({'stimulus': stims})
+                self.cp_objs['ecephys'].append(chk.text())
+        # Mic recording
+        for chk in self.checks_mic:
+            if chk.isChecked():
+                self.cp_objs['acquisition'].append(chk.text())
+        # Speaker stimuli
+        for chk in self.checks_stimuli:
+            if chk.isChecked():
+                self.cp_objs['stimulus'].append(chk.text())
         # User-defined info
         if self.chk_intervals.isChecked():
             self.cp_objs.update({'intervals': True})

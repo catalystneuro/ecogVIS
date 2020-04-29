@@ -75,7 +75,7 @@ def nwb_copy_file(old_file, new_file, cp_objs={}, save_to_file=True):
                     nwb_new.add_device(dev)
 
             # Electrode groups ------------------------------------------------
-            if 'electrode_groups' in cp_objs:
+            if 'electrode_groups' in cp_objs and nwb_old.electrode_groups is not None:
                 for aux in list(nwb_old.electrode_groups.keys()):
                     nwb_new.create_electrode_group(
                         name=str(nwb_old.electrode_groups[aux].name),
@@ -87,7 +87,7 @@ def nwb_copy_file(old_file, new_file, cp_objs={}, save_to_file=True):
                     )
 
             # Electrodes ------------------------------------------------------
-            if 'electrodes' in cp_objs:
+            if 'electrodes' in cp_objs and nwb_old.electrodes is not None:
                 nElec = len(nwb_old.electrodes['x'].data[:])
                 for aux in np.arange(nElec):
                     nwb_new.add_electrode(
@@ -133,10 +133,11 @@ def nwb_copy_file(old_file, new_file, cp_objs={}, save_to_file=True):
                 [new_vars.remove(var) for var in default_vars if
                  var in new_vars]
                 for var in new_vars:
-                    nwb_new.add_epoch_column(name=var,
-                                             description=nwb_old.epochs[
-                                                 var].description,
-                                             data=nwb_old.epochs[var].data[:])
+                    nwb_new.add_epoch_column(
+                        name=var,
+                        description=nwb_old.epochs[var].description,
+                        data=nwb_old.epochs[var].data[:]
+                    )
 
             # Invalid times ---------------------------------------------------
             if 'invalid_times' in cp_objs and nwb_old.invalid_times is not None:
@@ -144,7 +145,8 @@ def nwb_copy_file(old_file, new_file, cp_objs={}, save_to_file=True):
                 for aux in np.arange(nInvalid):
                     nwb_new.add_invalid_time_interval(
                         start_time=nwb_old.invalid_times['start_time'][aux],
-                        stop_time=nwb_old.invalid_times['stop_time'][aux])
+                        stop_time=nwb_old.invalid_times['stop_time'][aux]
+                    )
 
             # Trials ----------------------------------------------------------
             if 'trials' in cp_objs and nwb_old.trials is not None:
@@ -158,10 +160,11 @@ def nwb_copy_file(old_file, new_file, cp_objs={}, save_to_file=True):
                 default_vars = ['start_time', 'stop_time']
                 [new_vars.remove(var) for var in default_vars]
                 for var in new_vars:
-                    nwb_new.add_trial_column(name=var,
-                                             description=nwb_old.trials[
-                                                 var].description,
-                                             data=nwb_old.trials[var].data[:])
+                    nwb_new.add_trial_column(
+                        name=var,
+                        description=nwb_old.trials[var].description,
+                        data=nwb_old.trials[var].data[:]
+                    )
 
             # Intervals -------------------------------------------------------
             if 'intervals' in cp_objs and nwb_old.intervals is not None:
@@ -195,13 +198,8 @@ def nwb_copy_file(old_file, new_file, cp_objs={}, save_to_file=True):
 
             # Processing modules ----------------------------------------------
             if 'ecephys' in cp_objs:
-                if cp_objs['ecephys'] is True:
-                    interfaces = nwb_old.processing['ecephys'].data_interfaces.keys()
-                else:  # list of items
-                    interfaces = [
-                        nwb_old.processing['ecephys'].data_interfaces[key]
-                        for key in cp_objs['ecephys']
-                    ]
+                interfaces = [nwb_old.processing['ecephys'].data_interfaces[key]
+                              for key in cp_objs['ecephys']]
                 # Add ecephys module to NWB file
                 ecephys_module = ProcessingModule(
                     name='ecephys',
@@ -214,16 +212,11 @@ def nwb_copy_file(old_file, new_file, cp_objs={}, save_to_file=True):
                         ecephys_module.add_data_interface(obj)
 
             # Acquisition -----------------------------------------------------
+            # Can get raw ElecetricalSeries and Mic recording
             if 'acquisition' in cp_objs:
-                if cp_objs['acquisition'] is True:
-                    all_acq_names = list(nwb_old.acquisition.keys())
-                else:  # list of items
-                    all_acq_names = cp_objs['acquisition']
-                for acq_name in all_acq_names:
+                for acq_name in cp_objs['acquisition']:
                     obj_old = nwb_old.acquisition[acq_name]
-                    obj = copy_obj(obj_old, nwb_old, nwb_new)
-                    if obj is not None:
-                        nwb_new.add_acquisition(obj)
+                    nwb_new = copy_obj(obj_old, nwb_old, nwb_new)
 
             # Subject ---------------------------------------------------------
             if 'subject' in cp_objs:
@@ -274,13 +267,15 @@ def copy_obj(obj_old, nwb_old, nwb_new):
             region=np.arange(nChannels).tolist(),
             description=''
         )
-        return ElectricalSeries(
+        els = ElectricalSeries(
             name=obj_old.name,
             data=obj_old.data[:],
             electrodes=elecs_region,
             rate=obj_old.rate,
             description=obj_old.description
         )
+        nwb_new.add_acquisition(els)
+        return nwb_new
 
     # DynamicTable ------------------------------------------------------------
     if type(obj_old) is DynamicTable:
