@@ -15,7 +15,7 @@ from pynwb.file import Subject
 from pynwb.misc import DecompositionSeries
 
 
-def nwb_copy_file(old_file, new_file, cp_objs={}):
+def nwb_copy_file(old_file, new_file, cp_objs={}, save_to_file=True):
     """
     Copy fields defined in 'obj', from existing NWB file to new NWB file.
 
@@ -35,6 +35,12 @@ def nwb_copy_file(old_file, new_file, cp_objs={}):
          'lab':True,
          'acquisition':['microphone'],
          'ecephys':['LFP','DecompositionSeries']}
+    save_to_file: Boolean
+        If True, saves directly to new_file.nwb. If False, only returns nwb_new.
+
+    Returns:
+    --------
+    nwb_new : nwbfile object
     """
 
     manager = get_manager()
@@ -103,19 +109,18 @@ def nwb_copy_file(old_file, new_file, cp_objs={}):
                 for var in new_vars:
 
                     if var == 'label':
-                        var_data = [str(elem) for elem in nwb_old.electrodes[
-                                                          var].data[:]]
+                        var_data = [str(elem) for elem in nwb_old.electrodes[var].data[:]]
                     else:
                         var_data = np.array(nwb_old.electrodes[var].data[:])
 
-                    nwb_new.add_electrode_column(name=str(var),
-                                                 description=
-                                                 str(nwb_old.electrodes[
-                                                     var].description),
-                                                 data=var_data)
+                    nwb_new.add_electrode_column(
+                        name=str(var),
+                        description=str(nwb_old.electrodes[var].description),
+                        data=var_data
+                    )
 
             # Epochs ----------------------------------------------------------
-            if 'epochs' in cp_objs:
+            if 'epochs' in cp_objs and nwb_old.epochs is not None:
                 nEpochs = len(nwb_old.epochs['start_time'].data[:])
                 for i in np.arange(nEpochs):
                     nwb_new.add_epoch(
@@ -134,7 +139,7 @@ def nwb_copy_file(old_file, new_file, cp_objs={}):
                                              data=nwb_old.epochs[var].data[:])
 
             # Invalid times ---------------------------------------------------
-            if 'invalid_times' in cp_objs:
+            if 'invalid_times' in cp_objs and nwb_old.invalid_times is not None:
                 nInvalid = len(nwb_old.invalid_times['start_time'][:])
                 for aux in np.arange(nInvalid):
                     nwb_new.add_invalid_time_interval(
@@ -142,7 +147,7 @@ def nwb_copy_file(old_file, new_file, cp_objs={}):
                         stop_time=nwb_old.invalid_times['stop_time'][aux])
 
             # Trials ----------------------------------------------------------
-            if 'trials' in cp_objs:
+            if 'trials' in cp_objs and nwb_old.trials is not None:
                 nTrials = len(nwb_old.trials['start_time'])
                 for aux in np.arange(nTrials):
                     nwb_new.add_trial(
@@ -159,7 +164,7 @@ def nwb_copy_file(old_file, new_file, cp_objs={}):
                                              data=nwb_old.trials[var].data[:])
 
             # Intervals -------------------------------------------------------
-            if 'intervals' in cp_objs:
+            if 'intervals' in cp_objs and nwb_old.intervals is not None:
                 all_objs_names = list(nwb_old.intervals.keys())
                 for obj_name in all_objs_names:
                     obj_old = nwb_old.intervals[obj_name]
@@ -251,7 +256,11 @@ def nwb_copy_file(old_file, new_file, cp_objs={}):
                                               date_of_birth=nwb_old.subject.date_of_birth)
 
             # Write new file with copied fields
-            io2.write(nwb_new, link_data=False)
+            if save_to_file:
+                io2.write(nwb_new, link_data=False)
+
+    # Return nwb file
+    return nwb_new
 
 
 def copy_obj(obj_old, nwb_old, nwb_new):
@@ -286,17 +295,15 @@ def copy_obj(obj_old, nwb_old, nwb_new):
     if type(obj_old) is LFP:
         obj = LFP(name=obj_old.name)
         assert len(obj_old.electrical_series) == 1, (
-                'Expected precisely one electrical series, got %i!' %
-                len(obj_old.electrical_series))
+            'Expected precisely one electrical series, got %i!' %
+            len(obj_old.electrical_series))
         els = list(obj_old.electrical_series.values())[0]
         nChannels = els.data.shape[1]
 
         ####
         # first check for a table among the new file's data_interfaces
-        if els.electrodes.table.name in nwb_new.processing[
-            'ecephys'].data_interfaces:
-            LFP_dynamic_table = nwb_new.processing['ecephys'].data_interfaces[
-                els.electrodes.table.name]
+        if els.electrodes.table.name in nwb_new.processing['ecephys'].data_interfaces:
+            LFP_dynamic_table = nwb_new.processing['ecephys'].data_interfaces[els.electrodes.table.name]
         else:
             # othewise use the electrodes as the table
             LFP_dynamic_table = nwb_new.electrodes
@@ -308,7 +315,7 @@ def copy_obj(obj_old, nwb_old, nwb_new):
             description=els.electrodes.description
         )
 
-        obj_ts = obj.create_electrical_series(
+        obj.create_electrical_series(
             name=els.name,
             comments=els.comments,
             conversion=els.conversion,

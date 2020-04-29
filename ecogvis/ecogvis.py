@@ -442,7 +442,12 @@ class Application(QMainWindow):
             self.model = TimeSeriesPlotter(self)
 
     def save_file(self):
-        """Saves chosen data and info to new NWB file."""
+        """
+        Saves chosen data and info to new NWB file.
+        The dialog returns a dictionary with fields to be copied from the current
+        nwb file to the new file. This dictionary is passed to nwb_copy_file()
+        function.
+        """
         save_dialog = SaveToNWBDialog(parent=self)
         print(save_dialog.value)
         if save_dialog.value:
