@@ -219,7 +219,8 @@ def nwb_copy_file(old_file, new_file, cp_objs={}, save_to_file=True):
             if 'acquisition' in cp_objs:
                 for acq_name in cp_objs['acquisition']:
                     obj_old = nwb_old.acquisition[acq_name]
-                    nwb_new = copy_obj(obj_old, nwb_old, nwb_new)
+                    acq = copy_obj(obj_old, nwb_old, nwb_new)
+                    nwb_new.add_acquisition(acq)
 
             # Subject ---------------------------------------------------------
             if 'subject' in cp_objs:
@@ -242,14 +243,7 @@ def nwb_copy_file(old_file, new_file, cp_objs={}, save_to_file=True):
                         weight=nwb_old.subject.weight,
                         date_of_birth=nwb_old.subject.date_of_birth)
                 except:
-                    nwb_new.subject = Subject(age=nwb_old.subject.age,
-                                              description=nwb_old.subject.description,
-                                              genotype=nwb_old.subject.genotype,
-                                              sex=nwb_old.subject.sex,
-                                              species=nwb_old.subject.species,
-                                              subject_id=nwb_old.subject.subject_id,
-                                              weight=nwb_old.subject.weight,
-                                              date_of_birth=nwb_old.subject.date_of_birth)
+                    nwb_new.subject = Subject(**nwb_old.subject.fields)
 
             # Write new file with copied fields
             if save_to_file:
@@ -277,8 +271,7 @@ def copy_obj(obj_old, nwb_old, nwb_new):
             rate=obj_old.rate,
             description=obj_old.description
         )
-        nwb_new.add_acquisition(els)
-        return nwb_new
+        return els
 
     # DynamicTable ------------------------------------------------------------
     if type(obj_old) is DynamicTable:
