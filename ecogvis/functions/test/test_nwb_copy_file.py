@@ -65,7 +65,7 @@ def create_random_nwbfile(add_processing=True, add_high_gamma=True):
     add_processing : boolean
         Whether to add processing (LFP) data or not.
     add_high_gamma : boolean
-        Whether to add high_gamma (DecompositionSeries) data or not.
+        Whether to add high_gamma data or not.
 
     Returns
     -------
@@ -96,7 +96,7 @@ def create_random_nwbfile(add_processing=True, add_high_gamma=True):
 
     # Add noise signal as raw data
     electrode_table_region = nwbfile.create_electrode_table_region(list(np.arange(n_electrodes)), 'electrodes_table_region')
-    raw_len = 1000
+    raw_len = 100000
     ephys_data = np.random.rand(raw_len * 4).reshape((raw_len, 4))
     ephys_ts = pynwb.ecephys.ElectricalSeries(
         name='raw_data',
@@ -110,7 +110,7 @@ def create_random_nwbfile(add_processing=True, add_high_gamma=True):
     # Add noise signal as processing data
     if add_processing:
         ecephys_module = nwbfile.create_processing_module(name='ecephys', description='preprocessed data')
-        lfp_len = 100
+        lfp_len = 10000
         lfp_data = np.random.rand(lfp_len * 4).reshape((lfp_len, 4))
         lfp = pynwb.ecephys.LFP(name='LFP')
         lfp.create_electrical_series(
@@ -122,18 +122,17 @@ def create_random_nwbfile(add_processing=True, add_high_gamma=True):
         )
         ecephys_module.add_data_interface(lfp)
 
-    # Add noise signal as decomposition series
+    # Add noise signal as high gamma
     if add_processing and add_high_gamma:
-        n_bands = 2
-        hg_data = np.random.rand(lfp_len * n_electrodes * n_bands).reshape((lfp_len, n_electrodes, n_bands))
-        decomp = pynwb.misc.DecompositionSeries(
+        hg_data = np.random.rand(lfp_len * 4).reshape((lfp_len, 4))
+        hg = pynwb.ecephys.ElectricalSeries(
             name='high_gamma',
             data=hg_data,
-            metric='power',
-            unit=' V**2/Hz',
+            electrodes=electrode_table_region,
             rate=10.,
+            description=''
         )
-        ecephys_module.add_data_interface(decomp)
+        ecephys_module.add_data_interface(hg)
 
     # Add noise signals as speaker stimuli and mic recording acquisition
     stim1 = pynwb.TimeSeries(name='stim1', data=np.random.rand(raw_len), starting_time=0.0, rate=100., unit='')
