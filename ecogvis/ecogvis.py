@@ -47,7 +47,7 @@ intervalsDict_ = {'invalid': {'type': 'invalid',
 class Application(QMainWindow):
     keyPressed = QtCore.pyqtSignal(QtCore.QEvent)
 
-    def __init__(self, filename=None, parent=None):
+    def __init__(self, filename=None, parent=None, session=None):
         super().__init__()
         # Enable anti-aliasing for prettier plots
         pg.setConfigOptions(antialias=True)
@@ -70,12 +70,16 @@ class Application(QMainWindow):
         self.show()
 
         # opens dialog for session name
-        text = 'Enter session name:\n(e.g. your_name)'
-        uinp, ok = QInputDialog.getText(None, 'Choose session', text)
-        if ok:
-            self.current_session = uinp
+        if session is None:
+            text = 'Enter session name:\n(e.g. your_name)'
+            self.enter_sesssion_name_dialog = QInputDialog()
+            uinp, ok = self.enter_sesssion_name_dialog.getText(None, 'Choose session', text)
+            if ok:
+                self.current_session = uinp
+            else:
+                self.current_session = 'default'
         else:
-            self.current_session = 'default'
+            self.current_session = session
 
         # Run the main function
         self.model = TimeSeriesPlotter(self)
@@ -84,10 +88,12 @@ class Application(QMainWindow):
         """Before exiting, checks if there are any unsaved changes and inform the user."""
         w = ExitDialog(self)
         if w.value == -1:  # just exit
+            self.model.close_nwbfile()
             event.accept()
         elif w.value == 1:  # save and exit
             self.AnnotationSave()
             self.IntervalSave()
+            self.model.close_nwbfile()
             event.accept()
         elif w.value == 0:  # ignore
             event.ignore()

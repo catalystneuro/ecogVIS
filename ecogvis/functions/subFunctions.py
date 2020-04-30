@@ -756,6 +756,10 @@ class TimeSeriesPlotter:
         plt = self.parent.win1     # middle signal plot
         plt.removeItem(self.current_mark)
 
+    def close_nwbfile(self):
+        """Close current nwbfile"""
+        self.io.close()
+
 
 class CustomInterval:
     """
