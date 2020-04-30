@@ -1,8 +1,5 @@
 # -*- coding: utf-8 -*-
-from datetime import datetime
-
 import numpy as np
-from dateutil.tz import tzlocal
 from hdmf.common.table import DynamicTable, VectorData
 from ndx_spectrum import Spectrum
 from nwbext_ecog import CorticalSurfaces, ECoGSubject
@@ -13,9 +10,15 @@ from pynwb.ecephys import LFP, ElectricalSeries
 from pynwb.epoch import TimeIntervals
 from pynwb.file import Subject
 from pynwb.misc import DecompositionSeries
+import string
+import random
 
 
-def nwb_copy_file(old_file, new_file, cp_objs={}):
+def id_generator(size=6, chars=string.ascii_uppercase + string.digits):
+    return ''.join(random.choice(chars) for _ in range(size))
+
+
+def nwb_copy_file(old_file, new_file, cp_objs={}, save_to_file=True):
     """
     Copy fields defined in 'obj', from existing NWB file to new NWB file.
 
@@ -35,21 +38,27 @@ def nwb_copy_file(old_file, new_file, cp_objs={}):
          'lab':True,
          'acquisition':['microphone'],
          'ecephys':['LFP','DecompositionSeries']}
+    save_to_file: Boolean
+        If True, saves directly to new_file.nwb. If False, only returns nwb_new.
+
+    Returns:
+    --------
+    nwb_new : nwbfile object
     """
 
     manager = get_manager()
 
     # Open original signal file
-    with NWBHDF5IO(old_file, 'r', manager=manager,
-                   load_namespaces=True) as io1:
+    with NWBHDF5IO(old_file, 'r', manager=manager, load_namespaces=True) as io1:
         nwb_old = io1.read()
 
         # Creates new file
-        nwb_new = NWBFile(session_description=str(nwb_old.session_description),
-                          identifier='',
-                          session_start_time=datetime.now(tzlocal()))
-        with NWBHDF5IO(new_file, mode='w', manager=manager,
-                       load_namespaces=False) as io2:
+        nwb_new = NWBFile(
+            session_description=str(nwb_old.session_description),
+            identifier=id_generator(),
+            session_start_time=nwb_old.session_start_time,
+        )
+        with NWBHDF5IO(new_file, mode='w', manager=manager, load_namespaces=False) as io2:
             # Institution name ------------------------------------------------
             if 'institution' in cp_objs:
                 nwb_new.institution = str(nwb_old.institution)
@@ -69,7 +78,7 @@ def nwb_copy_file(old_file, new_file, cp_objs={}):
                     nwb_new.add_device(dev)
 
             # Electrode groups ------------------------------------------------
-            if 'electrode_groups' in cp_objs:
+            if 'electrode_groups' in cp_objs and nwb_old.electrode_groups is not None:
                 for aux in list(nwb_old.electrode_groups.keys()):
                     nwb_new.create_electrode_group(
                         name=str(nwb_old.electrode_groups[aux].name),
@@ -81,7 +90,7 @@ def nwb_copy_file(old_file, new_file, cp_objs={}):
                     )
 
             # Electrodes ------------------------------------------------------
-            if 'electrodes' in cp_objs:
+            if 'electrodes' in cp_objs and nwb_old.electrodes is not None:
                 nElec = len(nwb_old.electrodes['x'].data[:])
                 for aux in np.arange(nElec):
                     nwb_new.add_electrode(
@@ -103,19 +112,18 @@ def nwb_copy_file(old_file, new_file, cp_objs={}):
                 for var in new_vars:
 
                     if var == 'label':
-                        var_data = [str(elem) for elem in nwb_old.electrodes[
-                                                          var].data[:]]
+                        var_data = [str(elem) for elem in nwb_old.electrodes[var].data[:]]
                     else:
                         var_data = np.array(nwb_old.electrodes[var].data[:])
 
-                    nwb_new.add_electrode_column(name=str(var),
-                                                 description=
-                                                 str(nwb_old.electrodes[
-                                                     var].description),
-                                                 data=var_data)
+                    nwb_new.add_electrode_column(
+                        name=str(var),
+                        description=str(nwb_old.electrodes[var].description),
+                        data=var_data
+                    )
 
             # Epochs ----------------------------------------------------------
-            if 'epochs' in cp_objs:
+            if 'epochs' in cp_objs and nwb_old.epochs is not None:
                 nEpochs = len(nwb_old.epochs['start_time'].data[:])
                 for i in np.arange(nEpochs):
                     nwb_new.add_epoch(
@@ -128,21 +136,23 @@ def nwb_copy_file(old_file, new_file, cp_objs={}):
                 [new_vars.remove(var) for var in default_vars if
                  var in new_vars]
                 for var in new_vars:
-                    nwb_new.add_epoch_column(name=var,
-                                             description=nwb_old.epochs[
-                                                 var].description,
-                                             data=nwb_old.epochs[var].data[:])
+                    nwb_new.add_epoch_column(
+                        name=var,
+                        description=nwb_old.epochs[var].description,
+                        data=nwb_old.epochs[var].data[:]
+                    )
 
             # Invalid times ---------------------------------------------------
-            if 'invalid_times' in cp_objs:
+            if 'invalid_times' in cp_objs and nwb_old.invalid_times is not None:
                 nInvalid = len(nwb_old.invalid_times['start_time'][:])
                 for aux in np.arange(nInvalid):
                     nwb_new.add_invalid_time_interval(
                         start_time=nwb_old.invalid_times['start_time'][aux],
-                        stop_time=nwb_old.invalid_times['stop_time'][aux])
+                        stop_time=nwb_old.invalid_times['stop_time'][aux]
+                    )
 
             # Trials ----------------------------------------------------------
-            if 'trials' in cp_objs:
+            if 'trials' in cp_objs and nwb_old.trials is not None:
                 nTrials = len(nwb_old.trials['start_time'])
                 for aux in np.arange(nTrials):
                     nwb_new.add_trial(
@@ -153,13 +163,14 @@ def nwb_copy_file(old_file, new_file, cp_objs={}):
                 default_vars = ['start_time', 'stop_time']
                 [new_vars.remove(var) for var in default_vars]
                 for var in new_vars:
-                    nwb_new.add_trial_column(name=var,
-                                             description=nwb_old.trials[
-                                                 var].description,
-                                             data=nwb_old.trials[var].data[:])
+                    nwb_new.add_trial_column(
+                        name=var,
+                        description=nwb_old.trials[var].description,
+                        data=nwb_old.trials[var].data[:]
+                    )
 
             # Intervals -------------------------------------------------------
-            if 'intervals' in cp_objs:
+            if 'intervals' in cp_objs and nwb_old.intervals is not None:
                 all_objs_names = list(nwb_old.intervals.keys())
                 for obj_name in all_objs_names:
                     obj_old = nwb_old.intervals[obj_name]
@@ -190,13 +201,8 @@ def nwb_copy_file(old_file, new_file, cp_objs={}):
 
             # Processing modules ----------------------------------------------
             if 'ecephys' in cp_objs:
-                if cp_objs['ecephys'] is True:
-                    interfaces = nwb_old.processing['ecephys'].data_interfaces.keys()
-                else:  # list of items
-                    interfaces = [
-                        nwb_old.processing['ecephys'].data_interfaces[key]
-                        for key in cp_objs['ecephys']
-                    ]
+                interfaces = [nwb_old.processing['ecephys'].data_interfaces[key]
+                              for key in cp_objs['ecephys']]
                 # Add ecephys module to NWB file
                 ecephys_module = ProcessingModule(
                     name='ecephys',
@@ -209,16 +215,12 @@ def nwb_copy_file(old_file, new_file, cp_objs={}):
                         ecephys_module.add_data_interface(obj)
 
             # Acquisition -----------------------------------------------------
+            # Can get raw ElecetricalSeries and Mic recording
             if 'acquisition' in cp_objs:
-                if cp_objs['acquisition'] is True:
-                    all_acq_names = list(nwb_old.acquisition.keys())
-                else:  # list of items
-                    all_acq_names = cp_objs['acquisition']
-                for acq_name in all_acq_names:
+                for acq_name in cp_objs['acquisition']:
                     obj_old = nwb_old.acquisition[acq_name]
-                    obj = copy_obj(obj_old, nwb_old, nwb_new)
-                    if obj is not None:
-                        nwb_new.add_acquisition(obj)
+                    acq = copy_obj(obj_old, nwb_old, nwb_new)
+                    nwb_new.add_acquisition(acq)
 
             # Subject ---------------------------------------------------------
             if 'subject' in cp_objs:
@@ -241,17 +243,14 @@ def nwb_copy_file(old_file, new_file, cp_objs={}):
                         weight=nwb_old.subject.weight,
                         date_of_birth=nwb_old.subject.date_of_birth)
                 except:
-                    nwb_new.subject = Subject(age=nwb_old.subject.age,
-                                              description=nwb_old.subject.description,
-                                              genotype=nwb_old.subject.genotype,
-                                              sex=nwb_old.subject.sex,
-                                              species=nwb_old.subject.species,
-                                              subject_id=nwb_old.subject.subject_id,
-                                              weight=nwb_old.subject.weight,
-                                              date_of_birth=nwb_old.subject.date_of_birth)
+                    nwb_new.subject = Subject(**nwb_old.subject.fields)
 
             # Write new file with copied fields
-            io2.write(nwb_new, link_data=False)
+            if save_to_file:
+                io2.write(nwb_new, link_data=False)
+
+    # Return nwb file
+    return nwb_new
 
 
 def copy_obj(obj_old, nwb_old, nwb_new):
@@ -265,13 +264,14 @@ def copy_obj(obj_old, nwb_old, nwb_new):
             region=np.arange(nChannels).tolist(),
             description=''
         )
-        return ElectricalSeries(
+        els = ElectricalSeries(
             name=obj_old.name,
             data=obj_old.data[:],
             electrodes=elecs_region,
             rate=obj_old.rate,
             description=obj_old.description
         )
+        return els
 
     # DynamicTable ------------------------------------------------------------
     if type(obj_old) is DynamicTable:
@@ -286,17 +286,15 @@ def copy_obj(obj_old, nwb_old, nwb_new):
     if type(obj_old) is LFP:
         obj = LFP(name=obj_old.name)
         assert len(obj_old.electrical_series) == 1, (
-                'Expected precisely one electrical series, got %i!' %
-                len(obj_old.electrical_series))
+            'Expected precisely one electrical series, got %i!' %
+            len(obj_old.electrical_series))
         els = list(obj_old.electrical_series.values())[0]
         nChannels = els.data.shape[1]
 
         ####
         # first check for a table among the new file's data_interfaces
-        if els.electrodes.table.name in nwb_new.processing[
-            'ecephys'].data_interfaces:
-            LFP_dynamic_table = nwb_new.processing['ecephys'].data_interfaces[
-                els.electrodes.table.name]
+        if els.electrodes.table.name in nwb_new.processing['ecephys'].data_interfaces:
+            LFP_dynamic_table = nwb_new.processing['ecephys'].data_interfaces[els.electrodes.table.name]
         else:
             # othewise use the electrodes as the table
             LFP_dynamic_table = nwb_new.electrodes
@@ -308,7 +306,7 @@ def copy_obj(obj_old, nwb_old, nwb_new):
             description=els.electrodes.description
         )
 
-        obj_ts = obj.create_electrical_series(
+        obj.create_electrical_series(
             name=els.name,
             comments=els.comments,
             conversion=els.conversion,

@@ -30,6 +30,7 @@ from ecogvis.functions.misc_dialogs import (CustomIntervalDialog, SelectChannels
 from ecogvis.functions.audio_event_detection import AudioEventDetection
 from ecogvis.functions.event_related_potential import ERPDialog
 from ecogvis.functions.save_to_nwb import SaveToNWBDialog
+from ecogvis.functions.nwb_copy_file import nwb_copy_file
 
 annotationAdd_ = False
 annotationDel_ = False
@@ -46,7 +47,7 @@ intervalsDict_ = {'invalid': {'type': 'invalid',
 class Application(QMainWindow):
     keyPressed = QtCore.pyqtSignal(QtCore.QEvent)
 
-    def __init__(self, filename=None, parent=None):
+    def __init__(self, filename=None, parent=None, session=None):
         super().__init__()
         # Enable anti-aliasing for prettier plots
         pg.setConfigOptions(antialias=True)
@@ -69,12 +70,16 @@ class Application(QMainWindow):
         self.show()
 
         # opens dialog for session name
-        text = 'Enter session name:\n(e.g. your_name)'
-        uinp, ok = QInputDialog.getText(None, 'Choose session', text)
-        if ok:
-            self.current_session = uinp
+        if session is None:
+            text = 'Enter session name:\n(e.g. your_name)'
+            self.enter_sesssion_name_dialog = QInputDialog()
+            uinp, ok = self.enter_sesssion_name_dialog.getText(None, 'Choose session', text)
+            if ok:
+                self.current_session = uinp
+            else:
+                self.current_session = 'default'
         else:
-            self.current_session = 'default'
+            self.current_session = session
 
         # Run the main function
         self.model = TimeSeriesPlotter(self)
@@ -83,10 +88,12 @@ class Application(QMainWindow):
         """Before exiting, checks if there are any unsaved changes and inform the user."""
         w = ExitDialog(self)
         if w.value == -1:  # just exit
+            self.model.close_nwbfile()
             event.accept()
         elif w.value == 1:  # save and exit
             self.AnnotationSave()
             self.IntervalSave()
+            self.model.close_nwbfile()
             event.accept()
         elif w.value == 0:  # ignore
             event.ignore()
@@ -442,13 +449,20 @@ class Application(QMainWindow):
             self.model = TimeSeriesPlotter(self)
 
     def save_file(self):
-        """Saves chosen data and info to new NWB file."""
+        """
+        Saves chosen data and info to new NWB file.
+        The dialog assembles a dictionary with fields to be copied from the current
+        nwb file to the new file. This dictionary is passed to nwb_copy_file()
+        function.
+        """
         save_dialog = SaveToNWBDialog(parent=self)
-        print(save_dialog.value)
         if save_dialog.value:
-            filename, _ = QFileDialog.getSaveFileName(None, 'Save to file', '', "(*.nwb)")
-            if os.path.isfile(filename):
-                self.file = filename
+            nwb_copy_file(
+                old_file=self.file,
+                new_file=save_dialog.newfile,
+                cp_objs=save_dialog.cp_objs,
+                save_to_file=True
+            )
 
     def change_session(self):
         """Changes session name."""

@@ -78,12 +78,16 @@ class TimeSeriesPlotter:
 
         # Channels to show
         self.firstCh = int(self.parent.qline1.text())
-        self.lastCh = int(self.parent.qline0.text())
+        self.lastCh = min(self.nChTotal, int(self.parent.qline0.text()))
+        self.parent.qline0.setText(str(self.lastCh))
         self.nChToShow = self.lastCh - self.firstCh + 1
         self.selectedChannels = np.arange(self.firstCh - 1, self.lastCh)
 
         self.current_rect = []
-        self.badChannels = np.where(self.nwb.electrodes['bad'][:])[0].tolist()
+        if 'bad' in self.nwb.electrodes:
+            self.badChannels = np.where(self.nwb.electrodes['bad'][:])[0].tolist()
+        else:
+            self.badChannels = []
 
         # Load invalid intervals from NWB file
         self.allIntervals = []
@@ -751,6 +755,10 @@ class TimeSeriesPlotter:
         """Removes temporary reference line when adding a new interval."""
         plt = self.parent.win1     # middle signal plot
         plt.removeItem(self.current_mark)
+
+    def close_nwbfile(self):
+        """Close current nwbfile"""
+        self.io.close()
 
 
 class CustomInterval:
