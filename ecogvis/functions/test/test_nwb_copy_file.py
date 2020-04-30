@@ -3,6 +3,7 @@ from datetime import datetime
 from dateutil.tz import tzlocal
 import pynwb
 import numpy as np
+from numpy.testing import assert_array_equal
 import os
 
 
@@ -40,18 +41,36 @@ def test_nwb_copy_file():
     with pynwb.NWBHDF5IO(path_new_file, 'r') as io:
         nwbfile_new = io.read()
 
-        assert nwbfile_new.institution is not None
-        assert nwbfile_new.electrode_groups is not None
-        assert nwbfile_new.electrodes is not None
-        assert nwbfile_new.stimulus is not None
+        assert nwbfile_new.institution == nwbfile_old.institution
+        assert nwbfile_new.session_start_time == nwbfile_old.session_start_time
         assert nwbfile_new.devices is not None
+        assert_array_equal(nwbfile_new.electrodes.columns[0][:], nwbfile_old.electrodes.columns[0][:])
+        assert nwbfile_new.electrode_groups.keys() == nwbfile_old.electrode_groups.keys()
+        for (v1, v2) in zip(nwbfile_new.stimulus.values(), nwbfile_old.stimulus.values()):
+            assert_array_equal(v1.data, v2.data)
+        for k in nwbfile_new.acquisition.keys():
+            assert_array_equal(nwbfile_new.acquisition[k].data, nwbfile_old.acquisition[k].data)
 
     # Remove test nwb files
     os.remove(path_old_file)
     os.remove(path_new_file)
 
 
-def create_random_nwbfile():
+def create_random_nwbfile(add_processing=True, add_high_gamma=True):
+    """
+    Creates a NWB file with fields used by the Chang lab, with random fake data.
+
+    Parameters
+    ----------
+    add_processing : boolean
+        Whether to add processing (LFP) data or not.
+    add_high_gamma : boolean
+        Whether to add high_gamma (DecompositionSeries) data or not.
+
+    Returns
+    -------
+    nwbfile : nwbfile object
+    """
     # Create NWBFile
     start_time = datetime(2017, 4, 3, 11, tzinfo=tzlocal())
     nwbfile = pynwb.NWBFile(session_description='fake data', identifier='NWB123', session_start_time=start_time)
@@ -89,30 +108,32 @@ def create_random_nwbfile():
     nwbfile.add_acquisition(ephys_ts)
 
     # Add noise signal as processing data
-    ecephys_module = nwbfile.create_processing_module(name='ecephys', description='preprocessed data')
-    lfp_len = 100
-    lfp_data = np.random.rand(lfp_len * 4).reshape((lfp_len, 4))
-    lfp = pynwb.ecephys.LFP(name='LFP')
-    lfp.create_electrical_series(
-        name='processed_electrical_series',
-        data=lfp_data,
-        electrodes=electrode_table_region,
-        rate=10.,
-        starting_time=0.
-    )
-    ecephys_module.add_data_interface(lfp)
+    if add_processing:
+        ecephys_module = nwbfile.create_processing_module(name='ecephys', description='preprocessed data')
+        lfp_len = 100
+        lfp_data = np.random.rand(lfp_len * 4).reshape((lfp_len, 4))
+        lfp = pynwb.ecephys.LFP(name='LFP')
+        lfp.create_electrical_series(
+            name='processed_electrical_series',
+            data=lfp_data,
+            electrodes=electrode_table_region,
+            rate=10.,
+            starting_time=0.
+        )
+        ecephys_module.add_data_interface(lfp)
 
     # Add noise signal as decomposition series
-    n_bands = 2
-    hg_data = np.random.rand(lfp_len * n_electrodes * n_bands).reshape((lfp_len, n_electrodes, n_bands))
-    decomp = pynwb.misc.DecompositionSeries(
-        name='high_gamma',
-        data=hg_data,
-        metric='power',
-        unit=' V**2/Hz',
-        rate=10.,
-    )
-    ecephys_module.add_data_interface(decomp)
+    if add_processing and add_high_gamma:
+        n_bands = 2
+        hg_data = np.random.rand(lfp_len * n_electrodes * n_bands).reshape((lfp_len, n_electrodes, n_bands))
+        decomp = pynwb.misc.DecompositionSeries(
+            name='high_gamma',
+            data=hg_data,
+            metric='power',
+            unit=' V**2/Hz',
+            rate=10.,
+        )
+        ecephys_module.add_data_interface(decomp)
 
     # Add noise signals as speaker stimuli and mic recording acquisition
     stim1 = pynwb.TimeSeries(name='stim1', data=np.random.rand(raw_len), starting_time=0.0, rate=100., unit='')

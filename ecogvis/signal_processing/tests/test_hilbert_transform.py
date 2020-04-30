@@ -1,8 +1,8 @@
 import numpy as np
 from ecogvis.signal_processing.hilbert_transform import hilbert_transform
-from process_nwb.wavelet_transform import gaussian,hamming
-
+from process_nwb.wavelet_transform import gaussian, hamming
 import unittest
+
 
 class HilbertTestCase(unittest.TestCase):
 
@@ -19,14 +19,11 @@ class HilbertTestCase(unittest.TestCase):
                         0.71256218,  2.18441782,  1.22294831,  0.7248046 ,  0.24423127])
         self.rate = 20
 
-        
     def test_hilbert_return(self):
-        
-        
         filters = [gaussian(50, self.rate, 10, 2),
                    hamming(50, self.rate, 10, 15)]
         Xh = hilbert_transform(self.X, self.rate, filters)
-        
+
         Xh_expected = (np.array([[-0.21311015-0.0607549j ,  0.19600701-0.01539358j,
              -0.173067  +0.05698152j,  0.16533213-0.11073435j,
              -0.11528449+0.19558509j, -0.01099088-0.23956958j,
@@ -102,12 +99,12 @@ class HilbertTestCase(unittest.TestCase):
               -0.         +0.j        ,   0.         -0.j        ,
                0.         -0.j        ,   0.         +0.j        ,
                0.         +0.j        ,   0.         -0.j        ]]))
-        
-        np.testing.assert_almost_equal(Xh[0],Xh_expected[0])
-        np.testing.assert_almost_equal(Xh[1],Xh_expected[1])
+
+        np.testing.assert_almost_equal(Xh[0], Xh_expected[0])
+        np.testing.assert_almost_equal(Xh[1], Xh_expected[1])
 
         Xh = hilbert_transform(self.X, self.rate)
-        
+
         Xh_expected = (np.array([-2.06641947-0.01287173j,  0.51412168-1.48267793j,
              1.09878248-0.2770345j ,  1.51753214+1.04348296j,
             -1.17911981+1.40558571j,  0.14574649-1.35839109j,
@@ -158,6 +155,6 @@ class HilbertTestCase(unittest.TestCase):
               -0.         +0.j        ,   0.         -0.j        ,
                0.         -0.j        ,   0.         +0.j        ,
                0.         +0.j        ,   0.         -0.j        ]]))
-        
+
         np.testing.assert_almost_equal(Xh[0],Xh_expected[0])
         np.testing.assert_almost_equal(Xh[1],Xh_expected[1])
