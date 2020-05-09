@@ -124,7 +124,7 @@ class AudioEventDetection(QtGui.QDialog):
         self.responses = {}  # Dictionary {'respName':resp.source}
         for resp in list(self.parent.model.nwb.acquisition.keys()):
             # if type(self.parent.model.nwb.acquisition[resp]).__name__ == 'TimeSeries':
-            if resp == 'microphone':
+            if resp in ['microphone', 'anin4']:
                 self.combo1.addItem(resp)
                 self.responses[resp] = self.parent.model.nwb.acquisition[resp]
         self.combo1.setCurrentIndex(0)
@@ -186,13 +186,14 @@ class AudioEventDetection(QtGui.QDialog):
         self.win.getAxis('bottom').setPen(pg.mkPen(color=(50, 50, 50)))
 
     def run_test(self):
-        speakerDS, speakerEventDS, micDS, micEventDS = detect_events(
+        speakerDS, speakerEventDS, speakerFilt, micDS, micEventDS, micFilt = detect_events(
             speaker_data=self.source_stim,
             mic_data=self.source_resp,
             interval=[self.plotBins[0], self.plotBins[-1] + 1],
             dfact=self.fs / float(self.qline3.text()),
             smooth_width=float(self.qline4.text()),
-            threshold=float(self.qline5.text())
+            speaker_threshold=float(self.qline5.text()),
+            mic_threshold=float(self.qline5.text()),
         )
         self.stimTimes = speakerEventDS + self.startTime
         self.respTimes = micEventDS + self.startTime
