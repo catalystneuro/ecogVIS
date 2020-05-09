@@ -302,6 +302,7 @@ class TimeSeriesPlotter:
                 stimName = self.parent.combo4.currentText()
                 stimData = self.stimY[stimName]
                 plt3.plot(self.stimX[xmask], stimData[xmask], pen='k', width=1)
+                plt3.setYRange(np.min(stimData), np.max(stimData))
                 plt3.setXLink(plt2)
             except:  # THIS IS MOMENTARY TO PLOT ARTIFICIAL DATA-- REMOVE LATER
                 stimName = self.parent.combo4.currentText()
@@ -310,7 +311,6 @@ class TimeSeriesPlotter:
                 # remove this later -------------------------------------------
 
         plt3.setLabel('left', 'Stim')
-        plt3.setYRange(np.min(stimData), np.max(stimData))
         plt3.getAxis('left').setWidth(w=53)
         plt3.getAxis('left').setStyle(showValues=False)
         plt3.getAxis('left').setTicks([])
