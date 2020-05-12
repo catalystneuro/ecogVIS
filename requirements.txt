@@ -12,3 +12,4 @@ ndx-spectrum
 pyopengl
 process_nwb
 PyYAML
+tdt
