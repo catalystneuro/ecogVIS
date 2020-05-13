@@ -10,6 +10,7 @@ import numpy as np
 import datetime
 import glob
 import yaml
+from pathlib import Path
 
 from PyQt5 import QtCore, QtGui
 from PyQt5.QtCore import QCoreApplication
@@ -45,9 +46,17 @@ intervalsDict_ = {'invalid': {'type': 'invalid',
 
 
 class Application(QMainWindow):
+    """
+    Main EcogVIS window.
+
+    Parameters
+    ----------
+    source_path : str or path
+        Path to the source of data, nwb file or htk directory.
+    """
     keyPressed = QtCore.pyqtSignal(QtCore.QEvent)
 
-    def __init__(self, filename=None, parent=None, session=None):
+    def __init__(self, source_path=None, session=None):
         super().__init__()
         # Enable anti-aliasing for prettier plots
         pg.setConfigOptions(antialias=True)
@@ -57,10 +66,10 @@ class Application(QMainWindow):
         self.resize(1000, 600)
         self.setWindowTitle('ecogVIS')
 
-        # e.g.: /home/User/freesurfer_subjects/Subject_XX.nwb
-        if not os.path.isfile(filename):
-            filename = self.open_file()
-        self.file = filename
+        # Check source of data
+        if not os.path.exists(source_path):
+            source_path = self.open_file()
+        self.source_path = Path(source_path).absolute()
 
         self.error = None
         self.keyPressed.connect(self.on_key)
@@ -137,9 +146,14 @@ class Application(QMainWindow):
         change_session_file = QAction('Change Session', self)
         fileMenu.addAction(change_session_file)
         change_session_file.triggered.connect(self.change_session)
-        action_open_file = QAction('Open Another File', self)
-        fileMenu.addAction(action_open_file)
-        action_open_file.triggered.connect(lambda: self.open_another_file(None))
+        open_tools_menu = fileMenu.addMenu('Open from')
+        action_open_nwb = QAction('NWB', self)
+        open_tools_menu.addAction(action_open_nwb)
+        action_open_nwb.triggered.connect(lambda: self.open_another_file(None))
+        action_open_htk = QAction('HTK dir', self)
+        open_tools_menu.addAction(action_open_htk)
+        action_open_htk.triggered.connect(self.open_htk_dir)
+
         action_save_new_file = QAction('Save to NWB', self)
         fileMenu.addAction(action_save_new_file)
         action_save_new_file.triggered.connect(self.save_file)
@@ -183,6 +197,8 @@ class Application(QMainWindow):
         self.pushBlock_0.clicked.connect(lambda: self.change_block(-1))
         self.pushBlock_1 = QPushButton('>')
         self.pushBlock_1.clicked.connect(lambda: self.change_block(1))
+        self.pushBlock_0.setEnabled(False)
+        self.pushBlock_1.setEnabled(False)
         grid0 = QGridLayout()
         grid0.addWidget(self.pushBlock_0, 0, 0, 1, 1)
         grid0.addWidget(self.qlabelBlocks, 0, 1, 1, 3)
@@ -412,11 +428,11 @@ class Application(QMainWindow):
 
     def change_block(self, move):
         """Move between Block files for the same subject."""
-        fpath = os.path.split(os.path.abspath(self.file))[0]  # file directory
-        fname = os.path.split(os.path.abspath(self.file))[1]  # current file
+        fpath = os.path.split(os.path.abspath(self.source_path))[0]  # current directory
+        fname = os.path.split(os.path.abspath(self.source_path))[1]  # current file
         pre, _ = fname.split('_B')
         flist = glob.glob(fpath + '/' + pre + '_B*.nwb')
-        curr_ind = flist.index(self.file)
+        curr_ind = flist.index(self.source_path)
         if curr_ind + move == len(flist):
             new_file = flist[0]
         else:
@@ -433,7 +449,30 @@ class Application(QMainWindow):
         if filename is None:  # Opens new file dialog
             filename, _ = QFileDialog.getOpenFileName(None, 'Open file', '', "(*.nwb)")
         if os.path.isfile(filename):
-            self.file = filename
+            self.source_path = filename
+            # Reset file specific variables on GUI
+            self.combo3.setCurrentIndex(self.combo3.findText('raw'))
+            self.combo4.clear()
+            self.qline0.setText('16')
+            self.qline1.setText('1')
+            self.qline2.setText('0.01')
+            self.qline3.setText('2')
+            self.qline4.setText('1')
+            self.win1.clear()
+            self.win2.clear()
+            self.win3.clear()
+            # Rebuild the model
+            self.model = TimeSeriesPlotter(self)
+
+    def open_htk_dir(self):
+        """
+        Dialog for user selection of directory containing block of HTK files.
+        Assembles a nwbfile object (in memory) from htk files.
+        """
+        dir_path = QFileDialog.getExistingDirectory(
+            self, 'Open HTK dir', '', QtGui.QFileDialog.ShowDirsOnly)
+        if os.path.isdir(dir_path):
+            self.source_path = dir_path
             # Reset file specific variables on GUI
             self.combo3.setCurrentIndex(self.combo3.findText('raw'))
             self.combo4.clear()
@@ -458,7 +497,7 @@ class Application(QMainWindow):
         save_dialog = SaveToNWBDialog(parent=self)
         if save_dialog.value:
             nwb_copy_file(
-                old_file=self.file,
+                old_file=self.source_path,
                 new_file=save_dialog.newfile,
                 cp_objs=save_dialog.cp_objs,
                 save_to_file=True
@@ -470,7 +509,7 @@ class Application(QMainWindow):
         uinp, ok = QInputDialog.getText(None, 'Change session', text)
         if ok:
             self.current_session = uinp
-            fname = os.path.split(os.path.abspath(self.file))[1]  # file
+            fname = os.path.split(os.path.abspath(self.source_path))[1]  # file
             self.setWindowTitle('ecogVIS - ' + fname + ' - ' + self.current_session)
 
     def load_annotations(self):
@@ -964,7 +1003,7 @@ class CustomViewBox(pg.ViewBox):
 
 
 # If it is imported as a module
-def main(filename=''):
+def main(source=''):
     import argparse
     import sys
 
@@ -974,9 +1013,9 @@ def main(filename=''):
     )
 
     parser.add_argument(
-        "--file",
+        "--source",
         default='',
-        help="NWB or HTK file to be read."
+        help="NWB file or HTK dir to be read."
     )
     parser.add_argument(
         "--metafile",
@@ -987,8 +1026,8 @@ def main(filename=''):
     # Parse arguments
     args = parser.parse_args()
 
-    # File to be loaded
-    filename = args.file
+    # File or dir to be loaded
+    source_path = args.source
 
     # Load metadata from YAML file
     metafile = args.metafile
@@ -1000,7 +1039,7 @@ def main(filename=''):
     app = QCoreApplication.instance()
     if app is None:
         app = QApplication(sys.argv)  # instantiate a QtGui (holder for the app)
-    ex = Application(filename=filename)
+    ex = Application(source_path=source_path)
     sys.exit(app.exec_())
 
 
