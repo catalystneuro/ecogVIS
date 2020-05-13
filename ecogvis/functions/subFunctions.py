@@ -22,6 +22,13 @@ class TimeSeriesPlotter:
         self.parent = par
         self.source_path = Path(par.source_path)
 
+        if self.source_path.is_file():
+            self.subject_id = self.source_path.name.split('_')[0][2:]
+            self.block = self.source_path.name.split('_')[1][1:-4]
+        elif self.source_path.is_dir():
+            self.subject_id = 0
+            self.block = 0
+
         self.parent.setWindowTitle('ecogVIS - ' + self.source_path.name + ' - ' + self.parent.current_session)
 
         # Makes nwbfile object from nwb file or from HTK directory

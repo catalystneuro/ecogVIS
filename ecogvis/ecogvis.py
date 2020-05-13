@@ -449,7 +449,7 @@ class Application(QMainWindow):
         if filename is None:  # Opens new file dialog
             filename, _ = QFileDialog.getOpenFileName(None, 'Open file', '', "(*.nwb)")
         if os.path.isfile(filename):
-            self.source_path = filename
+            self.source_path = Path(filename)
             # Reset file specific variables on GUI
             self.combo3.setCurrentIndex(self.combo3.findText('raw'))
             self.combo4.clear()
@@ -475,7 +475,7 @@ class Application(QMainWindow):
         dir_path = QFileDialog.getExistingDirectory(
             self, 'Open HTK dir', '', QtGui.QFileDialog.ShowDirsOnly)
         if os.path.isdir(dir_path):
-            self.source_path = dir_path
+            self.source_path = Path(dir_path)
             # Reset file specific variables on GUI
             self.combo3.setCurrentIndex(self.combo3.findText('raw'))
             self.combo4.clear()
@@ -502,8 +502,12 @@ class Application(QMainWindow):
         """
         save_dialog = SaveToNWBDialog(parent=self)
         if save_dialog.value:
+            if self.source_path.is_dir():
+                old_file = self.model.nwb
+            else:
+                old_file = self.source_path
             nwb_copy_file(
-                old_file=self.source_path,
+                old_file=old_file,
                 new_file=save_dialog.newfile,
                 cp_objs=save_dialog.cp_objs,
                 save_to_file=True
