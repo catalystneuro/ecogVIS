@@ -20,7 +20,7 @@ $ ecogvis
 
 You can also directly pass a file to be opened:
 ```
-$ ecogvis --file 'filename.nwb'
+$ ecogvis --source 'filename.nwb'
 ```
 
 **ecogVIS** can be imported and run from python scripts. If the file does not exist (or if you provide an empty string ''), you'll be prompted to choose a file from a dialog.
