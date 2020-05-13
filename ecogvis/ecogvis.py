@@ -746,7 +746,7 @@ class Application(QMainWindow):
         all_locs = self.model.nwb.electrodes['location'][:]
         self.model.channels_mask = np.zeros(len(all_locs))
         for loc in w.choices:
-            self.model.channels_mask += all_locs == loc
+            self.model.channels_mask += all_locs == np.array(loc)
         # Indices of channels from chosen regions
         self.model.channels_mask_ind = np.where(self.model.channels_mask)[0]
         self.model.nChTotal = len(self.model.channels_mask_ind)
