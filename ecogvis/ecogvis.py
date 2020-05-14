@@ -502,12 +502,8 @@ class Application(QMainWindow):
         """
         save_dialog = SaveToNWBDialog(parent=self)
         if save_dialog.value:
-            if self.source_path.is_dir():
-                old_file = self.model.nwb
-            else:
-                old_file = self.source_path
             nwb_copy_file(
-                old_file=old_file,
+                old_file=self.source_path,
                 new_file=save_dialog.newfile,
                 cp_objs=save_dialog.cp_objs,
                 save_to_file=True

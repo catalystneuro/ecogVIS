@@ -209,7 +209,7 @@ class PSDCalcFunction(QtCore.QThread):
         super().__init__()
         self.parent = parent
         self.data = parent.parent.model.source
-        self.src_file = parent.parent.file
+        self.src_file = str(parent.parent.source_path)
         self.type = parent.type  # 'raw' or 'preprocessed'
 
     def run(self):
@@ -324,8 +324,8 @@ class SpectralChoiceDialog(QtGui.QDialog, Ui_SpectralChoice):
         super().__init__()
         self.setupUi(self)
         self.nwb = parent.model.nwb
-        self.fpath = parent.model.pathName
-        self.fname = parent.model.fileName
+        self.fpath = parent.model.source_path.parent
+        self.fname = parent.model.source_path.name
         self.chosen_bands = None  # Values for custom filter bands (user input)
         self.value = -1  # Reference value for user pressed exit button
         self.radioButton_1.clicked.connect(self.choice_default)
@@ -469,8 +469,8 @@ class HighGammaDialog(QtGui.QDialog, Ui_HighGamma):
         self.setupUi(self)
         self.parent = parent
         self.nwb = parent.model.nwb
-        self.fpath = parent.model.pathName
-        self.fname = parent.model.fileName
+        self.fpath = parent.model.source_path.parent
+        self.fname = parent.model.source_path.name
         self.chosen_bands = None  # Values for custom filter bands (user input)
         self.value = -1  # Reference value for user pressed exit button'
         self.new_fname = ''
@@ -693,8 +693,8 @@ class PreprocessingDialog(QtGui.QDialog, Ui_Preprocessing):
         self.lineEdit_3.setText('400')
         self.pushButton_1.clicked.connect(lambda: self.out_close(-1))
         self.pushButton_2.clicked.connect(self.ok)
-        self.fname = parent.model.fileName
-        self.fpath = parent.model.pathName
+        self.fname = parent.model.source_path.name
+        self.fpath = parent.model.source_path.parent
         # if preprocessed signals already exist on NWB file
         if 'ecephys' in parent.model.nwb.processing:
             if 'LFP' in parent.model.nwb.processing['ecephys'].data_interfaces:

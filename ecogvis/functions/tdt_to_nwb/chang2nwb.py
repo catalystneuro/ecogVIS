@@ -13,6 +13,7 @@ import json
 import os
 from datetime import datetime
 from os import path
+from pathlib import Path
 
 import numpy as np
 import pandas as pd
@@ -440,10 +441,10 @@ def parse_interview(blockpath, blockname):
     return text_dict_list
 
 
-def chang2nwb(blockpath, outpath=None, session_start_time=None,
-              session_description=None, identifier=None, anin4=False,
+def chang2nwb(blockpath, out_file_path=None, save_to_file=False,
+              session_start_time=None, session_description=None,
+              identifier=None, anin4=False, include_intensity=False,
               ecog_format='auto', external_subject=False, include_pitch=False,
-              include_intensity=False,
               speakers=True, mic=False, mini=False, hilb=False, verbose=False,
               imaging_path=None, parse_transcript=False,
               parse_percept_transcript=False, include_cortical_surfaces=False,
@@ -453,7 +454,7 @@ def chang2nwb(blockpath, outpath=None, session_start_time=None,
     Parameters
     ----------
     blockpath: str
-    outpath: None | str
+    out_file_path: None | str
         if None, output = [blockpath]/[blockname].nwb
     session_start_time: datetime.datetime
         default: datetime(1900, 1, 1)
@@ -504,18 +505,22 @@ def chang2nwb(blockpath, outpath=None, session_start_time=None,
     """
 
     behav_module = None
+    # basepath, blockname = os.path.split(blockpath)
+    # subject_id = get_subject_id(blockname)
 
-    basepath, blockname = os.path.split(blockpath)
-    subject_id = get_subject_id(blockname)
+    blockpath = Path(blockpath)
+    basepath = blockpath.parent.absolute()
+    blockname = blockpath.name
+    subject_id = blockpath.parent.name[2:]
     if identifier is None:
         identifier = blockname
 
     if session_description is None:
         session_description = blockname
 
-    if outpath is None:
-        outpath = blockpath + '.nwb'
-    out_base_path = os.path.split(outpath)[0]
+    if out_file_path is None:
+        out_file_path = blockpath / ''.join(['EC', subject_id, '_', blockname,'.nwb'])
+    out_base_path = os.path.split(out_file_path)[0]
 
     if session_start_time is None:
         # session_start_time = datetime(1900, 1, 1).astimezone(timezone('UTC'))
@@ -850,9 +855,16 @@ def chang2nwb(blockpath, outpath=None, session_start_time=None,
         else:
             print('No intensity file for ' + blockname)
 
-    # Export the NWB file
-    # with NWBHDF5IO(outpath, manager=manager, mode='w') as io:
-    #     io.write(nwbfile)
+    if save_to_file:
+        print('Saving HTK content to NWB file...')
+        # Export the NWB file
+        with NWBHDF5IO(str(out_file_path), manager=manager, mode='w') as io:
+            io.write(nwbfile)
+
+        # read check
+        with NWBHDF5IO(str(out_file_path), manager=manager, mode='r') as io:
+            io.read()
+        print('NWB file saved: ', str(out_file_path))
 
     if external_subject:
         subj_read_io.close()
@@ -860,11 +872,7 @@ def chang2nwb(blockpath, outpath=None, session_start_time=None,
     if hilb:
         file.close()
 
-    # read check
-    # with NWBHDF5IO(outpath, manager=manager, mode='r') as io:
-    #     io.read()
-
-    return nwbfile
+    return nwbfile, out_file_path, subject_id, blockname
 
 
 def gen_external_subject(subject_id, basepath=None, imaging_path=None,

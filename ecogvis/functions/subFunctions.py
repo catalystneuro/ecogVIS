@@ -22,21 +22,23 @@ class TimeSeriesPlotter:
         self.parent = par
         self.source_path = Path(par.source_path)
 
+        # Makes nwbfile object from nwb file or from HTK directory
         if self.source_path.is_file():
             self.subject_id = self.source_path.name.split('_')[0][2:]
             self.block = self.source_path.name.split('_')[1][1:-4]
-        elif self.source_path.is_dir():
-            self.subject_id = 0
-            self.block = 0
-
-        self.parent.setWindowTitle('ecogVIS - ' + self.source_path.name + ' - ' + self.parent.current_session)
-
-        # Makes nwbfile object from nwb file or from HTK directory
-        if self.source_path.is_file():
             self.io = pynwb.NWBHDF5IO(str(self.source_path), 'r+', load_namespaces=True)
             self.nwb = self.io.read()      # reads NWB file
         elif self.source_path.is_dir():
-            self.nwb = chang2nwb(blockpath=str(par.source_path), ecog_format='htk')
+            self.nwb, self.source_path, self.subject_id, self.block = chang2nwb(
+                blockpath=str(par.source_path),
+                ecog_format='htk',
+                save_to_file=True
+            )
+            self.parent.source_path = self.source_path.absolute()
+
+        title = ' '.join(['EcogVIS -', self.parent.current_session,
+                          self.source_path.name, '-', self.block])
+        self.parent.setWindowTitle(title)
 
         # Tries to load Raw data
         lis = list(self.nwb.acquisition.keys())
@@ -165,9 +167,8 @@ class TimeSeriesPlotter:
         if hasattr(self, 'io'):
             self.io.close()   # closes current NWB file
 
-        if self.source_path.is_file():
-            self.io = pynwb.NWBHDF5IO(str(self.source_path), 'r+', load_namespaces=True)
-            self.nwb = self.io.read()      # reads NWB file
+        self.io = pynwb.NWBHDF5IO(str(self.source_path), 'r+', load_namespaces=True)
+        self.nwb = self.io.read()      # reads NWB file
 
         # Searches for signal source on file
         try:   # Tries to load Raw data
