@@ -21,6 +21,6 @@ setup(
                       'nwbext_ecog==0.7.2', 'ndx-spectrum',
                       'pyopengl', 'process_nwb', 'tdt'],
     entry_points={
-        'console_scripts': ['ecogvis=ecogvis.ecogvis:main'],
+        'console_scripts': ['ecogvis=ecogvis.ecogvis:cmd_line_shortcut'],
     }
 )

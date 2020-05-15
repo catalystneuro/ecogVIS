@@ -1009,9 +1009,19 @@ class CustomViewBox(pg.ViewBox):
 
 
 # If it is imported as a module
-def main(source=''):
-    import argparse
+def main(source_path=''):
     import sys
+
+    # Sets up QT application
+    app = QCoreApplication.instance()
+    if app is None:
+        app = QApplication(sys.argv)  # instantiate a QtGui (holder for the app)
+    ex = Application(source_path=source_path)
+    sys.exit(app.exec_())
+
+
+def parse_arguments():
+    import argparse
 
     parser = argparse.ArgumentParser(
         description='Timeseries visualizer and data processing tools for Electrocorticography '
@@ -1036,18 +1046,20 @@ def main(source=''):
     source_path = args.source
 
     # Load metadata from YAML file
+    metadata = None
     metafile = args.metafile
     if metafile is not None:
         with open(metafile) as f:
             metadata = yaml.safe_load(f)
 
-    # Sets up QT application
-    app = QCoreApplication.instance()
-    if app is None:
-        app = QApplication(sys.argv)  # instantiate a QtGui (holder for the app)
-    ex = Application(source_path=source_path)
-    sys.exit(app.exec_())
+    return source_path, metadata
+
+
+def cmd_line_shortcut():
+    source_path, metadata = parse_arguments()
+    main(source_path=source_path)
 
 
 if __name__ == '__main__':
-    main(sys.argv[0])
+    source_path, metadata = parse_arguments()
+    main(source_path=source_path)
