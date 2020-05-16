@@ -320,6 +320,8 @@ class LoadHTKDialog(QtGui.QDialog):
         hbox_11.addWidget(self.radio_11)
         hbox_11.addWidget(self.radio_12)
         self.groupBox_11.setLayout(hbox_11)
+        self.groupBox_11.setCheckable(True)
+        self.groupBox_11.setChecked(False)
 
         self.groupBox_21 = QGroupBox("ANIN2")
         self.label_21 = QLabel('Name:')
@@ -333,6 +335,8 @@ class LoadHTKDialog(QtGui.QDialog):
         hbox_21.addWidget(self.radio_21)
         hbox_21.addWidget(self.radio_22)
         self.groupBox_21.setLayout(hbox_21)
+        self.groupBox_21.setCheckable(True)
+        self.groupBox_21.setChecked(False)
 
         self.groupBox_31 = QGroupBox("ANIN3")
         self.label_31 = QLabel('Name:')
@@ -346,6 +350,8 @@ class LoadHTKDialog(QtGui.QDialog):
         hbox_31.addWidget(self.radio_31)
         hbox_31.addWidget(self.radio_32)
         self.groupBox_31.setLayout(hbox_31)
+        self.groupBox_31.setCheckable(True)
+        self.groupBox_31.setChecked(False)
 
         self.groupBox_41 = QGroupBox("ANIN4")
         self.label_41 = QLabel('Name:')
@@ -359,6 +365,8 @@ class LoadHTKDialog(QtGui.QDialog):
         hbox_41.addWidget(self.radio_41)
         hbox_41.addWidget(self.radio_42)
         self.groupBox_41.setLayout(hbox_41)
+        self.groupBox_41.setCheckable(True)
+        self.groupBox_41.setChecked(False)
 
         vbox1.addWidget(self.groupBox_11)
         vbox1.addWidget(self.groupBox_21)
@@ -397,6 +405,23 @@ class LoadHTKDialog(QtGui.QDialog):
         if os.path.isdir(dir_path):
             self.line2.setText(dir_path)
             files_list = [f for f in Path(dir_path).glob('ANIN*.htk')]
+            files_names = [f.name for f in files_list]
+            if 'ANIN1.htk' in files_names:
+                self.groupBox_11.setChecked(True)
+            else:
+                self.groupBox_11.setChecked(False)
+            if 'ANIN2.htk' in files_names:
+                self.groupBox_21.setChecked(True)
+            else:
+                self.groupBox_21.setChecked(False)
+            if 'ANIN3.htk' in files_names:
+                self.groupBox_31.setChecked(True)
+            else:
+                self.groupBox_31.setChecked(False)
+            if 'ANIN4.htk' in files_names:
+                self.groupBox_41.setChecked(True)
+            else:
+                self.groupBox_41.setChecked(False)
 
     def out_close(self, val):
         self.value = val
