@@ -24,7 +24,7 @@ from ecogvis.functions.subFunctions import TimeSeriesPlotter
 from ecogvis.functions.misc_dialogs import (CustomIntervalDialog, SelectChannelsDialog,
                                             SpectralChoiceDialog, NoHighGammaDialog,
                                             NoPreprocessedDialog, NoTrialsDialog,
-                                            ExitDialog, HighGammaDialog,
+                                            ExitDialog, HighGammaDialog, LoadHTKDialog,
                                             PeriodogramGridDialog, NoSpectrumDialog,
                                             PreprocessingDialog, NoRawDialog,
                                             NoAudioDialog, ExistIntervalsDialog)
@@ -472,10 +472,9 @@ class Application(QMainWindow):
         Dialog for user selection of directory containing block of HTK files.
         Assembles a nwbfile object (in memory) from htk files.
         """
-        dir_path = QFileDialog.getExistingDirectory(
-            self, 'Open HTK dir', '', QtGui.QFileDialog.ShowDirsOnly)
-        if os.path.isdir(dir_path):
-            self.source_path = Path(dir_path)
+        w = LoadHTKDialog(parent=self)
+        if w.value == 1 and w.htk_path:
+            self.source_path = Path(w.htk_path)
             # Reset file specific variables on GUI
             self.combo3.setCurrentIndex(self.combo3.findText('raw'))
             self.combo4.clear()

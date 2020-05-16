@@ -1,5 +1,6 @@
 # Standard libraries
 import os
+from pathlib import Path
 
 # Third party libraries
 import OpenGL.GL as ogl
@@ -8,10 +9,10 @@ import pyqtgraph as pg
 import pyqtgraph.opengl as gl
 from PyQt5 import QtGui, QtCore, uic
 from PyQt5.QtWidgets import (QTableWidgetItem, QGridLayout, QGroupBox,
-                             QLineEdit,
+                             QLineEdit, QStyle, QMainWindow, QCheckBox,
                              QWidget, QLabel, QPushButton, QVBoxLayout,
                              QHBoxLayout, QComboBox, QScrollArea,
-                             QFileDialog, QHeaderView, QMainWindow, QCheckBox)
+                             QFileDialog, QHeaderView, QRadioButton)
 from ecogvis.signal_processing import bands as default_bands
 from ecogvis.signal_processing.detect_events import detect_events
 from ecogvis.signal_processing.periodogram import psd_estimate
@@ -251,6 +252,154 @@ class ExitDialog(QtGui.QDialog, Ui_Exit):
 
     def exit(self):
         self.value = -1
+        self.accept()
+
+
+# Selects channels from specific brain regions to be plotted -----------------
+class LoadHTKDialog(QtGui.QDialog):
+    def __init__(self, parent):
+        super().__init__()
+        self.parent = parent
+        self.value = 0
+        self.htk_path = None
+        self.analog_path = None
+
+        # Choose HTK dir
+        label_htkdir = QLabel('Source dir:')
+        self.push1 = QPushButton()
+        self.push1.clicked.connect(self.open_htk_dir)
+        self.push1.setIcon(self.style().standardIcon(QStyle.SP_DialogOpenButton))
+        self.line1 = QLineEdit('')
+
+        groupBox0 = QGroupBox("Electrophysiology data")
+        self.radio_raw = QRadioButton("Raw")
+        self.radio_pro = QRadioButton("Processed")
+        self.radio_hig = QRadioButton("High-gamma")
+        self.radio_raw.setChecked(True)
+        hbox0 = QHBoxLayout()
+        hbox0.addWidget(self.radio_raw)
+        hbox0.addWidget(self.radio_pro)
+        hbox0.addWidget(self.radio_hig)
+        hbox1 = QHBoxLayout()
+        hbox1.addWidget(label_htkdir)
+        hbox1.addWidget(self.push1)
+        hbox1.addWidget(self.line1)
+
+        vbox0 = QVBoxLayout()
+        vbox0.addLayout(hbox0)
+        vbox0.addLayout(hbox1)
+        groupBox0.setLayout(vbox0)
+
+        # Choose Analog dir
+        label_analogdir = QLabel('Source dir:')
+        self.push2 = QPushButton()
+        self.push2.clicked.connect(self.open_analog_dir)
+        self.push2.setIcon(self.style().standardIcon(QStyle.SP_DialogOpenButton))
+        self.line2 = QLineEdit('')
+
+        groupBox1 = QGroupBox("Analog data")
+        hbox2 = QtGui.QHBoxLayout()
+        hbox2.addWidget(label_analogdir)
+        hbox2.addWidget(self.push2)
+        hbox2.addWidget(self.line2)
+
+        vbox1 = QVBoxLayout()
+        vbox1.addLayout(hbox2)
+        groupBox1.setLayout(vbox1)
+
+        # Each ANIN, gets populated later when user chooses path to Analog
+        self.groupBox_11 = QGroupBox("ANIN1")
+        self.label_11 = QLabel('Name:')
+        self.line_11 = QLineEdit('microphone')
+        self.radio_11 = QRadioButton("Acquisition")
+        self.radio_12 = QRadioButton("Stimulus")
+        self.radio_11.setChecked(True)
+        hbox_11 = QtGui.QHBoxLayout()
+        hbox_11.addWidget(self.label_11)
+        hbox_11.addWidget(self.line_11)
+        hbox_11.addWidget(self.radio_11)
+        hbox_11.addWidget(self.radio_12)
+        self.groupBox_11.setLayout(hbox_11)
+
+        self.groupBox_21 = QGroupBox("ANIN2")
+        self.label_21 = QLabel('Name:')
+        self.line_21 = QLineEdit('speaker1')
+        self.radio_21 = QRadioButton("Acquisition")
+        self.radio_22 = QRadioButton("Stimulus")
+        self.radio_22.setChecked(True)
+        hbox_21 = QtGui.QHBoxLayout()
+        hbox_21.addWidget(self.label_21)
+        hbox_21.addWidget(self.line_21)
+        hbox_21.addWidget(self.radio_21)
+        hbox_21.addWidget(self.radio_22)
+        self.groupBox_21.setLayout(hbox_21)
+
+        self.groupBox_31 = QGroupBox("ANIN3")
+        self.label_31 = QLabel('Name:')
+        self.line_31 = QLineEdit('speaker2')
+        self.radio_31 = QRadioButton("Acquisition")
+        self.radio_32 = QRadioButton("Stimulus")
+        self.radio_32.setChecked(True)
+        hbox_31 = QtGui.QHBoxLayout()
+        hbox_31.addWidget(self.label_31)
+        hbox_31.addWidget(self.line_31)
+        hbox_31.addWidget(self.radio_31)
+        hbox_31.addWidget(self.radio_32)
+        self.groupBox_31.setLayout(hbox_31)
+
+        self.groupBox_41 = QGroupBox("ANIN4")
+        self.label_41 = QLabel('Name:')
+        self.line_41 = QLineEdit('aux')
+        self.radio_41 = QRadioButton("Acquisition")
+        self.radio_42 = QRadioButton("Stimulus")
+        self.radio_41.setChecked(True)
+        hbox_41 = QtGui.QHBoxLayout()
+        hbox_41.addWidget(self.label_41)
+        hbox_41.addWidget(self.line_41)
+        hbox_41.addWidget(self.radio_41)
+        hbox_41.addWidget(self.radio_42)
+        self.groupBox_41.setLayout(hbox_41)
+
+        vbox1.addWidget(self.groupBox_11)
+        vbox1.addWidget(self.groupBox_21)
+        vbox1.addWidget(self.groupBox_31)
+        vbox1.addWidget(self.groupBox_41)
+
+        # Load and Cancel buttons
+        self.btn_load = QtGui.QPushButton("Load")
+        self.btn_load.clicked.connect(lambda: self.out_close(val=1))
+        self.btn_cancel = QPushButton("Cancel")
+        self.btn_cancel.clicked.connect(lambda: self.out_close(val=-1))
+        hbox3 = QtGui.QHBoxLayout()
+        hbox3.addStretch(1)
+        hbox3.addWidget(self.btn_load)
+        hbox3.addWidget(self.btn_cancel)
+
+        vbox = QtGui.QVBoxLayout()
+        vbox.addWidget(groupBox0)
+        vbox.addWidget(groupBox1)
+        vbox.addLayout(hbox3)
+
+        self.setLayout(vbox)
+        self.setWindowTitle('Load from HTK')
+        self.exec_()
+
+    def open_htk_dir(self):
+        dir_path = QFileDialog.getExistingDirectory(
+            self, 'Open HTK dir', '', QtGui.QFileDialog.ShowDirsOnly)
+        if os.path.isdir(dir_path):
+            self.line1.setText(dir_path)
+            self.htk_path = dir_path
+
+    def open_analog_dir(self):
+        dir_path = QFileDialog.getExistingDirectory(
+            self, 'Open Analog dir', '', QtGui.QFileDialog.ShowDirsOnly)
+        if os.path.isdir(dir_path):
+            self.line2.setText(dir_path)
+            files_list = [f for f in Path(dir_path).glob('ANIN*.htk')]
+
+    def out_close(self, val):
+        self.value = val
         self.accept()
 
 
