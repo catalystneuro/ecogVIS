@@ -473,8 +473,8 @@ class Application(QMainWindow):
         Assembles a nwbfile object (in memory) from htk files.
         """
         w = LoadHTKDialog(parent=self)
-        if w.value == 1 and w.htk_path:
-            self.source_path = Path(w.htk_path)
+        if w.value == 1 and w.htk_config:
+            self.source_path = Path(w.htk_config['ecephys_path'])
             # Reset file specific variables on GUI
             self.combo3.setCurrentIndex(self.combo3.findText('raw'))
             self.combo4.clear()
@@ -490,7 +490,7 @@ class Application(QMainWindow):
             self.win2.clear()
             self.win3.clear()
             # Rebuild the model
-            self.model = TimeSeriesPlotter(self)
+            self.model = TimeSeriesPlotter(par=self, htk_config=w.htk_config)
 
     def save_file(self):
         """

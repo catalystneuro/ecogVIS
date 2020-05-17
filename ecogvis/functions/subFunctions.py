@@ -18,7 +18,7 @@ class TimeSeriesPlotter:
     It also holds information of the currently open NWB file, as well as user
     annotations and intervals.
     """
-    def __init__(self, par):
+    def __init__(self, par, htk_config=None):
         self.parent = par
         self.source_path = Path(par.source_path)
 
@@ -32,7 +32,8 @@ class TimeSeriesPlotter:
             self.nwb, self.source_path, self.subject_id, self.block = chang2nwb(
                 blockpath=str(par.source_path),
                 ecog_format='htk',
-                save_to_file=True
+                save_to_file=True,
+                htk_config=htk_config,
             )
             self.parent.source_path = self.source_path.absolute()
 

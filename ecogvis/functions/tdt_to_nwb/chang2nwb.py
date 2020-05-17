@@ -25,7 +25,7 @@ from nwbext_ecog import CorticalSurfaces, ECoGSubject
 from pynwb import NWBFile, TimeSeries, get_manager, NWBHDF5IO
 from pynwb.base import Images
 from pynwb.behavior import BehavioralTimeSeries
-from pynwb.ecephys import ElectricalSeries
+from pynwb.ecephys import ElectricalSeries, LFP
 from pynwb.image import RGBImage, RGBAImage, GrayscaleImage
 from pynwb.misc import DecompositionSeries
 from pytz import timezone
@@ -113,7 +113,7 @@ def load_intensity(blockpath):
     return fs, data
 
 
-def get_analog(blockpath, num=1):
+def get_analog(anin_path, num=1):
     """
     Load analog data. Try:
     1) analog[num].wav
@@ -127,20 +127,20 @@ def get_analog(blockpath, num=1):
     -------
     fs, data
     """
-    wav_path = path.join(blockpath, 'Analog', 'analog' + str(num) + '.wav')
+    wav_path = path.join(anin_path, 'analog' + str(num) + '.wav')
     if os.path.isfile(wav_path):
         rate, data = wavread(wav_path)
         return float(rate), np.array(data, dtype=float)
-    htk_path = path.join(blockpath, 'Analog', 'ANIN' + str(num) + '.htk')
+    htk_path = path.join(anin_path, 'ANIN' + str(num) + '.htk')
     if os.path.isfile(htk_path):
         htk_out = readHTK(htk_path, scale_s_rate=True)
         return htk_out['sampling_rate'], htk_out['data'].ravel()
-    blockname = os.path.split(blockpath)[1]
-    subject_id = get_subject_id(blockname)
-    raw_fpath = os.path.join(raw_htk_paths[0], subject_id, blockname,
-                             'raw.mat')
-    if os.path.isfile(raw_fpath):
-        return load_anin(raw_fpath, num)
+    # blockname = os.path.split(blockpath)[1]
+    # subject_id = get_subject_id(blockname)
+    # raw_fpath = os.path.join(raw_htk_paths[0], subject_id, blockname,
+    #                          'raw.mat')
+    # if os.path.isfile(raw_fpath):
+    #     return load_anin(raw_fpath, num)
     print('no analog path found for ' + str(num))
     return None, None
 
@@ -441,11 +441,11 @@ def parse_interview(blockpath, blockname):
     return text_dict_list
 
 
-def chang2nwb(blockpath, out_file_path=None, save_to_file=False,
+def chang2nwb(blockpath, out_file_path=None, save_to_file=False, htk_config=None,
               session_start_time=None, session_description=None,
               identifier=None, anin4=False, include_intensity=False,
               ecog_format='auto', external_subject=False, include_pitch=False,
-              speakers=True, mic=False, mini=False, hilb=False, verbose=False,
+              mini=False, hilb=False, verbose=False,
               imaging_path=None, parse_transcript=False,
               parse_percept_transcript=False, include_cortical_surfaces=False,
               include_electrodes=False, include_ekg=False,
@@ -456,6 +456,19 @@ def chang2nwb(blockpath, out_file_path=None, save_to_file=False,
     blockpath: str
     out_file_path: None | str
         if None, output = [blockpath]/[blockname].nwb
+    save_to_file : bool
+        If True, saves to file. If False, just returns nwbfile object
+    htk_config : dict
+        Dictionary cotaining HTK conversion paths and options.
+        {
+        ecephys_path: 'path_to/ecephys_htk_files',
+        ecephys_type: 'raw', 'preprocessed' or 'high_gamma',
+        analog_path: 'path_to/analog_htk_files',
+        anin1: {present: True, name: 'microphone', type: 'acquisition'},
+        anin2: {present: True, name: 'speaker1', type: 'stimulus'},
+        anin3: {present: False, name: 'speaker2', type: 'stimulus'},
+        anin4: {present: False, name: 'custom', type: 'acquisition'}
+        }
     session_start_time: datetime.datetime
         default: datetime(1900, 1, 1)
     session_description: str
@@ -478,10 +491,6 @@ def chang2nwb(blockpath, out_file_path=None, save_to_file=False,
         add pitch data. Default: False
     include_intensity: bool (optional)
         add intensity data. Default: False
-    speakers: bool (optional)
-        Default: False
-    mic: bool (optional)
-        default: False
     mini: only save data stub. Used for testing
     hilb: bool
         include Hilbert Transform data. Default: False
@@ -505,13 +514,13 @@ def chang2nwb(blockpath, out_file_path=None, save_to_file=False,
     """
 
     behav_module = None
-    # basepath, blockname = os.path.split(blockpath)
-    # subject_id = get_subject_id(blockname)
 
-    blockpath = Path(blockpath)
-    basepath = blockpath.parent.absolute()
-    blockname = blockpath.name
-    subject_id = blockpath.parent.name[2:]
+    if htk_config is None:
+        blockpath = Path(blockpath)
+    else:
+        blockpath = Path(htk_config['ecephys_path'])
+    blockname = blockpath.parent.name
+    subject_id = blockpath.parent.parent.name[2:]
     if identifier is None:
         identifier = blockname
 
@@ -519,7 +528,7 @@ def chang2nwb(blockpath, out_file_path=None, save_to_file=False,
         session_description = blockname
 
     if out_file_path is None:
-        out_file_path = blockpath / ''.join(['EC', subject_id, '_', blockname,'.nwb'])
+        out_file_path = blockpath.resolve().parent / ''.join(['EC', subject_id, '_', blockname, '.nwb'])
     out_base_path = os.path.split(out_file_path)[0]
 
     if session_start_time is None:
@@ -534,9 +543,10 @@ def chang2nwb(blockpath, out_file_path=None, save_to_file=False,
     #     subj_imaging_path = os.path.join(imaging_path, subject_id)
 
     # file paths
+    ecog_path = blockpath
+    anin_path = htk_config['analog_path']
     bad_time_file = path.join(blockpath, 'Artifacts', 'badTimeSegments.mat')
-    ecog_path = path.join(blockpath, 'RawHTK')
-    ecog400_path = path.join(blockpath, 'ecog400', 'ecog.mat')
+    # ecog400_path = path.join(blockpath, 'ecog400', 'ecog.mat')
     # elec_metadata_file = path.join(subj_imaging_path, 'elecs', 'TDT_elecs_all.mat')
     # mesh_path = path.join(subj_imaging_path, 'Meshes')
     # pial_files = glob.glob(path.join(mesh_path, '*pial.mat'))
@@ -602,40 +612,109 @@ def chang2nwb(blockpath, out_file_path=None, save_to_file=False,
     if mini:
         data = data[:2000]
 
-    ecog_ts = ElectricalSeries(name='ECoG',
-                               data=H5DataIO(data, compression='gzip'),
-                               electrodes=ecog_elecs_region, rate=ecog_rate,
-                               description=ts_desc)
-    nwbfile.add_acquisition(ecog_ts)
+    # Stores HTK electrophysiology data as raw, preprocessed or high gamma
+    if htk_config['ecephys_type'] == 'raw':
+        ecog_es = ElectricalSeries(name='ECoG',
+                                   data=H5DataIO(data, compression='gzip'),
+                                   electrodes=ecog_elecs_region,
+                                   rate=ecog_rate,
+                                   description=ts_desc)
+        nwbfile.add_acquisition(ecog_es)
+    elif htk_config['ecephys_type'] == 'preprocessed':
+        lfp = LFP()
+        ecog_es = ElectricalSeries(name='preprocessed',
+                                   data=H5DataIO(data, compression='gzip'),
+                                   electrodes=ecog_elecs_region,
+                                   rate=ecog_rate,
+                                   description=ts_desc)
+        lfp.add_electrical_series(ecog_es)
+        # Creates the ecephys processing module
+        ecephys_module = nwbfile.create_processing_module(
+            name='ecephys',
+            description='preprocessed electrophysiology data'
+        )
+        ecephys_module.add_data_interface(lfp)
+    elif htk_config['ecephys_type'] == 'high_gamma':
+        ecog_es = ElectricalSeries(name='high_gamma',
+                                   data=H5DataIO(data, compression='gzip'),
+                                   electrodes=ecog_elecs_region,
+                                   rate=ecog_rate,
+                                   description=ts_desc)
+        # Creates the ecephys processing module
+        ecephys_module = nwbfile.create_processing_module(
+            name='ecephys',
+            description='preprocessed electrophysiology data'
+        )
+        ecephys_module.add_data_interface(ecog_es)
 
     if include_ekg:
         ekg_elecs = find_ekg_elecs(elec_metadata_file)
         if len(ekg_elecs):
             add_ekg(nwbfile, ecog_path, ekg_elecs)
 
-    if mic:
-        # Add microphone recording from room
-        fs, data = get_analog(blockpath, 1)
-        nwbfile.add_acquisition(
-            TimeSeries('microphone', data, 'audio unit', rate=fs,
-                       description="audio recording from microphone in room"))
-    if speakers:
-        fs, data = get_analog(blockpath, 2)
-        # Add audio stimulus 1
-        nwbfile.add_stimulus(TimeSeries('speaker 1', data, 'NA', rate=fs,
-                                        description="audio stimulus 1"))
+    # Add ANIN 1
+    if htk_config['anin1']['present']:
+        fs, data = get_analog(anin_path, 1)
+        ts = TimeSeries(
+            name=htk_config['anin1']['name'],
+            data=data,
+            unit='NA',
+            rate=fs,
+        )
+        if htk_config['anin1']['type'] == 'acquisition':
+            nwbfile.add_acquisition(ts)
+        else:
+            nwbfile.add_stimulus(ts)
+        print('ANIN1 saved with name "', htk_config['anin1']['name'], '" in ',
+              htk_config['anin1']['type'])
 
-        # Add audio stimulus 2
-        fs, data = get_analog(blockpath, 3)
-        if fs is not None:
-            nwbfile.add_stimulus(TimeSeries('speaker 2', data, 'NA', rate=fs,
-                                            description='the second stimulus '
-                                                        'source'))
+    # Add ANIN 2
+    if htk_config['anin2']['present']:
+        fs, data = get_analog(anin_path, 2)
+        ts = TimeSeries(
+            name=htk_config['anin2']['name'],
+            data=data,
+            unit='NA',
+            rate=fs,
+        )
+        if htk_config['anin2']['type'] == 'acquisition':
+            nwbfile.add_acquisition(ts)
+        else:
+            nwbfile.add_stimulus(ts)
+        print('ANIN2 saved with name "', htk_config['anin2']['name'], '" in ',
+              htk_config['anin2']['type'])
 
-    if anin4:
-        fs, data = get_analog(blockpath, 4)
-        nwbfile.add_acquisition(TimeSeries(anin4, data, 'aux unit', rate=fs,
-                                           description="aux analog recording"))
+    # Add ANIN 3
+    if htk_config['anin3']['present']:
+        fs, data = get_analog(anin_path, 3)
+        ts = TimeSeries(
+            name=htk_config['anin3']['name'],
+            data=data,
+            unit='NA',
+            rate=fs,
+        )
+        if htk_config['anin3']['type'] == 'acquisition':
+            nwbfile.add_acquisition(ts)
+        else:
+            nwbfile.add_stimulus(ts)
+        print('ANIN3 saved with name "', htk_config['anin3']['name'], '" in ',
+              htk_config['anin3']['type'])
+
+    # Add ANIN 4
+    if htk_config['anin4']['present']:
+        fs, data = get_analog(anin_path, 4)
+        ts = TimeSeries(
+            name=htk_config['anin4']['name'],
+            data=data,
+            unit='NA',
+            rate=fs,
+        )
+        if htk_config['anin4']['type'] == 'acquisition':
+            nwbfile.add_acquisition(ts)
+        else:
+            nwbfile.add_stimulus(ts)
+        print('ANIN4 saved with name "', htk_config['anin4']['name'], '" in ',
+              htk_config['anin4']['type'])
 
     # Add bad time segments
     if os.path.exists(bad_time_file) and os.stat(bad_time_file).st_size:
@@ -644,7 +723,7 @@ def chang2nwb(blockpath, out_file_path=None, save_to_file=False,
             nwbfile.add_invalid_time_interval(start_time=row[0],
                                               stop_time=row[1],
                                               tags=('ECoG artifact',),
-                                              timeseries=ecog_ts)
+                                              timeseries=ecog_es)
 
     if rest_period is not None:
         nwbfile.add_epoch(start_time=rest_period[0], stop_time=rest_period[1])
@@ -668,7 +747,7 @@ def chang2nwb(blockpath, out_file_path=None, save_to_file=False,
             name='LFPDecompositionSeries',
             description='Gaussian band Hilbert transform',
             data=data, rate=400.,
-            source_timeseries=ecog_ts, metric='amplitude')
+            source_timeseries=ecog_es, metric='amplitude')
 
         for band_mean, band_stdev in zip(filter_center, filter_sigma):
             decomp_series.add_band(band_mean=band_mean, band_stdev=band_stdev)

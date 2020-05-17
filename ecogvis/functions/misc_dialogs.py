@@ -261,8 +261,7 @@ class LoadHTKDialog(QtGui.QDialog):
         super().__init__()
         self.parent = parent
         self.value = 0
-        self.htk_path = None
-        self.analog_path = None
+        self.htk_config = None
 
         # Choose HTK dir
         label_htkdir = QLabel('Source dir:')
@@ -434,7 +433,6 @@ class LoadHTKDialog(QtGui.QDialog):
             self, 'Open HTK dir', '', QtGui.QFileDialog.ShowDirsOnly)
         if os.path.isdir(dir_path):
             self.line1.setText(dir_path)
-            self.htk_path = dir_path
 
     def open_analog_dir(self):
         dir_path = QFileDialog.getExistingDirectory(
@@ -483,7 +481,47 @@ class LoadHTKDialog(QtGui.QDialog):
                 self.line_41.setEnabled(True)
 
     def out_close(self, val):
+        """
+        Assemble the htk_config dictionary and exit the dialog.
+        htk_config = {
+            ecephys_path: 'path_to/ecephys_htk_files',
+            ecephys_type: 'raw', 'preprocessed' or 'high_gamma',
+            analog_path: 'path_to/analog_htk_files',
+            anin1: {present: True, name: 'microphone', type: 'acquisition'},
+            anin2: {present: True, name: 'speaker1', type: 'stimulus'},
+            anin3: {present: False, name: 'speaker2', type: 'stimulus'},
+            anin4: {present: False, name: 'custom', type: 'acquisition'}
+        }
+        """
         self.value = val
+        if self.radio_raw.isChecked():
+            ecephys_type = 'raw'
+        elif self.radio_pro.isChecked():
+            ecephys_type = 'preprocessed'
+        elif self.radio_hig.isChecked():
+            ecephys_type = 'high_gamma'
+
+        self.htk_config = {
+            'ecephys_path': str(self.line1.text()),
+            'ecephys_type': ecephys_type,
+            'analog_path': str(self.line2.text()),
+            'anin1': {
+                'present': self.groupBox_11.isChecked(),
+                'name': str(self.line_11.text()),
+                'type': ['acquisition' if self.radio_11.isChecked() else 'stimulus'][0]},
+            'anin2': {
+                'present': self.groupBox_21.isChecked(),
+                'name': str(self.line_21.text()),
+                'type': ['acquisition' if self.radio_21.isChecked() else 'stimulus'][0]},
+            'anin3': {
+                'present': self.groupBox_31.isChecked(),
+                'name': str(self.line_31.text()),
+                'type': ['acquisition' if self.radio_31.isChecked() else 'stimulus'][0]},
+            'anin4': {
+                'present': self.groupBox_41.isChecked(),
+                'name': str(self.line_41.text()),
+                'type': ['acquisition' if self.radio_41.isChecked() else 'stimulus'][0]}
+        }
         self.accept()
 
 
