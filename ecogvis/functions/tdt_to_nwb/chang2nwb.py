@@ -209,17 +209,21 @@ def create_cortical_surfaces(pial_files, subject_id):
     return cortical_surfaces
 
 
-def readhtks(htkpath, elecs=None, use_tqdm=True):
-    if elecs is None:
-        elecs = range(len(glob.glob(path.join(htkpath, 'Wav*.htk'))))
+def readhtks(htk_path, elecs=None, use_tqdm=True):
+    # First fix the order of htk files
+    all_files = np.array([f for f in Path(htk_path).glob('*.htk')])
+    numbers = [f.name.split('.')[0].split('Wav')[1] for f in Path(htk_path).glob('*.htk')]
+    new_numbers = [n[0] + '0' + n[1] if len(n) == 2 else n for n in numbers]
+    sorted_index = np.argsort(new_numbers)
+    sorted_files = all_files[sorted_index]
+    # Load data from files in correct order
     data = []
     if use_tqdm:
-        this_iter = tqdm(elecs, desc='reading electrodes')
+        this_iter = tqdm(sorted_files, desc='reading electrodes')
     else:
-        this_iter = elecs
+        this_iter = sorted_files
     for i in this_iter:
-        htk = readHTK(path.join(htkpath, 'Wav' + gen_htk_num(i) + '.htk'),
-                      scale_s_rate=True)
+        htk = readHTK(i, scale_s_rate=True)
         data.append(htk['data'])
     data = np.stack(data)
     if len(data.shape) == 3:
@@ -588,7 +592,7 @@ def chang2nwb(blockpath, out_file_path=None, save_to_file=False, htk_config=None
     elif ecog_format == 'htk':
         if verbose:
             print('reading htk acquisition...', flush=True)
-        ecog_rate, data = readhtks(ecog_path, ecog_elecs)
+        ecog_rate, data = readhtks(ecog_path)
         data = data.squeeze()
         if verbose:
             print('done', flush=True)
