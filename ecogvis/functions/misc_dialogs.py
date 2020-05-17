@@ -255,7 +255,7 @@ class ExitDialog(QtGui.QDialog, Ui_Exit):
         self.accept()
 
 
-# Selects channels from specific brain regions to be plotted -----------------
+# Import Electrophysiology and Analog data from HTK files -----------------
 class LoadHTKDialog(QtGui.QDialog):
     def __init__(self, parent):
         super().__init__()
@@ -307,15 +307,31 @@ class LoadHTKDialog(QtGui.QDialog):
         vbox1.addLayout(hbox2)
         groupBox1.setLayout(vbox1)
 
+        all_names = {
+            0: "microphone",
+            1: "speaker1",
+            2: "speaker2",
+            3: "button_press1",
+            4: "button_press2",
+            5: "custom"
+        }
+
         # Each ANIN, gets populated later when user chooses path to Analog
         self.groupBox_11 = QGroupBox("ANIN1")
         self.label_11 = QLabel('Name:')
+        self.combo_11 = QComboBox()
+        self.combo_11.activated.connect(lambda: self.set_anin_name(ind=1))
+        for it in all_names.values():
+            self.combo_11.addItem(it)
+        self.combo_11.setCurrentIndex(0)
         self.line_11 = QLineEdit('microphone')
+        self.line_11.setEnabled(False)
         self.radio_11 = QRadioButton("Acquisition")
         self.radio_12 = QRadioButton("Stimulus")
         self.radio_11.setChecked(True)
         hbox_11 = QtGui.QHBoxLayout()
         hbox_11.addWidget(self.label_11)
+        hbox_11.addWidget(self.combo_11)
         hbox_11.addWidget(self.line_11)
         hbox_11.addWidget(self.radio_11)
         hbox_11.addWidget(self.radio_12)
@@ -325,12 +341,19 @@ class LoadHTKDialog(QtGui.QDialog):
 
         self.groupBox_21 = QGroupBox("ANIN2")
         self.label_21 = QLabel('Name:')
+        self.combo_21 = QComboBox()
+        self.combo_21.activated.connect(lambda: self.set_anin_name(ind=2))
+        for it in all_names.values():
+            self.combo_21.addItem(it)
+        self.combo_21.setCurrentIndex(1)
         self.line_21 = QLineEdit('speaker1')
+        self.line_21.setEnabled(False)
         self.radio_21 = QRadioButton("Acquisition")
         self.radio_22 = QRadioButton("Stimulus")
         self.radio_22.setChecked(True)
         hbox_21 = QtGui.QHBoxLayout()
         hbox_21.addWidget(self.label_21)
+        hbox_21.addWidget(self.combo_21)
         hbox_21.addWidget(self.line_21)
         hbox_21.addWidget(self.radio_21)
         hbox_21.addWidget(self.radio_22)
@@ -340,12 +363,19 @@ class LoadHTKDialog(QtGui.QDialog):
 
         self.groupBox_31 = QGroupBox("ANIN3")
         self.label_31 = QLabel('Name:')
+        self.combo_31 = QComboBox()
+        self.combo_31.activated.connect(lambda: self.set_anin_name(ind=3))
+        for it in all_names.values():
+            self.combo_31.addItem(it)
+        self.combo_31.setCurrentIndex(2)
         self.line_31 = QLineEdit('speaker2')
+        self.line_31.setEnabled(False)
         self.radio_31 = QRadioButton("Acquisition")
         self.radio_32 = QRadioButton("Stimulus")
         self.radio_32.setChecked(True)
         hbox_31 = QtGui.QHBoxLayout()
         hbox_31.addWidget(self.label_31)
+        hbox_31.addWidget(self.combo_31)
         hbox_31.addWidget(self.line_31)
         hbox_31.addWidget(self.radio_31)
         hbox_31.addWidget(self.radio_32)
@@ -355,12 +385,19 @@ class LoadHTKDialog(QtGui.QDialog):
 
         self.groupBox_41 = QGroupBox("ANIN4")
         self.label_41 = QLabel('Name:')
-        self.line_41 = QLineEdit('aux')
+        self.combo_41 = QComboBox()
+        self.combo_41.activated.connect(lambda: self.set_anin_name(ind=4))
+        for it in all_names.values():
+            self.combo_41.addItem(it)
+        self.combo_41.setCurrentIndex(5)
+        self.line_41 = QLineEdit('custom')
+        self.line_41.setEnabled(True)
         self.radio_41 = QRadioButton("Acquisition")
         self.radio_42 = QRadioButton("Stimulus")
         self.radio_41.setChecked(True)
         hbox_41 = QtGui.QHBoxLayout()
         hbox_41.addWidget(self.label_41)
+        hbox_41.addWidget(self.combo_41)
         hbox_41.addWidget(self.line_41)
         hbox_41.addWidget(self.radio_41)
         hbox_41.addWidget(self.radio_42)
@@ -422,6 +459,28 @@ class LoadHTKDialog(QtGui.QDialog):
                 self.groupBox_41.setChecked(True)
             else:
                 self.groupBox_41.setChecked(False)
+
+    def set_anin_name(self, ind):
+        if ind == 1:
+            self.line_11.setText(str(self.combo_11.currentText()))
+            self.line_11.setEnabled(False)
+            if str(self.combo_11.currentText()) == 'custom':
+                self.line_11.setEnabled(True)
+        if ind == 2:
+            self.line_21.setText(str(self.combo_21.currentText()))
+            self.line_21.setEnabled(False)
+            if str(self.combo_21.currentText()) == 'custom':
+                self.line_21.setEnabled(True)
+        if ind == 3:
+            self.line_31.setText(str(self.combo_31.currentText()))
+            self.line_31.setEnabled(False)
+            if str(self.combo_31.currentText()) == 'custom':
+                self.line_31.setEnabled(True)
+        if ind == 4:
+            self.line_41.setText(str(self.combo_41.currentText()))
+            self.line_41.setEnabled(False)
+            if str(self.combo_41.currentText()) == 'custom':
+                self.line_41.setEnabled(True)
 
     def out_close(self, val):
         self.value = val
