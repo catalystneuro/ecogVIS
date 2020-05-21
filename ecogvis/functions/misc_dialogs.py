@@ -1,6 +1,7 @@
 # Standard libraries
 import os
 from pathlib import Path
+import yaml
 
 # Third party libraries
 import OpenGL.GL as ogl
@@ -262,6 +263,7 @@ class LoadHTKDialog(QtGui.QDialog):
         self.parent = parent
         self.value = 0
         self.htk_config = None
+        self.metadata = None
 
         # Metadata
         label_metadata = QLabel('File path:')
@@ -451,6 +453,8 @@ class LoadHTKDialog(QtGui.QDialog):
                                                   '', "(*.yml)")
         if os.path.isfile(filename):
             self.line0.setText(filename)
+            with open(filename) as f:
+                self.metadata = yaml.safe_load(f)
 
     def open_htk_dir(self):
         dir_path = QFileDialog.getExistingDirectory(
@@ -514,7 +518,8 @@ class LoadHTKDialog(QtGui.QDialog):
             anin1: {present: True, name: 'microphone', type: 'acquisition'},
             anin2: {present: True, name: 'speaker1', type: 'stimulus'},
             anin3: {present: False, name: 'speaker2', type: 'stimulus'},
-            anin4: {present: False, name: 'custom', type: 'acquisition'}
+            anin4: {present: False, name: 'custom', type: 'acquisition'},
+            metadata: metadata,
         }
         """
         self.value = val
@@ -544,7 +549,8 @@ class LoadHTKDialog(QtGui.QDialog):
             'anin4': {
                 'present': self.groupBox_41.isChecked(),
                 'name': str(self.line_41.text()),
-                'type': ['acquisition' if self.radio_41.isChecked() else 'stimulus'][0]}
+                'type': ['acquisition' if self.radio_41.isChecked() else 'stimulus'][0]},
+            'metadata': self.metadata
         }
         self.accept()
 

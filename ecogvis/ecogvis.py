@@ -56,7 +56,7 @@ class Application(QMainWindow):
     """
     keyPressed = QtCore.pyqtSignal(QtCore.QEvent)
 
-    def __init__(self, source_path=None, session=None):
+    def __init__(self, source_path=None, metafile=None, session=None):
         super().__init__()
         # Enable anti-aliasing for prettier plots
         pg.setConfigOptions(antialias=True)
@@ -70,6 +70,12 @@ class Application(QMainWindow):
         if not os.path.exists(source_path):
             source_path = self.open_file()
         self.source_path = Path(source_path).absolute()
+
+        # Check metadata file
+        self.metadata = None
+        if metafile is not None:
+            with open(metafile) as f:
+                self.metadata = yaml.safe_load(f)
 
         self.error = None
         self.keyPressed.connect(self.on_key)
@@ -475,6 +481,7 @@ class Application(QMainWindow):
         w = LoadHTKDialog(parent=self)
         if w.value == 1 and w.htk_config:
             self.source_path = Path(w.htk_config['ecephys_path'])
+            self.metadata = w.htk_config['metadata']
             # Reset file specific variables on GUI
             self.combo3.setCurrentIndex(self.combo3.findText('raw'))
             self.combo4.clear()
@@ -1008,14 +1015,14 @@ class CustomViewBox(pg.ViewBox):
 
 
 # If it is imported as a module
-def main(source_path=''):
+def main(source_path='', metafile=None):
     import sys
 
     # Sets up QT application
     app = QCoreApplication.instance()
     if app is None:
         app = QApplication(sys.argv)  # instantiate a QtGui (holder for the app)
-    ex = Application(source_path=source_path)
+    ex = Application(source_path=source_path, metafile=metafile)
     sys.exit(app.exec_())
 
 
@@ -1044,21 +1051,17 @@ def parse_arguments():
     # File or dir to be loaded
     source_path = args.source
 
-    # Load metadata from YAML file
-    metadata = None
+    # Metadata file (.yml)
     metafile = args.metafile
-    if metafile is not None:
-        with open(metafile) as f:
-            metadata = yaml.safe_load(f)
 
-    return source_path, metadata
+    return source_path, metafile
 
 
 def cmd_line_shortcut():
-    source_path, metadata = parse_arguments()
-    main(source_path=source_path)
+    source_path, metafile = parse_arguments()
+    main(source_path=source_path, metafile=metafile)
 
 
 if __name__ == '__main__':
-    source_path, metadata = parse_arguments()
-    main(source_path=source_path)
+    source_path, metafile = parse_arguments()
+    main(source_path=source_path, metafile=metafile)
