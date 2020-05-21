@@ -263,6 +263,23 @@ class LoadHTKDialog(QtGui.QDialog):
         self.value = 0
         self.htk_config = None
 
+        # Metadata
+        label_metadata = QLabel('File path:')
+        self.push0 = QPushButton()
+        self.push0.clicked.connect(self.open_metafile)
+        self.push0.setIcon(self.style().standardIcon(QStyle.SP_DialogOpenButton))
+        self.line0 = QLineEdit('')
+
+        hbox00 = QHBoxLayout()
+        hbox00.addWidget(label_metadata)
+        hbox00.addWidget(self.push0)
+        hbox00.addWidget(self.line0)
+        vbox00 = QVBoxLayout()
+        vbox00.addLayout(hbox00)
+
+        groupBox00 = QGroupBox("Metadata (optional)")
+        groupBox00.setLayout(vbox00)
+
         # Choose HTK dir
         label_htkdir = QLabel('Source dir:')
         self.push1 = QPushButton()
@@ -420,6 +437,7 @@ class LoadHTKDialog(QtGui.QDialog):
         hbox3.addWidget(self.btn_cancel)
 
         vbox = QtGui.QVBoxLayout()
+        vbox.addWidget(groupBox00)
         vbox.addWidget(groupBox0)
         vbox.addWidget(groupBox1)
         vbox.addLayout(hbox3)
@@ -427,6 +445,12 @@ class LoadHTKDialog(QtGui.QDialog):
         self.setLayout(vbox)
         self.setWindowTitle('Load from HTK')
         self.exec_()
+
+    def open_metafile(self):
+        filename, _ = QFileDialog.getOpenFileName(None, 'Open metadata file',
+                                                  '', "(*.yml)")
+        if os.path.isfile(filename):
+            self.line0.setText(filename)
 
     def open_htk_dir(self):
         dir_path = QFileDialog.getExistingDirectory(

@@ -1,0 +1,28 @@
+NWBFile:
+  experiment_description: CV experiments with ecog recording
+  experimenter: Jessie Liu
+  identifier: ADDME
+  institution: UC San Francisco
+  lab: Chang lab
+  session_description: ADDME
+  session_start_time: 2020-04-04 10:00:00
+  surgery: description of surgery
+Subject:
+  sex: Male
+  subject_id: I5
+  date_of_birth: 1980-04-04 00:00:00
+Ecephys:
+  Device:
+    - name: device0
+  ElectricalSeries:
+    - description: ADDME
+      name: ElectricalSeries
+  ElectrodeGroup:
+    - description: ADDME
+      device: device0
+      location: cortex
+      name: group0
+    - description: ADDME
+      device: device0
+      location: cortex
+      name: group1
