@@ -13,16 +13,19 @@ Subject:
   date_of_birth: 1980-04-04 00:00:00
 Ecephys:
   Device:
-    - name: device0
-  ElectricalSeries:
-    - description: ADDME
-      name: ElectricalSeries
+    - name: AmygdalaDepth
+    - name: CingulateDepth
+    - name: HippocampusDepth
   ElectrodeGroup:
     - description: ADDME
-      device: device0
-      location: cortex
-      name: group0
+      device: AmygdalaDepth
+      location: Amygdala
+      name: AmygdalaDepth
     - description: ADDME
-      device: device0
-      location: cortex
-      name: group1
+      device: CingulateDepth
+      location: Cingulate
+      name: group_CingulateDepth
+    - description: ADDME
+      device: HippocampusDepth
+      location: Hippocampus
+      name: group_HippocampusDepth

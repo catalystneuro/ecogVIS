@@ -448,12 +448,10 @@ def parse_interview(blockpath, blockname):
 def chang2nwb(blockpath, out_file_path=None, save_to_file=False, htk_config=None,
               session_start_time=None, session_description=None,
               identifier=None, anin4=False, include_intensity=False,
-              ecog_format='auto', external_subject=False, include_pitch=False,
-              mini=False, hilb=False, verbose=False,
-              imaging_path=None, parse_transcript=False,
+              ecog_format='htk', external_subject=False, include_pitch=False,
+              hilb=False, verbose=False, imaging_path=None, parse_transcript=False,
               parse_percept_transcript=False, include_cortical_surfaces=False,
-              include_electrodes=False, include_ekg=False,
-              subject_image_list=None, rest_period=None, **kwargs):
+              include_ekg=False, subject_image_list=None, rest_period=None):
     """
     Parameters
     ----------
@@ -463,15 +461,16 @@ def chang2nwb(blockpath, out_file_path=None, save_to_file=False, htk_config=None
     save_to_file : bool
         If True, saves to file. If False, just returns nwbfile object
     htk_config : dict
-        Dictionary cotaining HTK conversion paths and options.
+        Dictionary cotaining HTK conversion paths and options. Example:
         {
-        ecephys_path: 'path_to/ecephys_htk_files',
-        ecephys_type: 'raw', 'preprocessed' or 'high_gamma',
-        analog_path: 'path_to/analog_htk_files',
-        anin1: {present: True, name: 'microphone', type: 'acquisition'},
-        anin2: {present: True, name: 'speaker1', type: 'stimulus'},
-        anin3: {present: False, name: 'speaker2', type: 'stimulus'},
-        anin4: {present: False, name: 'custom', type: 'acquisition'}
+            ecephys_path: 'path_to/ecephys_htk_files',
+            ecephys_type: 'raw', 'preprocessed' or 'high_gamma',
+            analog_path: 'path_to/analog_htk_files',
+            anin1: {present: True, name: 'microphone', type: 'acquisition'},
+            anin2: {present: True, name: 'speaker1', type: 'stimulus'},
+            anin3: {present: False, name: 'speaker2', type: 'stimulus'},
+            anin4: {present: False, name: 'custom', type: 'acquisition'},
+            metadata: metadata
         }
     session_start_time: datetime.datetime
         default: datetime(1900, 1, 1)
@@ -495,7 +494,6 @@ def chang2nwb(blockpath, out_file_path=None, save_to_file=False, htk_config=None
         add pitch data. Default: False
     include_intensity: bool (optional)
         add intensity data. Default: False
-    mini: only save data stub. Used for testing
     hilb: bool
         include Hilbert Transform data. Default: False
     verbose: bool (optional)
@@ -506,23 +504,23 @@ def chang2nwb(blockpath, out_file_path=None, save_to_file=False, htk_config=None
     parse_transcript: str (optional)
     parse_percept_transcript: str (optional)
     include_cortical_surfaces: bool (optional)
-    include_electrodes: bool (optional)
     include_ekg: bool (optional)
     subject_image_list: list (optional)
         List of paths of images to include
     rest_period: None | array-like
-    kwargs: dict
-        passed to pynwb.NWBFile
+
     Returns
     -------
     """
 
     behav_module = None
+    metadata = {}
 
     if htk_config is None:
         blockpath = Path(blockpath)
     else:
         blockpath = Path(htk_config['ecephys_path'])
+        metadata = htk_config['metadata']
     blockname = blockpath.parent.name
     subject_id = blockpath.parent.parent.name[2:]
     if identifier is None:
@@ -556,65 +554,83 @@ def chang2nwb(blockpath, out_file_path=None, save_to_file=False, htk_config=None
     # pial_files = glob.glob(path.join(mesh_path, '*pial.mat'))
 
     # Create the NWB file object
-    nwbfile = NWBFile(session_description, identifier,
-                      session_start_time, datetime.now().astimezone(),
-                      institution='University of California, San Francisco',
-                      lab='Chang Lab', **kwargs)
+    nwbfile_dict = {
+        'session_description': blockname,
+        'identifier': blockname,
+        'session_start_time': datetime.now().astimezone(),
+        'institution': 'University of California, San Francisco',
+        'lab': 'Chang Lab'
+    }
+    if 'NWBFile' in metadata:
+        nwbfile_dict.update(metadata['NWBFile'])
+    nwbfile = NWBFile(**nwbfile_dict)
 
     nwbfile.add_electrode_column('bad', 'electrode identified as too noisy')
 
-    bad_elecs_inds = get_bad_elecs(blockpath)
+    # Electrophysiology
+    ecephys_dict = {
+        'Device': [{'name': 'auto_device'}],
+        'ElectricalSeries': [{'name': 'ECoG', 'description': 'description'}],
+        'ElectrodeGroup': [{'name': 'auto_group', 'description': 'auto_group',
+                            'location': 'location', 'device': 'auto_device'}]
+    }
+    if 'Ecephys' in metadata:
+        ecephys_dict.update(metadata['Ecephys'])
 
-    if include_electrodes:
-        add_electrodes(nwbfile, elec_metadata_file, bad_elecs_inds)
-    else:
-        device = nwbfile.create_device('auto_device')
+    # Create devices
+    for dev in ecephys_dict['Device']:
+        device = nwbfile.create_device(dev['name'])
+
+    # Electrode groups
+    for el_grp in ecephys_dict['ElectrodeGroup']:
+        device = nwbfile.devices[el_grp['device']]
         electrode_group = nwbfile.create_electrode_group(
-            name='auto_group', description='auto_group', location='location',
-            device=device)
+            name=el_grp['name'],
+            description=el_grp['description'],
+            location=el_grp['location'],
+            device=device
+        )
 
-        for elec_counter in range(256):
-            bad = elec_counter in bad_elecs_inds
-            nwbfile.add_electrode(id=elec_counter + 1, x=np.nan, y=np.nan,
-                                  z=np.nan, imp=np.nan,
-                                  location=' ', filtering='none',
-                                  group=electrode_group, bad=bad)
-    ecog_elecs = list(range(len(nwbfile.electrodes)))
-    ecog_elecs_region = nwbfile.create_electrode_table_region(ecog_elecs,
-                                                              'ECoG '
-                                                              'electrodes on '
-                                                              'brain')
-
-    # Read electrophysiology data from HTK files and add them to NWB file
-    if ecog_format == 'auto':
-        ecog_rate, data, ecog_path = auto_ecog(blockpath, ecog_elecs,
-                                               verbose=False)
-    elif ecog_format == 'htk':
+    # Read electrophysiology data from HTK files
+    if ecog_format == 'htk':
         if verbose:
             print('reading htk acquisition...', flush=True)
         ecog_rate, data = readhtks(ecog_path)
         data = data.squeeze()
         if verbose:
             print('done', flush=True)
-
-    elif ecog_format == 'mat':
-        with File(ecog400_path, 'r') as f:
-            data = f['ecogDS']['data'][:, ecog_elecs]
-            ecog_rate = f['ecogDS']['sampFreq'][:].ravel()[0]
-        ecog_path = ecog400_path
-
-    elif ecog_format == 'raw':
-        ecog_path = os.path.join(raw_htk_paths[0], subject_id, blockname,
-                                 'raw.mat')
-        ecog_rate, data = load_wavs(ecog_path)
-
+    # elif ecog_format == 'auto':
+    #     ecog_rate, data, ecog_path = auto_ecog(blockpath, ecog_elecs, verbose=False)
+    # elif ecog_format == 'mat':
+    #     with File(ecog400_path, 'r') as f:
+    #         data = f['ecogDS']['data'][:, ecog_elecs]
+    #         ecog_rate = f['ecogDS']['sampFreq'][:].ravel()[0]
+    #     ecog_path = ecog400_path
+    # elif ecog_format == 'raw':
+    #     ecog_path = os.path.join(raw_htk_paths[0], subject_id, blockname, 'raw.mat')
+    #     ecog_rate, data = load_wavs(ecog_path)
     else:
         raise ValueError('unrecognized argument: ecog_format')
 
-    ts_desc = "all Wav data"
-
-    if mini:
-        data = data[:2000]
+    # Electrodes table
+    n_electrodes = data.shape[1]
+    bad_elecs_inds = get_bad_elecs(blockpath)
+    for elec_counter in range(n_electrodes):
+        bad = elec_counter in bad_elecs_inds
+        nwbfile.add_electrode(
+            id=elec_counter + 1,
+            x=np.nan, y=np.nan, z=np.nan,
+            imp=np.nan,
+            location=' ',
+            filtering='none',
+            group=electrode_group,
+            bad=bad
+        )
+    ecog_elecs = list(range(n_electrodes))
+    ecog_elecs_region = nwbfile.create_electrode_table_region(ecog_elecs,
+                                                              'ECoG '
+                                                              'electrodes on '
+                                                              'brain')
 
     # Stores HTK electrophysiology data as raw, preprocessed or high gamma
     if htk_config['ecephys_type'] == 'raw':
@@ -622,7 +638,7 @@ def chang2nwb(blockpath, out_file_path=None, save_to_file=False, htk_config=None
                                    data=H5DataIO(data, compression='gzip'),
                                    electrodes=ecog_elecs_region,
                                    rate=ecog_rate,
-                                   description=ts_desc)
+                                   description='all Wav data')
         nwbfile.add_acquisition(ecog_es)
     elif htk_config['ecephys_type'] == 'preprocessed':
         lfp = LFP()
@@ -630,7 +646,7 @@ def chang2nwb(blockpath, out_file_path=None, save_to_file=False, htk_config=None
                                    data=H5DataIO(data, compression='gzip'),
                                    electrodes=ecog_elecs_region,
                                    rate=ecog_rate,
-                                   description=ts_desc)
+                                   description='all Wav data')
         lfp.add_electrical_series(ecog_es)
         # Creates the ecephys processing module
         ecephys_module = nwbfile.create_processing_module(
@@ -643,18 +659,13 @@ def chang2nwb(blockpath, out_file_path=None, save_to_file=False, htk_config=None
                                    data=H5DataIO(data, compression='gzip'),
                                    electrodes=ecog_elecs_region,
                                    rate=ecog_rate,
-                                   description=ts_desc)
+                                   description='all Wav data')
         # Creates the ecephys processing module
         ecephys_module = nwbfile.create_processing_module(
             name='ecephys',
             description='preprocessed electrophysiology data'
         )
         ecephys_module.add_data_interface(ecog_es)
-
-    if include_ekg:
-        ekg_elecs = find_ekg_elecs(elec_metadata_file)
-        if len(ekg_elecs):
-            add_ekg(nwbfile, ecog_path, ekg_elecs)
 
     # Add ANIN 1
     if htk_config['anin1']['present']:
@@ -729,214 +740,222 @@ def chang2nwb(blockpath, out_file_path=None, save_to_file=False, htk_config=None
                                               tags=('ECoG artifact',),
                                               timeseries=ecog_es)
 
-    if rest_period is not None:
-        nwbfile.add_epoch(start_time=rest_period[0], stop_time=rest_period[1])
-
-    if hilb:
-        block_hilb_path = os.path.join(hilb_dir, subject_id, blockname,
-                                       blockname + '_AA.h5')
-        file = File(block_hilb_path, 'r')
-
-        data = transpose_iter(
-            file['X'])  # transposes data during iterative write
-        filter_center = file['filter_center'][:]
-        filter_sigma = file['filter_sigma'][:]
-
-        data = H5DataIO(
-            DataChunkIterator(
-                tqdm(data, desc='writing hilbert data'),
-                buffer_size=400 * 20), compression='gzip')
-
-        decomp_series = DecompositionSeries(
-            name='LFPDecompositionSeries',
-            description='Gaussian band Hilbert transform',
-            data=data, rate=400.,
-            source_timeseries=ecog_es, metric='amplitude')
-
-        for band_mean, band_stdev in zip(filter_center, filter_sigma):
-            decomp_series.add_band(band_mean=band_mean, band_stdev=band_stdev)
-
-        hilb_mod = nwbfile.create_processing_module(
-            name='ecephys', description='holds hilbert analysis results')
-        hilb_mod.add_container(decomp_series)
-
-    subject = ECoGSubject(subject_id=subject_id)
-
-    if include_cortical_surfaces:
-        subject.cortical_surfaces = create_cortical_surfaces(pial_files,
-                                                             subject_id)
-
-    if subject_image_list is not None:
-        subject = add_images_to_subject(subject, subject_image_list)
-
-    if external_subject:
-        subj_fpath = path.join(out_base_path, subject_id + '.nwb')
-        if not os.path.isfile(subj_fpath):
-            subj_nwbfile = NWBFile(
-                session_description=subject_id, identifier=subject_id,
-                subject=subject,
-                session_start_time=datetime.now().astimezone()
-            )
-            with NWBHDF5IO(subj_fpath, manager=manager, mode='w') as subj_io:
-                subj_io.write(subj_nwbfile)
-        subj_read_io = NWBHDF5IO(subj_fpath, manager=manager, mode='r')
-        subj_nwbfile = subj_read_io.read()
-        subject = subj_nwbfile.subject
-
+    # Subject
+    subject_dict = {'subject_id': subject_id}
+    if 'Subject' in metadata:
+        subject_dict.update(metadata['Subject'])
+    subject = ECoGSubject(**subject_dict)
     nwbfile.subject = subject
 
-    if parse_percept_transcript:
-        nwbfile.add_trial_column('word', 'presented word stimulus')
-        nwbfile.add_trial_column('phoneme', 'phoneme transcription')
-        nwbfile.add_trial_column('trial', 'trial number')
-
-        stim_info = loadmat(path.join(basepath, '{}_stimInfo.mat'.format(
-            blockname.split('_')[0])))
-
-        words = stim_info['stimInfo']['word'][0, 0].squeeze()
-        words = np.array([w[0] for w in words])
-        phoneme_trans = stim_info['stimInfo']['phn'][0, 0].squeeze()
-        phoneme_times = stim_info['stimInfo']['phnTimes_corrected'][
-            0, 0].squeeze()
-
-        with File(path.join(blockpath, 'Analog/evnt.mat'), 'r') as f:
-            events = f['evnt']
-            num_trials = len(events['trial'])
-
-            for i_trial in range(num_trials):
-                start_time = \
-                    np.array(events[events['StartTime'][i_trial][0]])[0][0]
-                # stop_time = np.array(events[events['StopTime'][i_trial][
-                # 0]])[0][0]
-                trial_num = int(
-                    np.array(events[events['trial'][i_trial][0]])[0][0])
-                trial_word = np.array(
-                    events[events['name'][i_trial][0]]).squeeze()
-                trial_word = ''.join(map(chr, trial_word))
-
-                trial_ind = np.where(words == trial_word)[0][0]
-                trial_phoneme_trans = phoneme_trans[trial_ind].squeeze()
-                trial_phoneme_times = start_time + phoneme_times[trial_ind]
-
-                for i_phone in range(trial_phoneme_times.shape[0]):
-                    nwbfile.add_trial(
-                        start_time=trial_phoneme_times[i_phone, 0],
-                        stop_time=trial_phoneme_times[i_phone, 1],
-                        word=trial_word,
-                        phoneme=trial_phoneme_trans[i_phone][0],
-                        trial=trial_num)
-
-    if parse_transcript:
-        if parse_transcript == 'interview':
-            parseout = parse_interview(blockpath, blockname)
-
-            nwbfile.add_trial_column('speaker',
-                                     'whether interviewer or interviewee is '
-                                     'speaking')
-            nwbfile.add_trial_column('label_type',
-                                     'which type of transcription')
-            nwbfile.add_trial_column('label', 'label for transcription type')
-
-            for entry in parseout:
-                nwbfile.add_trial(start_time=entry['start_time'],
-                                  stop_time=entry['stop_time'],
-                                  speaker=entry['speaker'],
-                                  label_type=entry['label_type'],
-                                  label=entry['label'])
-
-        else:
-            parseout = parse(blockpath, blockname)
-            if parse_transcript == 'CV':
-                df = make_df(parseout, 0, subject_id, align_pos=1)
-                nwbfile.add_trial_column(
-                    'cv_transition_time', 'time of CV transition in seconds')
-                nwbfile.add_trial_column(
-                    'speak',
-                    'if True, subject is speaking. If False, subject is '
-                    'listening')
-                nwbfile.add_trial_column('condition', 'syllable spoken')
-                for _, row in df.iterrows():
-                    nwbfile.add_trial(
-                        start_time=row['start'], stop_time=row['stop'],
-                        cv_transition_time=row['align'],
-                        speak=row['mode'] == 'speak', condition=row['label'])
-            elif parse_transcript == 'singing':
-                df = make_df(parseout, 0, subject_id, align_pos=0)
-                if not len(df):
-                    df = pd.DataFrame(parseout)
-                    df['mode'] = 'speak'
-
-                df = df.loc[df['label'].astype('bool'),
-                     :]  # handle empty labels
-                nwbfile.add_trial_column(
-                    'speak',
-                    'if True, subject is speaking. If False, subject is '
-                    'listening')
-                nwbfile.add_trial_column('condition', 'syllable spoken')
-                for _, row in df.iterrows():
-                    nwbfile.add_trial(
-                        start_time=row['start'], stop_time=row['stop'],
-                        speak=row['mode'] == 'speak', condition=row['label'])
-            elif parse_transcript == 'emphasis':
-                try:
-                    df = make_df(parseout, 0, subject_id, align_pos=0)
-                except:
-                    df = pd.DataFrame(parseout)
-                if not len(df):
-                    df = pd.DataFrame(parseout)
-                df = df.loc[df['label'].astype('bool'),
-                     :]  # handle empty labels
-                nwbfile.add_trial_column('condition', 'word emphasized')
-                nwbfile.add_trial_column(
-                    'speak',
-                    'if True, subject is speaking. If False, subject is '
-                    'listening')
-                for _, row in df.iterrows():
-                    nwbfile.add_trial(
-                        start_time=row['start'], stop_time=row['stop'],
-                        speak=True, condition=row['label'])
-            elif parse_transcript == 'MOCHA':
-                if behav_module is None:
-                    behav_module = nwbfile.create_processing_module('behavior',
-                                                                    'processing about behavior')
-                transcript = create_transcription_ndx(transcript_path,
-                                                      blockname)
-                behav_module.add_data_interface(transcript)
-
-    # behavior
-    if include_pitch:
-        if behav_module is None:
-            behav_module = nwbfile.create_processing_module('behavior',
-                                                            'processing '
-                                                            'about behavior')
-        if os.path.isfile(
-                os.path.join(blockpath, 'pitch_' + blockname + '.mat')):
-            fs, data = load_pitch(blockpath)
-            pitch_ts = TimeSeries(data=data, rate=fs, unit='Hz', name='pitch',
-                                  description='Pitch as extracted from '
-                                              'Praat. NaNs mark unvoiced '
-                                              'regions.')
-            behav_module.add_container(
-                BehavioralTimeSeries(name='pitch', time_series=pitch_ts))
-        else:
-            print('No pitch file for ' + blockname)
-
-    if include_intensity:
-        if behav_module is None:
-            behav_module = nwbfile.create_processing_module('behavior',
-                                                            'processing '
-                                                            'about behavior')
-        if os.path.isfile(
-                os.path.join(blockpath, 'intensity_' + blockname + '.mat')):
-            fs, data = load_pitch(blockpath)
-            intensity_ts = TimeSeries(data=data, rate=fs, unit='dB',
-                                      name='intensity',
-                                      description='Intensity of speech in dB '
-                                                  'extracted from Praat.')
-            behav_module.add_container(BehavioralTimeSeries(name='intensity',
-                                                            time_series=intensity_ts))
-        else:
-            print('No intensity file for ' + blockname)
+    # if include_ekg:
+    #     ekg_elecs = find_ekg_elecs(elec_metadata_file)
+    #     if len(ekg_elecs):
+    #         add_ekg(nwbfile, ecog_path, ekg_elecs)
+    #
+    # if rest_period is not None:
+    #     nwbfile.add_epoch(start_time=rest_period[0], stop_time=rest_period[1])
+    #
+    # if hilb:
+    #     block_hilb_path = os.path.join(hilb_dir, subject_id, blockname,
+    #                                    blockname + '_AA.h5')
+    #     file = File(block_hilb_path, 'r')
+    #
+    #     data = transpose_iter(
+    #         file['X'])  # transposes data during iterative write
+    #     filter_center = file['filter_center'][:]
+    #     filter_sigma = file['filter_sigma'][:]
+    #
+    #     data = H5DataIO(
+    #         DataChunkIterator(
+    #             tqdm(data, desc='writing hilbert data'),
+    #             buffer_size=400 * 20), compression='gzip')
+    #
+    #     decomp_series = DecompositionSeries(
+    #         name='LFPDecompositionSeries',
+    #         description='Gaussian band Hilbert transform',
+    #         data=data, rate=400.,
+    #         source_timeseries=ecog_es, metric='amplitude')
+    #
+    #     for band_mean, band_stdev in zip(filter_center, filter_sigma):
+    #         decomp_series.add_band(band_mean=band_mean, band_stdev=band_stdev)
+    #
+    #     hilb_mod = nwbfile.create_processing_module(
+    #         name='ecephys', description='holds hilbert analysis results')
+    #     hilb_mod.add_container(decomp_series)
+    #
+    # if include_cortical_surfaces:
+    #     subject.cortical_surfaces = create_cortical_surfaces(pial_files,
+    #                                                          subject_id)
+    #
+    # if subject_image_list is not None:
+    #     subject = add_images_to_subject(subject, subject_image_list)
+    #
+    # if external_subject:
+    #     subj_fpath = path.join(out_base_path, subject_id + '.nwb')
+    #     if not os.path.isfile(subj_fpath):
+    #         subj_nwbfile = NWBFile(
+    #             session_description=subject_id, identifier=subject_id,
+    #             subject=subject,
+    #             session_start_time=datetime.now().astimezone()
+    #         )
+    #         with NWBHDF5IO(subj_fpath, manager=manager, mode='w') as subj_io:
+    #             subj_io.write(subj_nwbfile)
+    #     subj_read_io = NWBHDF5IO(subj_fpath, manager=manager, mode='r')
+    #     subj_nwbfile = subj_read_io.read()
+    #     subject = subj_nwbfile.subject
+    #
+    # if parse_percept_transcript:
+    #     nwbfile.add_trial_column('word', 'presented word stimulus')
+    #     nwbfile.add_trial_column('phoneme', 'phoneme transcription')
+    #     nwbfile.add_trial_column('trial', 'trial number')
+    #
+    #     stim_info = loadmat(path.join(basepath, '{}_stimInfo.mat'.format(
+    #         blockname.split('_')[0])))
+    #
+    #     words = stim_info['stimInfo']['word'][0, 0].squeeze()
+    #     words = np.array([w[0] for w in words])
+    #     phoneme_trans = stim_info['stimInfo']['phn'][0, 0].squeeze()
+    #     phoneme_times = stim_info['stimInfo']['phnTimes_corrected'][
+    #         0, 0].squeeze()
+    #
+    #     with File(path.join(blockpath, 'Analog/evnt.mat'), 'r') as f:
+    #         events = f['evnt']
+    #         num_trials = len(events['trial'])
+    #
+    #         for i_trial in range(num_trials):
+    #             start_time = \
+    #                 np.array(events[events['StartTime'][i_trial][0]])[0][0]
+    #             # stop_time = np.array(events[events['StopTime'][i_trial][
+    #             # 0]])[0][0]
+    #             trial_num = int(
+    #                 np.array(events[events['trial'][i_trial][0]])[0][0])
+    #             trial_word = np.array(
+    #                 events[events['name'][i_trial][0]]).squeeze()
+    #             trial_word = ''.join(map(chr, trial_word))
+    #
+    #             trial_ind = np.where(words == trial_word)[0][0]
+    #             trial_phoneme_trans = phoneme_trans[trial_ind].squeeze()
+    #             trial_phoneme_times = start_time + phoneme_times[trial_ind]
+    #
+    #             for i_phone in range(trial_phoneme_times.shape[0]):
+    #                 nwbfile.add_trial(
+    #                     start_time=trial_phoneme_times[i_phone, 0],
+    #                     stop_time=trial_phoneme_times[i_phone, 1],
+    #                     word=trial_word,
+    #                     phoneme=trial_phoneme_trans[i_phone][0],
+    #                     trial=trial_num)
+    #
+    # if parse_transcript:
+    #     if parse_transcript == 'interview':
+    #         parseout = parse_interview(blockpath, blockname)
+    #
+    #         nwbfile.add_trial_column('speaker',
+    #                                  'whether interviewer or interviewee is '
+    #                                  'speaking')
+    #         nwbfile.add_trial_column('label_type',
+    #                                  'which type of transcription')
+    #         nwbfile.add_trial_column('label', 'label for transcription type')
+    #
+    #         for entry in parseout:
+    #             nwbfile.add_trial(start_time=entry['start_time'],
+    #                               stop_time=entry['stop_time'],
+    #                               speaker=entry['speaker'],
+    #                               label_type=entry['label_type'],
+    #                               label=entry['label'])
+    #
+    #     else:
+    #         parseout = parse(blockpath, blockname)
+    #         if parse_transcript == 'CV':
+    #             df = make_df(parseout, 0, subject_id, align_pos=1)
+    #             nwbfile.add_trial_column(
+    #                 'cv_transition_time', 'time of CV transition in seconds')
+    #             nwbfile.add_trial_column(
+    #                 'speak',
+    #                 'if True, subject is speaking. If False, subject is '
+    #                 'listening')
+    #             nwbfile.add_trial_column('condition', 'syllable spoken')
+    #             for _, row in df.iterrows():
+    #                 nwbfile.add_trial(
+    #                     start_time=row['start'], stop_time=row['stop'],
+    #                     cv_transition_time=row['align'],
+    #                     speak=row['mode'] == 'speak', condition=row['label'])
+    #         elif parse_transcript == 'singing':
+    #             df = make_df(parseout, 0, subject_id, align_pos=0)
+    #             if not len(df):
+    #                 df = pd.DataFrame(parseout)
+    #                 df['mode'] = 'speak'
+    #
+    #             df = df.loc[df['label'].astype('bool'),
+    #                  :]  # handle empty labels
+    #             nwbfile.add_trial_column(
+    #                 'speak',
+    #                 'if True, subject is speaking. If False, subject is '
+    #                 'listening')
+    #             nwbfile.add_trial_column('condition', 'syllable spoken')
+    #             for _, row in df.iterrows():
+    #                 nwbfile.add_trial(
+    #                     start_time=row['start'], stop_time=row['stop'],
+    #                     speak=row['mode'] == 'speak', condition=row['label'])
+    #         elif parse_transcript == 'emphasis':
+    #             try:
+    #                 df = make_df(parseout, 0, subject_id, align_pos=0)
+    #             except:
+    #                 df = pd.DataFrame(parseout)
+    #             if not len(df):
+    #                 df = pd.DataFrame(parseout)
+    #             df = df.loc[df['label'].astype('bool'),
+    #                  :]  # handle empty labels
+    #             nwbfile.add_trial_column('condition', 'word emphasized')
+    #             nwbfile.add_trial_column(
+    #                 'speak',
+    #                 'if True, subject is speaking. If False, subject is '
+    #                 'listening')
+    #             for _, row in df.iterrows():
+    #                 nwbfile.add_trial(
+    #                     start_time=row['start'], stop_time=row['stop'],
+    #                     speak=True, condition=row['label'])
+    #         elif parse_transcript == 'MOCHA':
+    #             if behav_module is None:
+    #                 behav_module = nwbfile.create_processing_module('behavior',
+    #                                                                 'processing about behavior')
+    #             transcript = create_transcription_ndx(transcript_path,
+    #                                                   blockname)
+    #             behav_module.add_data_interface(transcript)
+    #
+    # # behavior
+    # if include_pitch:
+    #     if behav_module is None:
+    #         behav_module = nwbfile.create_processing_module('behavior',
+    #                                                         'processing '
+    #                                                         'about behavior')
+    #     if os.path.isfile(
+    #             os.path.join(blockpath, 'pitch_' + blockname + '.mat')):
+    #         fs, data = load_pitch(blockpath)
+    #         pitch_ts = TimeSeries(data=data, rate=fs, unit='Hz', name='pitch',
+    #                               description='Pitch as extracted from '
+    #                                           'Praat. NaNs mark unvoiced '
+    #                                           'regions.')
+    #         behav_module.add_container(
+    #             BehavioralTimeSeries(name='pitch', time_series=pitch_ts))
+    #     else:
+    #         print('No pitch file for ' + blockname)
+    #
+    # if include_intensity:
+    #     if behav_module is None:
+    #         behav_module = nwbfile.create_processing_module('behavior',
+    #                                                         'processing '
+    #                                                         'about behavior')
+    #     if os.path.isfile(
+    #             os.path.join(blockpath, 'intensity_' + blockname + '.mat')):
+    #         fs, data = load_pitch(blockpath)
+    #         intensity_ts = TimeSeries(data=data, rate=fs, unit='dB',
+    #                                   name='intensity',
+    #                                   description='Intensity of speech in dB '
+    #                                               'extracted from Praat.')
+    #         behav_module.add_container(BehavioralTimeSeries(name='intensity',
+    #                                                         time_series=intensity_ts))
+    #     else:
+    #         print('No intensity file for ' + blockname)
 
     if save_to_file:
         print('Saving HTK content to NWB file...')
@@ -949,11 +968,11 @@ def chang2nwb(blockpath, out_file_path=None, save_to_file=False, htk_config=None
             io.read()
         print('NWB file saved: ', str(out_file_path))
 
-    if external_subject:
-        subj_read_io.close()
-
-    if hilb:
-        file.close()
+    # if external_subject:
+    #     subj_read_io.close()
+    #
+    # if hilb:
+    #     file.close()
 
     return nwbfile, out_file_path, subject_id, blockname
 
