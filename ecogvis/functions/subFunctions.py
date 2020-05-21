@@ -759,7 +759,14 @@ class TimeSeriesPlotter:
             aux = [False] * self.nChTotal
             for ind in self.badChannels:
                 aux[ind] = True
-            self.nwb.electrodes['bad'].data[:] = aux
+            if 'bad' not in self.nwb.electrodes:
+                self.nwb.add_electrode_column(
+                    name='bad',
+                    description='electrode identified as too noisy',
+                    data=aux,
+                )
+            else:
+                self.nwb.electrodes['bad'].data[:] = aux
 
     def DrawMarkTime(self, position):
         """Marks temporary reference line when adding a new interval."""

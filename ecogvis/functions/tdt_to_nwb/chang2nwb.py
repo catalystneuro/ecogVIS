@@ -565,8 +565,6 @@ def chang2nwb(blockpath, out_file_path=None, save_to_file=False, htk_config=None
         nwbfile_dict.update(metadata['NWBFile'])
     nwbfile = NWBFile(**nwbfile_dict)
 
-    nwbfile.add_electrode_column('bad', 'electrode identified as too noisy')
-
     # Electrophysiology
     ecephys_dict = {
         'Device': [{'name': 'auto_device'}],
@@ -614,6 +612,7 @@ def chang2nwb(blockpath, out_file_path=None, save_to_file=False, htk_config=None
 
     # Electrodes table
     n_electrodes = data.shape[1]
+    nwbfile.add_electrode_column('bad', 'electrode identified as too noisy')
     bad_elecs_inds = get_bad_elecs(blockpath)
     for elec_counter in range(n_electrodes):
         bad = elec_counter in bad_elecs_inds
