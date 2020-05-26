@@ -1,7 +1,8 @@
 # Standard libraries
-import os
 from pathlib import Path
+from scipy.io import loadmat
 import yaml
+import os
 
 # Third party libraries
 import OpenGL.GL as ogl
@@ -264,6 +265,7 @@ class LoadHTKDialog(QtGui.QDialog):
         self.value = 0
         self.htk_config = None
         self.metadata = None
+        self.electrodes_data = {}
 
         # Metadata
         label_metadata = QLabel('File path:')
@@ -428,6 +430,23 @@ class LoadHTKDialog(QtGui.QDialog):
         vbox1.addWidget(self.groupBox_31)
         vbox1.addWidget(self.groupBox_41)
 
+        # Elecetrodes .mat file
+        label_electrodes = QLabel('File path:')
+        self.push4 = QPushButton()
+        self.push4.clicked.connect(self.open_elecsfile)
+        self.push4.setIcon(self.style().standardIcon(QStyle.SP_DialogOpenButton))
+        self.line4 = QLineEdit('')
+
+        hbox4 = QHBoxLayout()
+        hbox4.addWidget(label_electrodes)
+        hbox4.addWidget(self.push4)
+        hbox4.addWidget(self.line4)
+        vbox4 = QVBoxLayout()
+        vbox4.addLayout(hbox4)
+
+        groupBox4 = QGroupBox("Electrodes info")
+        groupBox4.setLayout(vbox4)
+
         # Load and Cancel buttons
         self.btn_load = QtGui.QPushButton("Load")
         self.btn_load.clicked.connect(lambda: self.out_close(val=1))
@@ -442,6 +461,7 @@ class LoadHTKDialog(QtGui.QDialog):
         vbox.addWidget(groupBox00)
         vbox.addWidget(groupBox0)
         vbox.addWidget(groupBox1)
+        vbox.addWidget(groupBox4)
         vbox.addLayout(hbox3)
 
         self.setLayout(vbox)
@@ -449,6 +469,7 @@ class LoadHTKDialog(QtGui.QDialog):
         self.exec_()
 
     def open_metafile(self):
+        """Opens yaml file containing NWB metadata"""
         filename, _ = QFileDialog.getOpenFileName(None, 'Open metadata file',
                                                   '', "(*.yml)")
         if os.path.isfile(filename):
@@ -457,12 +478,28 @@ class LoadHTKDialog(QtGui.QDialog):
                 self.metadata = yaml.safe_load(f)
 
     def open_htk_dir(self):
+        """
+        Opens the directory containing the HTK files with Electrophysiology
+        data to be loaded.
+        """
         dir_path = QFileDialog.getExistingDirectory(
             self, 'Open HTK dir', '', QtGui.QFileDialog.ShowDirsOnly)
         if os.path.isdir(dir_path):
             self.line1.setText(dir_path)
 
+    def open_elecsfile(self):
+        """Reads a .mat file containing electrodes info."""
+        filename, _ = QFileDialog.getOpenFileName(None, 'Open electrodes file',
+                                                  '', "(*.mat)")
+        if os.path.isfile(filename):
+            self.line4.setText(filename)
+            self.electrodes_data = {}
+            el_data = loadmat(filename)
+            for i, el in enumerate(el_data['anatomy']):
+                self.electrodes_data[i] = [d[0] for d in el] + list(el_data['elecmatrix'][i])
+
     def open_analog_dir(self):
+        """Opens directory containing the HTK files with analog data."""
         dir_path = QFileDialog.getExistingDirectory(
             self, 'Open Analog dir', '', QtGui.QFileDialog.ShowDirsOnly)
         if os.path.isdir(dir_path):
@@ -520,6 +557,7 @@ class LoadHTKDialog(QtGui.QDialog):
             anin3: {present: False, name: 'speaker2', type: 'stimulus'},
             anin4: {present: False, name: 'custom', type: 'acquisition'},
             metadata: metadata,
+            electrodes_data: electrodes_data
         }
         """
         self.value = val
@@ -550,7 +588,8 @@ class LoadHTKDialog(QtGui.QDialog):
                 'present': self.groupBox_41.isChecked(),
                 'name': str(self.line_41.text()),
                 'type': ['acquisition' if self.radio_41.isChecked() else 'stimulus'][0]},
-            'metadata': self.metadata
+            'metadata': self.metadata,
+            'electrodes_data': self.electrodes_data,
         }
         self.accept()
 

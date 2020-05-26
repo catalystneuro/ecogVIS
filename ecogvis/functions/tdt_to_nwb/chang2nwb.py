@@ -470,7 +470,8 @@ def chang2nwb(blockpath, out_file_path=None, save_to_file=False, htk_config=None
             anin2: {present: True, name: 'speaker1', type: 'stimulus'},
             anin3: {present: False, name: 'speaker2', type: 'stimulus'},
             anin4: {present: False, name: 'custom', type: 'acquisition'},
-            metadata: metadata
+            metadata: metadata,
+            electrodes_data: electrodes_data
         }
     session_start_time: datetime.datetime
         default: datetime(1900, 1, 1)
@@ -578,6 +579,10 @@ def chang2nwb(blockpath, out_file_path=None, save_to_file=False, htk_config=None
     # Create devices
     for dev in ecephys_dict['Device']:
         device = nwbfile.create_device(dev['name'])
+
+    # Get electrodes info from file
+    # if len(htk_config['electrodes_data']) > 0:
+
 
     # Electrode groups
     for el_grp in ecephys_dict['ElectrodeGroup']:
