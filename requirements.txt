@@ -6,7 +6,7 @@ numpy
 h5py
 pyqtgraph
 pandas
-pynwb==1.3.0
+pynwb
 nwbext_ecog
 ndx-spectrum
 pyopengl
