@@ -264,8 +264,8 @@ class LoadHTKDialog(QtGui.QDialog):
         self.parent = parent
         self.value = 0
         self.htk_config = None
-        self.metadata = None
-        self.electrodes_data = {}
+        self.metadata = {}
+        self.electrodes_file = None
 
         # Metadata
         label_metadata = QLabel('File path:')
@@ -493,10 +493,7 @@ class LoadHTKDialog(QtGui.QDialog):
                                                   '', "(*.mat)")
         if os.path.isfile(filename):
             self.line4.setText(filename)
-            self.electrodes_data = {}
-            el_data = loadmat(filename)
-            for i, el in enumerate(el_data['anatomy']):
-                self.electrodes_data[i] = [d[0] for d in el] + list(el_data['elecmatrix'][i])
+            self.electrodes_file = Path(filename)
 
     def open_analog_dir(self):
         """Opens directory containing the HTK files with analog data."""
@@ -557,7 +554,7 @@ class LoadHTKDialog(QtGui.QDialog):
             anin3: {present: False, name: 'speaker2', type: 'stimulus'},
             anin4: {present: False, name: 'custom', type: 'acquisition'},
             metadata: metadata,
-            electrodes_data: electrodes_data
+            electrodes_file: electrodes_file
         }
         """
         self.value = val
@@ -589,7 +586,7 @@ class LoadHTKDialog(QtGui.QDialog):
                 'name': str(self.line_41.text()),
                 'type': ['acquisition' if self.radio_41.isChecked() else 'stimulus'][0]},
             'metadata': self.metadata,
-            'electrodes_data': self.electrodes_data,
+            'electrodes_file': self.electrodes_file,
         }
         self.accept()
 

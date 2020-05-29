@@ -17,7 +17,6 @@ from pathlib import Path
 
 import numpy as np
 import pandas as pd
-import scipy.io as sio
 from h5py import File
 from hdmf.backends.hdf5 import H5DataIO
 from hdmf.data_utils import DataChunkIterator
@@ -29,6 +28,7 @@ from pynwb.ecephys import ElectricalSeries, LFP
 from pynwb.image import RGBImage, RGBAImage, GrayscaleImage
 from pynwb.misc import DecompositionSeries
 from pytz import timezone
+import scipy.io as sio
 from scipy.io import loadmat
 from scipy.io.wavfile import read as wavread
 # from scipy.misc import imread # this function is deprecated
@@ -445,6 +445,130 @@ def parse_interview(blockpath, blockname):
     return text_dict_list
 
 
+def elecs_to_electrode_table(nwbfile, elecspath):
+    """
+    Takes an NWB file and the elecs .mat file path, loads the anatomical and
+    location information for each electrode,
+    and writes this information to the NWB file.
+
+    Parameters:
+    -----------
+    nwbfile : object
+        An NWB file object.
+    elecspath : str
+        Path to the TDT_elecs_all.mat file for this subject. First, second,
+        and third columns of the key 'elecmatrix'
+        should be x, y, and z coordinates, respectively. For the 'anatomy'
+        field, second column should be the full electrode label and the
+        fourth column should be the anatomical location name.
+
+    Returns:
+    --------
+    nwb_file : object
+        The edited NWB file with the added electrode information.
+    """
+
+    # Get anatomical and location information for electrodes.
+    elec_mat = sio.loadmat(elecspath)
+    labels = elec_mat['anatomy'][:, 1]
+    location = elec_mat['anatomy'][:, 3]
+    x = elec_mat['elecmatrix'][:, 0]
+    y = elec_mat['elecmatrix'][:, 1]
+    z = elec_mat['elecmatrix'][:, 2]
+
+    # Get MNI warped electrode coordinates.
+    if Path(elecspath.as_posix().split('.')[0] + '_warped.mat').is_file():
+        elec_mat_warped = sio.loadmat(elecspath.split('.')[0] + '_warped.mat')
+        x_warped = elec_mat_warped['elecmatrix'][:, 0]
+        y_warped = elec_mat_warped['elecmatrix'][:, 1]
+        z_warped = elec_mat_warped['elecmatrix'][:, 2]
+    else:
+        print('No warped electrode information found...filling with zeros.')
+        x_warped = np.zeros_like(x)
+        y_warped = np.zeros_like(y)
+        z_warped = np.zeros_like(z)
+
+    # Define electrode device label names.
+    group_labels = []
+    for current_group in labels:
+        name = current_group[0].rstrip('0123456789')
+        # Replace 'NaN' for 'null'
+        if name == 'NaN':
+            name = 'null'
+        group_labels.append(name)
+
+    # Get the list of unique electrode device label names
+    unique_group_indexes = np.unique(group_labels, return_index=True)[1]
+    unique_group_labels = [group_labels[f] for f in sorted(unique_group_indexes)]
+
+    # Add additional columns to the electodes table.
+    nwbfile.add_electrode_column('label', 'label of electrode')
+    nwbfile.add_electrode_column('bad', 'electrode identified as too noisy')
+    nwbfile.add_electrode_column('x_warped', 'x warped onto cvs_avg35_inMNI152')
+    nwbfile.add_electrode_column('y_warped', 'y warped onto cvs_avg35_inMNI152')
+    nwbfile.add_electrode_column('z_warped', 'z warped onto cvs_avg35_inMNI152')
+    nwbfile.add_electrode_column('is_null', 'if not connected to real electrode')
+
+    for group_label in unique_group_labels:
+        # Get region name and device label for the group.
+        if 'Depth' in group_label:
+            brain_area = group_label.split('Depth')[0]
+        elif 'Strip' in group_label:
+            brain_area = group_label.split('Strip')[0]
+        elif 'Grid' in group_label:
+            brain_area = group_label.split('Grid')[0]
+        elif 'Pole' in group_label:
+            brain_area = group_label.split('Pole')[0]
+        elif 'HeschlsGyrus' in group_label:
+            brain_area = 'HeschlsGyrus'
+        elif 'null' in group_label:
+            brain_area = 'null'
+
+        # Create electrode device (same as the group).
+        device = nwbfile.create_device(group_label)
+
+        # Create electrode group with name, description, device object,
+        # and general location.
+        electrode_group = nwbfile.create_electrode_group(
+            name='{} electrodes'.format(group_label),
+            description='{}'.format(group_label),
+            device=device,
+            location=str(brain_area)
+        )
+
+        # Loop through the number of electrodes in this electrode group
+        elec_nums = np.where(np.array(group_labels) == group_label)[0]
+        for elec_num in elec_nums:
+            # Add the electrode information to the table.
+            elec_location = location[elec_num]
+            if len(elec_location) == 0:
+                # If no label is recorded for this electrode, set it to null
+                elec_location = 'null'
+                is_null = True
+            else:
+                elec_location = elec_location[0]
+                is_null = False
+
+            nwbfile.add_electrode(
+                id=elec_num,
+                x=x[elec_num],
+                y=y[elec_num],
+                z=z[elec_num],
+                imp=np.nan,
+                x_warped=x_warped[elec_num],
+                y_warped=y_warped[elec_num],
+                z_warped=z_warped[elec_num],
+                location=str(elec_location),
+                filtering='filtering',
+                group=electrode_group,
+                label=str(labels[elec_num][0]),
+                bad=False,
+                is_null=is_null,
+            )
+
+    return nwbfile
+
+
 def chang2nwb(blockpath, out_file_path=None, save_to_file=False, htk_config=None,
               session_start_time=None, session_description=None,
               identifier=None, anin4=False, include_intensity=False,
@@ -471,7 +595,7 @@ def chang2nwb(blockpath, out_file_path=None, save_to_file=False, htk_config=None
             anin3: {present: False, name: 'speaker2', type: 'stimulus'},
             anin4: {present: False, name: 'custom', type: 'acquisition'},
             metadata: metadata,
-            electrodes_data: electrodes_data
+            electrodes_file: electrodes_file
         }
     session_start_time: datetime.datetime
         default: datetime(1900, 1, 1)
@@ -550,7 +674,6 @@ def chang2nwb(blockpath, out_file_path=None, save_to_file=False, htk_config=None
     anin_path = htk_config['analog_path']
     bad_time_file = path.join(blockpath, 'Artifacts', 'badTimeSegments.mat')
     # ecog400_path = path.join(blockpath, 'ecog400', 'ecog.mat')
-    # elec_metadata_file = path.join(subj_imaging_path, 'elecs', 'TDT_elecs_all.mat')
     # mesh_path = path.join(subj_imaging_path, 'Meshes')
     # pial_files = glob.glob(path.join(mesh_path, '*pial.mat'))
 
@@ -566,34 +689,6 @@ def chang2nwb(blockpath, out_file_path=None, save_to_file=False, htk_config=None
         nwbfile_dict.update(metadata['NWBFile'])
     nwbfile = NWBFile(**nwbfile_dict)
 
-    # Electrophysiology
-    ecephys_dict = {
-        'Device': [{'name': 'auto_device'}],
-        'ElectricalSeries': [{'name': 'ECoG', 'description': 'description'}],
-        'ElectrodeGroup': [{'name': 'auto_group', 'description': 'auto_group',
-                            'location': 'location', 'device': 'auto_device'}]
-    }
-    if 'Ecephys' in metadata:
-        ecephys_dict.update(metadata['Ecephys'])
-
-    # Create devices
-    for dev in ecephys_dict['Device']:
-        device = nwbfile.create_device(dev['name'])
-
-    # Get electrodes info from file
-    # if len(htk_config['electrodes_data']) > 0:
-
-
-    # Electrode groups
-    for el_grp in ecephys_dict['ElectrodeGroup']:
-        device = nwbfile.devices[el_grp['device']]
-        electrode_group = nwbfile.create_electrode_group(
-            name=el_grp['name'],
-            description=el_grp['description'],
-            location=el_grp['location'],
-            device=device
-        )
-
     # Read electrophysiology data from HTK files
     if ecog_format == 'htk':
         if verbose:
@@ -602,53 +697,105 @@ def chang2nwb(blockpath, out_file_path=None, save_to_file=False, htk_config=None
         data = data.squeeze()
         if verbose:
             print('done', flush=True)
-    # elif ecog_format == 'auto':
-    #     ecog_rate, data, ecog_path = auto_ecog(blockpath, ecog_elecs, verbose=False)
-    # elif ecog_format == 'mat':
-    #     with File(ecog400_path, 'r') as f:
-    #         data = f['ecogDS']['data'][:, ecog_elecs]
-    #         ecog_rate = f['ecogDS']['sampFreq'][:].ravel()[0]
-    #     ecog_path = ecog400_path
-    # elif ecog_format == 'raw':
-    #     ecog_path = os.path.join(raw_htk_paths[0], subject_id, blockname, 'raw.mat')
-    #     ecog_rate, data = load_wavs(ecog_path)
+    elif ecog_format == 'auto':
+        raise NotImplementedError(f'Not implemented format {ecog_format}')
+        # ecog_rate, data, ecog_path = auto_ecog(blockpath, ecog_elecs, verbose=False)
+    elif ecog_format == 'mat':
+        raise NotImplementedError(f'Not implemented format {ecog_format}')
+        # with File(ecog400_path, 'r') as f:
+        #     data = f['ecogDS']['data'][:, ecog_elecs]
+        #     ecog_rate = f['ecogDS']['sampFreq'][:].ravel()[0]
+        # ecog_path = ecog400_path
+    elif ecog_format == 'raw':
+        raise NotImplementedError(f'Not implemented format {ecog_format}')
+        # ecog_path = os.path.join(raw_htk_paths[0], subject_id, blockname, 'raw.mat')
+        # ecog_rate, data = load_wavs(ecog_path)
     else:
         raise ValueError('unrecognized argument: ecog_format')
 
-    # Electrodes table
-    n_electrodes = data.shape[1]
-    nwbfile.add_electrode_column('bad', 'electrode identified as too noisy')
-    bad_elecs_inds = get_bad_elecs(blockpath)
-    for elec_counter in range(n_electrodes):
-        bad = elec_counter in bad_elecs_inds
-        nwbfile.add_electrode(
-            id=elec_counter + 1,
-            x=np.nan, y=np.nan, z=np.nan,
-            imp=np.nan,
-            location=' ',
-            filtering='none',
-            group=electrode_group,
-            bad=bad
+    # Get electrodes info from mat file
+    if htk_config['electrodes_file'] is not None:
+        nwbfile = elecs_to_electrode_table(
+            nwbfile=nwbfile,
+            elecspath=htk_config['electrodes_file'],
         )
-    ecog_elecs = list(range(n_electrodes))
-    ecog_elecs_region = nwbfile.create_electrode_table_region(ecog_elecs,
-                                                              'ECoG '
-                                                              'electrodes on '
-                                                              'brain')
+        n_electrodes = nwbfile.electrodes[:].shape[0]
+        all_elecs = list(range(n_electrodes))
+        elecs_region = nwbfile.create_electrode_table_region(
+            all_elecs,
+            'ECoG electrodes on brain'
+        )
+    else:  # Get electrodes info from metadata file
+        ecephys_dict = {
+            'Device': [{'name': 'auto_device'}],
+            'ElectricalSeries': [{'name': 'ECoG', 'description': 'description'}],
+            'ElectrodeGroup': [{'name': 'auto_group', 'description': 'auto_group',
+                                'location': 'location', 'device': 'auto_device'}]
+        }
+        if 'Ecephys' in metadata:
+            ecephys_dict.update(metadata['Ecephys'])
+
+        # Create devices
+        for dev in ecephys_dict['Device']:
+            device = nwbfile.create_device(dev['name'])
+
+        # Electrode groups
+        for el_grp in ecephys_dict['ElectrodeGroup']:
+            device = nwbfile.devices[el_grp['device']]
+            electrode_group = nwbfile.create_electrode_group(
+                name=el_grp['name'],
+                description=el_grp['description'],
+                location=el_grp['location'],
+                device=device
+            )
+
+        # Electrodes table
+        n_electrodes = data.shape[1]
+        nwbfile.add_electrode_column('label', 'label of electrode')
+        nwbfile.add_electrode_column('bad', 'electrode identified as too noisy')
+        nwbfile.add_electrode_column('x_warped', 'x warped onto cvs_avg35_inMNI152')
+        nwbfile.add_electrode_column('y_warped', 'y warped onto cvs_avg35_inMNI152')
+        nwbfile.add_electrode_column('z_warped', 'z warped onto cvs_avg35_inMNI152')
+        nwbfile.add_electrode_column('is_null', 'if not connected to real electrode')
+        bad_elecs_inds = get_bad_elecs(blockpath)
+        for elec_counter in range(n_electrodes):
+            bad = elec_counter in bad_elecs_inds
+            nwbfile.add_electrode(
+                id=elec_counter + 1,
+                x=np.nan,
+                y=np.nan,
+                z=np.nan,
+                imp=np.nan,
+                x_warped=np.nan,
+                y_warped=np.nan,
+                z_warped=np.nan,
+                location='',
+                filtering='none',
+                group=electrode_group,
+                label='',
+                bad=bad,
+                is_null=False,
+            )
+
+        all_elecs = list(range(n_electrodes))
+        elecs_region = nwbfile.create_electrode_table_region(
+            all_elecs,
+            'ECoG electrodes on brain'
+        )
 
     # Stores HTK electrophysiology data as raw, preprocessed or high gamma
     if htk_config['ecephys_type'] == 'raw':
         ecog_es = ElectricalSeries(name='ECoG',
-                                   data=H5DataIO(data, compression='gzip'),
-                                   electrodes=ecog_elecs_region,
+                                   data=H5DataIO(data[:, 0:n_electrodes], compression='gzip'),
+                                   electrodes=elecs_region,
                                    rate=ecog_rate,
                                    description='all Wav data')
         nwbfile.add_acquisition(ecog_es)
     elif htk_config['ecephys_type'] == 'preprocessed':
         lfp = LFP()
         ecog_es = ElectricalSeries(name='preprocessed',
-                                   data=H5DataIO(data, compression='gzip'),
-                                   electrodes=ecog_elecs_region,
+                                   data=H5DataIO(data[:, 0:n_electrodes], compression='gzip'),
+                                   electrodes=elecs_region,
                                    rate=ecog_rate,
                                    description='all Wav data')
         lfp.add_electrical_series(ecog_es)
@@ -660,8 +807,8 @@ def chang2nwb(blockpath, out_file_path=None, save_to_file=False, htk_config=None
         ecephys_module.add_data_interface(lfp)
     elif htk_config['ecephys_type'] == 'high_gamma':
         ecog_es = ElectricalSeries(name='high_gamma',
-                                   data=H5DataIO(data, compression='gzip'),
-                                   electrodes=ecog_elecs_region,
+                                   data=H5DataIO(data[:, 0:n_electrodes], compression='gzip'),
+                                   electrodes=elecs_region,
                                    rate=ecog_rate,
                                    description='all Wav data')
         # Creates the ecephys processing module
