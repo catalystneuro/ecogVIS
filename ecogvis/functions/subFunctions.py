@@ -9,7 +9,7 @@ import pyqtgraph as pg
 import datetime
 import pynwb
 import nwbext_ecog
-from ecogvis.functions.tdt_to_nwb.chang2nwb import chang2nwb
+from ecogvis.functions.htk_to_nwb.chang2nwb import chang2nwb
 
 
 class TimeSeriesPlotter:
@@ -31,7 +31,6 @@ class TimeSeriesPlotter:
         elif self.source_path.is_dir():
             self.nwb, self.source_path, self.subject_id, self.block = chang2nwb(
                 blockpath=str(par.source_path),
-                ecog_format='htk',
                 save_to_file=True,
                 htk_config=htk_config,
             )
