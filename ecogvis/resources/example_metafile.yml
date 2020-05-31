@@ -11,21 +11,3 @@ Subject:
   sex: Male
   subject_id: I5
   date_of_birth: 1980-04-04 00:00:00
-Ecephys:
-  Device:
-    - name: AmygdalaDepth
-    - name: CingulateDepth
-    - name: HippocampusDepth
-  ElectrodeGroup:
-    - description: ADDME
-      device: AmygdalaDepth
-      location: Amygdala
-      name: AmygdalaDepth
-    - description: ADDME
-      device: CingulateDepth
-      location: Cingulate
-      name: group_CingulateDepth
-    - description: ADDME
-      device: HippocampusDepth
-      location: Hippocampus
-      name: group_HippocampusDepth

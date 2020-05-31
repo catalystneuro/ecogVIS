@@ -158,7 +158,7 @@ def elecs_to_electrode_table(nwbfile, elecspath):
     nwbfile.add_electrode_column('x_warped', 'x warped onto cvs_avg35_inMNI152')
     nwbfile.add_electrode_column('y_warped', 'y warped onto cvs_avg35_inMNI152')
     nwbfile.add_electrode_column('z_warped', 'z warped onto cvs_avg35_inMNI152')
-    nwbfile.add_electrode_column('is_null', 'if not connected to real electrode')
+    nwbfile.add_electrode_column('null', 'if not connected to real electrode')
 
     for group_label in unique_group_labels:
         # Get region name and device label for the group.
@@ -216,7 +216,7 @@ def elecs_to_electrode_table(nwbfile, elecspath):
                 group=electrode_group,
                 label=str(labels[elec_num][0]),
                 bad=False,
-                is_null=is_null,
+                null=is_null,
             )
 
     return nwbfile
@@ -328,7 +328,7 @@ def chang2nwb(blockpath, out_file_path=None, save_to_file=False, htk_config=None
         nwbfile.add_electrode_column('x_warped', 'x warped onto cvs_avg35_inMNI152')
         nwbfile.add_electrode_column('y_warped', 'y warped onto cvs_avg35_inMNI152')
         nwbfile.add_electrode_column('z_warped', 'z warped onto cvs_avg35_inMNI152')
-        nwbfile.add_electrode_column('is_null', 'if not connected to real electrode')
+        nwbfile.add_electrode_column('null', 'if not connected to real electrode')
         bad_elecs_inds = get_bad_elecs(blockpath)
         for elec_counter in range(n_electrodes):
             bad = elec_counter in bad_elecs_inds
@@ -346,7 +346,7 @@ def chang2nwb(blockpath, out_file_path=None, save_to_file=False, htk_config=None
                 group=electrode_group,
                 label='',
                 bad=bad,
-                is_null=False,
+                null=False,
             )
 
         all_elecs = list(range(n_electrodes))
