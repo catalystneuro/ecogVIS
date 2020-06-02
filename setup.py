@@ -19,7 +19,7 @@ setup(
     install_requires=['PyQt5', 'matplotlib', 'cycler', 'scipy', 'numpy',
                       'h5py', 'pyqtgraph', 'pandas', 'pynwb>=1.1.2', 'PyYAML',
                       'nwbext_ecog==0.7.2', 'ndx-spectrum', 'ndx-survey-data',
-                      'tqdm', 'pyopengl', 'process_nwb', 'tdt'],
+                      'tqdm', 'pyopengl', 'process_nwb', 'tdt', 'PyQtWebEngine'],
     entry_points={
         'console_scripts': ['ecogvis=ecogvis.ecogvis:cmd_line_shortcut'],
     }

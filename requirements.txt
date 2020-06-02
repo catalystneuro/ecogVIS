@@ -1,4 +1,5 @@
 PyQt5
+PyQtWebEngine
 matplotlib
 cycler
 scipy
