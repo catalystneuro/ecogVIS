@@ -1,6 +1,5 @@
 # Standard libraries
 from pathlib import Path
-from scipy.io import loadmat
 import yaml
 import os
 
@@ -9,6 +8,7 @@ import OpenGL.GL as ogl
 import numpy as np
 import pyqtgraph as pg
 import pyqtgraph.opengl as gl
+from PyQt5.QtWebEngineWidgets import QWebEngineView
 from PyQt5 import QtGui, QtCore, uic
 from PyQt5.QtWidgets import (QTableWidgetItem, QGridLayout, QGroupBox,
                              QLineEdit, QStyle, QMainWindow, QCheckBox,
@@ -588,6 +588,79 @@ class LoadHTKDialog(QtGui.QDialog):
             'metadata': self.metadata,
             'electrodes_file': self.electrodes_file,
         }
+        self.accept()
+
+
+# Warning that Survey data already exists in the NWB file --------------------
+class ExistSurveyDialog(QtGui.QDialog):
+    def __init__(self):
+        super().__init__()
+        self.text = QLabel("Survey data already exists in the current NWB file.")
+        self.okButton = QtGui.QPushButton("OK")
+        self.okButton.clicked.connect(self.onAccepted)
+        vbox = QtGui.QVBoxLayout()
+        vbox.addWidget(self.text)
+        vbox.addWidget(self.okButton)
+        self.setLayout(vbox)
+        self.setWindowTitle('Survey data already exists')
+        self.exec_()
+
+    def onAccepted(self):
+        self.accept()
+
+
+# Warning that Survey data does not exist in the NWB file --------------------
+class NoSurveyDialog(QtGui.QDialog):
+    def __init__(self):
+        super().__init__()
+        self.text = QLabel("There is no survey data in the current NWB file.")
+        self.okButton = QtGui.QPushButton("OK")
+        self.okButton.clicked.connect(self.onAccepted)
+        vbox = QtGui.QVBoxLayout()
+        vbox.addWidget(self.text)
+        vbox.addWidget(self.okButton)
+        self.setLayout(vbox)
+        self.setWindowTitle('Survey data does not exist')
+        self.exec_()
+
+    def onAccepted(self):
+        self.accept()
+
+
+# Show Survey data in a separate window --------------------------------------
+class ShowSurveyDialog(QtGui.QDialog):
+    def __init__(self, nwbfile):
+        super().__init__()
+        self.nwbfile = nwbfile
+        self.list_surveys = [v for v in nwbfile.processing['behavior'].data_interfaces.values()
+                             if v.neurodata_type == 'SurveyTable']
+
+        self.combo = QComboBox()
+        self.combo.activated.connect(self.render_survey_table)
+        for sv in self.list_surveys:
+            self.combo.addItem(sv.name)
+
+        self.html_viewer = QWebEngineView()
+        self.render_survey_table()
+
+        vbox = QtGui.QVBoxLayout()
+        vbox.addWidget(self.combo)
+        vbox.addWidget(self.html_viewer)
+        self.setLayout(vbox)
+        self.setWindowTitle('Survey data')
+        self.resize(500, 400)
+        self.exec_()
+
+    def render_survey_table(self):
+        """Renders survey table in html"""
+        survey_name = self.combo.currentText()
+        survey_table = self.nwbfile.processing['behavior'].data_interfaces[survey_name]
+        html = survey_table.to_dataframe().to_html()
+
+        self.html_viewer.setHtml(html)
+        self.html_viewer.show()
+
+    def onAccepted(self):
         self.accept()
 
 
