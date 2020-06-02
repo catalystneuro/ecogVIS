@@ -9,6 +9,7 @@ pandas
 pynwb
 nwbext_ecog
 ndx-spectrum
+ndx-survey-data
 pyopengl
 process_nwb
 PyYAML
