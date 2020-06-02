@@ -27,11 +27,15 @@ from ecogvis.functions.misc_dialogs import (CustomIntervalDialog, SelectChannels
                                             ExitDialog, HighGammaDialog, LoadHTKDialog,
                                             PeriodogramGridDialog, NoSpectrumDialog,
                                             PreprocessingDialog, NoRawDialog,
-                                            NoAudioDialog, ExistIntervalsDialog)
+                                            NoAudioDialog, ExistIntervalsDialog,
+                                            ExistSurveyDialog, NoSurveyDialog,
+                                            ShowSurveyDialog)
 from ecogvis.functions.audio_event_detection import AudioEventDetection
 from ecogvis.functions.event_related_potential import ERPDialog
 from ecogvis.functions.save_to_nwb import SaveToNWBDialog
 from ecogvis.functions.nwb_copy_file import nwb_copy_file
+from ecogvis.functions.survey_data import add_survey_data
+
 
 annotationAdd_ = False
 annotationDel_ = False
@@ -190,6 +194,14 @@ class Application(QMainWindow):
         action_event_detection = QAction('CV Event Detection', self)
         toolsMenu.addAction(action_event_detection)
         action_event_detection.triggered.connect(self.audio_event_detection)
+
+        survey_tools_menu = toolsMenu.addMenu('Survey')
+        action_add_survey = QAction('Add Survey', self)
+        survey_tools_menu.addAction(action_add_survey)
+        action_add_survey.triggered.connect(self.add_survey)
+        action_vis_survey = QAction('Visualize Survey', self)
+        survey_tools_menu.addAction(action_vis_survey)
+        action_vis_survey.triggered.connect(self.visualize_survey)
 
         helpMenu = mainMenu.addMenu('Help')
         action_about = QAction('About', self)
@@ -620,6 +632,34 @@ class Application(QMainWindow):
                 NoAudioDialog()
         else:
             ExistIntervalsDialog()
+
+    def add_survey(self):
+        """Add survey data from .mat file to current nwb file."""
+        # Test if current nwb file already contains Survey table
+        if 'behavior' in self.model.nwb.processing:
+            list_surveys = [v for v in self.model.nwb.processing['behavior'].data_interfaces.values()
+                            if v.neurodata_type == 'SurveyTable']
+            if len(list_surveys) > 0:
+                ExistSurveyDialog()
+                return None
+
+        # Open file dialog
+        path_file, _ = QFileDialog.getOpenFileName(None, 'Open file', '', "(*.mat)")
+        if os.path.isfile(path_file):
+            add_survey_data(nwbfile=self.model.nwb, path_survey_file=path_file)
+
+    def visualize_survey(self):
+        """Visualize survey data in current nwb file."""
+        # Test if current nwb file contains Survey table
+        if 'behavior' in self.model.nwb.processing:
+            list_surveys = [v for v in self.model.nwb.processing['behavior'].data_interfaces.values()
+                            if v.neurodata_type == 'SurveyTable']
+            if len(list_surveys) > 0:
+                ShowSurveyDialog(nwbfile=self.model.nwb)
+                return None
+        # If no survey data, warns user and return to main window
+        NoSurveyDialog()
+        return None
 
     def about(self):
         """About dialog."""
