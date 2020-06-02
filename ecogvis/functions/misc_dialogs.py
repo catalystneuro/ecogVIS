@@ -1,4 +1,7 @@
 # Standard libraries
+from pathlib import Path
+from scipy.io import loadmat
+import yaml
 import os
 
 # Third party libraries
@@ -8,10 +11,10 @@ import pyqtgraph as pg
 import pyqtgraph.opengl as gl
 from PyQt5 import QtGui, QtCore, uic
 from PyQt5.QtWidgets import (QTableWidgetItem, QGridLayout, QGroupBox,
-                             QLineEdit,
+                             QLineEdit, QStyle, QMainWindow, QCheckBox,
                              QWidget, QLabel, QPushButton, QVBoxLayout,
                              QHBoxLayout, QComboBox, QScrollArea,
-                             QFileDialog, QHeaderView, QMainWindow, QCheckBox)
+                             QFileDialog, QHeaderView, QRadioButton)
 from ecogvis.signal_processing import bands as default_bands
 from ecogvis.signal_processing.detect_events import detect_events
 from ecogvis.signal_processing.periodogram import psd_estimate
@@ -209,7 +212,7 @@ class PSDCalcFunction(QtCore.QThread):
         super().__init__()
         self.parent = parent
         self.data = parent.parent.model.source
-        self.src_file = parent.parent.file
+        self.src_file = str(parent.parent.source_path)
         self.type = parent.type  # 'raw' or 'preprocessed'
 
     def run(self):
@@ -251,6 +254,340 @@ class ExitDialog(QtGui.QDialog, Ui_Exit):
 
     def exit(self):
         self.value = -1
+        self.accept()
+
+
+# Import Electrophysiology and Analog data from HTK files -----------------
+class LoadHTKDialog(QtGui.QDialog):
+    def __init__(self, parent):
+        super().__init__()
+        self.parent = parent
+        self.value = 0
+        self.htk_config = None
+        self.metadata = {}
+        self.electrodes_file = None
+
+        # Metadata
+        label_metadata = QLabel('File path:')
+        self.push0 = QPushButton()
+        self.push0.clicked.connect(self.open_metafile)
+        self.push0.setIcon(self.style().standardIcon(QStyle.SP_DialogOpenButton))
+        self.line0 = QLineEdit('')
+
+        hbox00 = QHBoxLayout()
+        hbox00.addWidget(label_metadata)
+        hbox00.addWidget(self.push0)
+        hbox00.addWidget(self.line0)
+        vbox00 = QVBoxLayout()
+        vbox00.addLayout(hbox00)
+
+        groupBox00 = QGroupBox("Metadata (optional)")
+        groupBox00.setLayout(vbox00)
+
+        # Choose HTK dir
+        label_htkdir = QLabel('Source dir:')
+        self.push1 = QPushButton()
+        self.push1.clicked.connect(self.open_htk_dir)
+        self.push1.setIcon(self.style().standardIcon(QStyle.SP_DialogOpenButton))
+        self.line1 = QLineEdit('')
+
+        groupBox0 = QGroupBox("Electrophysiology data")
+        self.radio_raw = QRadioButton("Raw")
+        self.radio_pro = QRadioButton("Processed")
+        self.radio_hig = QRadioButton("High-gamma")
+        self.radio_raw.setChecked(True)
+        hbox0 = QHBoxLayout()
+        hbox0.addWidget(self.radio_raw)
+        hbox0.addWidget(self.radio_pro)
+        hbox0.addWidget(self.radio_hig)
+        hbox1 = QHBoxLayout()
+        hbox1.addWidget(label_htkdir)
+        hbox1.addWidget(self.push1)
+        hbox1.addWidget(self.line1)
+
+        vbox0 = QVBoxLayout()
+        vbox0.addLayout(hbox0)
+        vbox0.addLayout(hbox1)
+        groupBox0.setLayout(vbox0)
+
+        # Choose Analog dir
+        label_analogdir = QLabel('Source dir:')
+        self.push2 = QPushButton()
+        self.push2.clicked.connect(self.open_analog_dir)
+        self.push2.setIcon(self.style().standardIcon(QStyle.SP_DialogOpenButton))
+        self.line2 = QLineEdit('')
+
+        groupBox1 = QGroupBox("Analog data")
+        hbox2 = QtGui.QHBoxLayout()
+        hbox2.addWidget(label_analogdir)
+        hbox2.addWidget(self.push2)
+        hbox2.addWidget(self.line2)
+
+        vbox1 = QVBoxLayout()
+        vbox1.addLayout(hbox2)
+        groupBox1.setLayout(vbox1)
+
+        all_names = {
+            0: "microphone",
+            1: "speaker1",
+            2: "speaker2",
+            3: "button_press1",
+            4: "button_press2",
+            5: "custom"
+        }
+
+        # Each ANIN, gets populated later when user chooses path to Analog
+        self.groupBox_11 = QGroupBox("ANIN1")
+        self.label_11 = QLabel('Name:')
+        self.combo_11 = QComboBox()
+        self.combo_11.activated.connect(lambda: self.set_anin_name(ind=1))
+        for it in all_names.values():
+            self.combo_11.addItem(it)
+        self.combo_11.setCurrentIndex(0)
+        self.line_11 = QLineEdit('microphone')
+        self.line_11.setEnabled(False)
+        self.radio_11 = QRadioButton("Acquisition")
+        self.radio_12 = QRadioButton("Stimulus")
+        self.radio_11.setChecked(True)
+        hbox_11 = QtGui.QHBoxLayout()
+        hbox_11.addWidget(self.label_11)
+        hbox_11.addWidget(self.combo_11)
+        hbox_11.addWidget(self.line_11)
+        hbox_11.addWidget(self.radio_11)
+        hbox_11.addWidget(self.radio_12)
+        self.groupBox_11.setLayout(hbox_11)
+        self.groupBox_11.setCheckable(True)
+        self.groupBox_11.setChecked(False)
+
+        self.groupBox_21 = QGroupBox("ANIN2")
+        self.label_21 = QLabel('Name:')
+        self.combo_21 = QComboBox()
+        self.combo_21.activated.connect(lambda: self.set_anin_name(ind=2))
+        for it in all_names.values():
+            self.combo_21.addItem(it)
+        self.combo_21.setCurrentIndex(1)
+        self.line_21 = QLineEdit('speaker1')
+        self.line_21.setEnabled(False)
+        self.radio_21 = QRadioButton("Acquisition")
+        self.radio_22 = QRadioButton("Stimulus")
+        self.radio_22.setChecked(True)
+        hbox_21 = QtGui.QHBoxLayout()
+        hbox_21.addWidget(self.label_21)
+        hbox_21.addWidget(self.combo_21)
+        hbox_21.addWidget(self.line_21)
+        hbox_21.addWidget(self.radio_21)
+        hbox_21.addWidget(self.radio_22)
+        self.groupBox_21.setLayout(hbox_21)
+        self.groupBox_21.setCheckable(True)
+        self.groupBox_21.setChecked(False)
+
+        self.groupBox_31 = QGroupBox("ANIN3")
+        self.label_31 = QLabel('Name:')
+        self.combo_31 = QComboBox()
+        self.combo_31.activated.connect(lambda: self.set_anin_name(ind=3))
+        for it in all_names.values():
+            self.combo_31.addItem(it)
+        self.combo_31.setCurrentIndex(2)
+        self.line_31 = QLineEdit('speaker2')
+        self.line_31.setEnabled(False)
+        self.radio_31 = QRadioButton("Acquisition")
+        self.radio_32 = QRadioButton("Stimulus")
+        self.radio_32.setChecked(True)
+        hbox_31 = QtGui.QHBoxLayout()
+        hbox_31.addWidget(self.label_31)
+        hbox_31.addWidget(self.combo_31)
+        hbox_31.addWidget(self.line_31)
+        hbox_31.addWidget(self.radio_31)
+        hbox_31.addWidget(self.radio_32)
+        self.groupBox_31.setLayout(hbox_31)
+        self.groupBox_31.setCheckable(True)
+        self.groupBox_31.setChecked(False)
+
+        self.groupBox_41 = QGroupBox("ANIN4")
+        self.label_41 = QLabel('Name:')
+        self.combo_41 = QComboBox()
+        self.combo_41.activated.connect(lambda: self.set_anin_name(ind=4))
+        for it in all_names.values():
+            self.combo_41.addItem(it)
+        self.combo_41.setCurrentIndex(5)
+        self.line_41 = QLineEdit('custom')
+        self.line_41.setEnabled(True)
+        self.radio_41 = QRadioButton("Acquisition")
+        self.radio_42 = QRadioButton("Stimulus")
+        self.radio_41.setChecked(True)
+        hbox_41 = QtGui.QHBoxLayout()
+        hbox_41.addWidget(self.label_41)
+        hbox_41.addWidget(self.combo_41)
+        hbox_41.addWidget(self.line_41)
+        hbox_41.addWidget(self.radio_41)
+        hbox_41.addWidget(self.radio_42)
+        self.groupBox_41.setLayout(hbox_41)
+        self.groupBox_41.setCheckable(True)
+        self.groupBox_41.setChecked(False)
+
+        vbox1.addWidget(self.groupBox_11)
+        vbox1.addWidget(self.groupBox_21)
+        vbox1.addWidget(self.groupBox_31)
+        vbox1.addWidget(self.groupBox_41)
+
+        # Elecetrodes .mat file
+        label_electrodes = QLabel('File path:')
+        self.push4 = QPushButton()
+        self.push4.clicked.connect(self.open_elecsfile)
+        self.push4.setIcon(self.style().standardIcon(QStyle.SP_DialogOpenButton))
+        self.line4 = QLineEdit('')
+
+        hbox4 = QHBoxLayout()
+        hbox4.addWidget(label_electrodes)
+        hbox4.addWidget(self.push4)
+        hbox4.addWidget(self.line4)
+        vbox4 = QVBoxLayout()
+        vbox4.addLayout(hbox4)
+
+        groupBox4 = QGroupBox("Electrodes info")
+        groupBox4.setLayout(vbox4)
+
+        # Load and Cancel buttons
+        self.btn_load = QtGui.QPushButton("Load")
+        self.btn_load.clicked.connect(lambda: self.out_close(val=1))
+        self.btn_cancel = QPushButton("Cancel")
+        self.btn_cancel.clicked.connect(lambda: self.out_close(val=-1))
+        hbox3 = QtGui.QHBoxLayout()
+        hbox3.addStretch(1)
+        hbox3.addWidget(self.btn_load)
+        hbox3.addWidget(self.btn_cancel)
+
+        vbox = QtGui.QVBoxLayout()
+        vbox.addWidget(groupBox00)
+        vbox.addWidget(groupBox0)
+        vbox.addWidget(groupBox1)
+        vbox.addWidget(groupBox4)
+        vbox.addLayout(hbox3)
+
+        self.setLayout(vbox)
+        self.setWindowTitle('Load from HTK')
+        self.exec_()
+
+    def open_metafile(self):
+        """Opens yaml file containing NWB metadata"""
+        filename, _ = QFileDialog.getOpenFileName(None, 'Open metadata file',
+                                                  '', "(*.yml)")
+        if os.path.isfile(filename):
+            self.line0.setText(filename)
+            with open(filename) as f:
+                self.metadata = yaml.safe_load(f)
+
+    def open_htk_dir(self):
+        """
+        Opens the directory containing the HTK files with Electrophysiology
+        data to be loaded.
+        """
+        dir_path = QFileDialog.getExistingDirectory(
+            self, 'Open HTK dir', '', QtGui.QFileDialog.ShowDirsOnly)
+        if os.path.isdir(dir_path):
+            self.line1.setText(dir_path)
+
+    def open_elecsfile(self):
+        """Reads a .mat file containing electrodes info."""
+        filename, _ = QFileDialog.getOpenFileName(None, 'Open electrodes file',
+                                                  '', "(*.mat)")
+        if os.path.isfile(filename):
+            self.line4.setText(filename)
+            self.electrodes_file = Path(filename)
+
+    def open_analog_dir(self):
+        """Opens directory containing the HTK files with analog data."""
+        dir_path = QFileDialog.getExistingDirectory(
+            self, 'Open Analog dir', '', QtGui.QFileDialog.ShowDirsOnly)
+        if os.path.isdir(dir_path):
+            self.line2.setText(dir_path)
+            files_list = [f for f in Path(dir_path).glob('ANIN*.htk')]
+            files_names = [f.name for f in files_list]
+            if 'ANIN1.htk' in files_names:
+                self.groupBox_11.setChecked(True)
+            else:
+                self.groupBox_11.setChecked(False)
+            if 'ANIN2.htk' in files_names:
+                self.groupBox_21.setChecked(True)
+            else:
+                self.groupBox_21.setChecked(False)
+            if 'ANIN3.htk' in files_names:
+                self.groupBox_31.setChecked(True)
+            else:
+                self.groupBox_31.setChecked(False)
+            if 'ANIN4.htk' in files_names:
+                self.groupBox_41.setChecked(True)
+            else:
+                self.groupBox_41.setChecked(False)
+
+    def set_anin_name(self, ind):
+        if ind == 1:
+            self.line_11.setText(str(self.combo_11.currentText()))
+            self.line_11.setEnabled(False)
+            if str(self.combo_11.currentText()) == 'custom':
+                self.line_11.setEnabled(True)
+        if ind == 2:
+            self.line_21.setText(str(self.combo_21.currentText()))
+            self.line_21.setEnabled(False)
+            if str(self.combo_21.currentText()) == 'custom':
+                self.line_21.setEnabled(True)
+        if ind == 3:
+            self.line_31.setText(str(self.combo_31.currentText()))
+            self.line_31.setEnabled(False)
+            if str(self.combo_31.currentText()) == 'custom':
+                self.line_31.setEnabled(True)
+        if ind == 4:
+            self.line_41.setText(str(self.combo_41.currentText()))
+            self.line_41.setEnabled(False)
+            if str(self.combo_41.currentText()) == 'custom':
+                self.line_41.setEnabled(True)
+
+    def out_close(self, val):
+        """
+        Assemble the htk_config dictionary and exit the dialog.
+        htk_config = {
+            ecephys_path: 'path_to/ecephys_htk_files',
+            ecephys_type: 'raw', 'preprocessed' or 'high_gamma',
+            analog_path: 'path_to/analog_htk_files',
+            anin1: {present: True, name: 'microphone', type: 'acquisition'},
+            anin2: {present: True, name: 'speaker1', type: 'stimulus'},
+            anin3: {present: False, name: 'speaker2', type: 'stimulus'},
+            anin4: {present: False, name: 'custom', type: 'acquisition'},
+            metadata: metadata,
+            electrodes_file: electrodes_file
+        }
+        """
+        self.value = val
+        if self.radio_raw.isChecked():
+            ecephys_type = 'raw'
+        elif self.radio_pro.isChecked():
+            ecephys_type = 'preprocessed'
+        elif self.radio_hig.isChecked():
+            ecephys_type = 'high_gamma'
+
+        self.htk_config = {
+            'ecephys_path': str(self.line1.text()),
+            'ecephys_type': ecephys_type,
+            'analog_path': str(self.line2.text()),
+            'anin1': {
+                'present': self.groupBox_11.isChecked(),
+                'name': str(self.line_11.text()),
+                'type': ['acquisition' if self.radio_11.isChecked() else 'stimulus'][0]},
+            'anin2': {
+                'present': self.groupBox_21.isChecked(),
+                'name': str(self.line_21.text()),
+                'type': ['acquisition' if self.radio_21.isChecked() else 'stimulus'][0]},
+            'anin3': {
+                'present': self.groupBox_31.isChecked(),
+                'name': str(self.line_31.text()),
+                'type': ['acquisition' if self.radio_31.isChecked() else 'stimulus'][0]},
+            'anin4': {
+                'present': self.groupBox_41.isChecked(),
+                'name': str(self.line_41.text()),
+                'type': ['acquisition' if self.radio_41.isChecked() else 'stimulus'][0]},
+            'metadata': self.metadata,
+            'electrodes_file': self.electrodes_file,
+        }
         self.accept()
 
 
@@ -324,8 +661,8 @@ class SpectralChoiceDialog(QtGui.QDialog, Ui_SpectralChoice):
         super().__init__()
         self.setupUi(self)
         self.nwb = parent.model.nwb
-        self.fpath = parent.model.pathName
-        self.fname = parent.model.fileName
+        self.fpath = parent.model.source_path.parent
+        self.fname = parent.model.source_path.name
         self.chosen_bands = None  # Values for custom filter bands (user input)
         self.value = -1  # Reference value for user pressed exit button
         self.radioButton_1.clicked.connect(self.choice_default)
@@ -469,8 +806,8 @@ class HighGammaDialog(QtGui.QDialog, Ui_HighGamma):
         self.setupUi(self)
         self.parent = parent
         self.nwb = parent.model.nwb
-        self.fpath = parent.model.pathName
-        self.fname = parent.model.fileName
+        self.fpath = parent.model.source_path.parent
+        self.fname = parent.model.source_path.name
         self.chosen_bands = None  # Values for custom filter bands (user input)
         self.value = -1  # Reference value for user pressed exit button'
         self.new_fname = ''
@@ -693,8 +1030,8 @@ class PreprocessingDialog(QtGui.QDialog, Ui_Preprocessing):
         self.lineEdit_3.setText('400')
         self.pushButton_1.clicked.connect(lambda: self.out_close(-1))
         self.pushButton_2.clicked.connect(self.ok)
-        self.fname = parent.model.fileName
-        self.fpath = parent.model.pathName
+        self.fname = parent.model.source_path.name
+        self.fpath = parent.model.source_path.parent
         # if preprocessed signals already exist on NWB file
         if 'ecephys' in parent.model.nwb.processing:
             if 'LFP' in parent.model.nwb.processing['ecephys'].data_interfaces:

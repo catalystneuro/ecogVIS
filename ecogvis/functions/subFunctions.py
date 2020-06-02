@@ -1,4 +1,5 @@
 import os
+from pathlib import Path
 from scipy import signal
 import numpy as np
 import pandas as pd
@@ -8,6 +9,7 @@ import pyqtgraph as pg
 import datetime
 import pynwb
 import nwbext_ecog
+from ecogvis.functions.htk_to_nwb.chang2nwb import chang2nwb
 
 
 class TimeSeriesPlotter:
@@ -16,15 +18,27 @@ class TimeSeriesPlotter:
     It also holds information of the currently open NWB file, as well as user
     annotations and intervals.
     """
-    def __init__(self, par):
+    def __init__(self, par, htk_config=None):
         self.parent = par
-        self.fullpath = par.file
-        self.pathName = os.path.split(os.path.abspath(par.file))[0]  # path
-        self.fileName = os.path.split(os.path.abspath(par.file))[1]  # file
-        self.parent.setWindowTitle('ecogVIS - ' + self.fileName + ' - ' + self.parent.current_session)
+        self.source_path = Path(par.source_path)
 
-        self.io = pynwb.NWBHDF5IO(self.fullpath, 'r+', load_namespaces=True)
-        self.nwb = self.io.read()      # reads NWB file
+        # Makes nwbfile object from nwb file or from HTK directory
+        if self.source_path.is_file():
+            self.subject_id = self.source_path.name.split('_')[0][2:]
+            self.block = self.source_path.name.split('_')[1][1:-4]
+            self.io = pynwb.NWBHDF5IO(str(self.source_path), 'r+', load_namespaces=True)
+            self.nwb = self.io.read()      # reads NWB file
+        elif self.source_path.is_dir():
+            self.nwb, self.source_path, self.subject_id, self.block = chang2nwb(
+                blockpath=str(par.source_path),
+                save_to_file=True,
+                htk_config=htk_config,
+            )
+            self.parent.source_path = self.source_path.absolute()
+
+        title = ' '.join(['EcogVIS -', self.parent.current_session,
+                          self.source_path.name, '-', self.block])
+        self.parent.setWindowTitle(title)
 
         # Tries to load Raw data
         lis = list(self.nwb.acquisition.keys())
@@ -62,7 +76,7 @@ class TimeSeriesPlotter:
         self.allChannels = np.arange(0, self.nChTotal)  # array with all channels
 
         # Get Brain regions present in current file
-        self.all_regions = list(set(self.nwb.electrodes['location'][:].tolist()))
+        self.all_regions = list(set(list(self.nwb.electrodes['location'][:])))
         self.all_regions.sort()
         self.regions_mask = [True] * len(self.all_regions)
 
@@ -150,9 +164,12 @@ class TimeSeriesPlotter:
 
     def refresh_file(self):
         """Re-opens the current file, for when new data is included"""
-        self.io.close()   # closes current NWB file
-        self.io = pynwb.NWBHDF5IO(self.fullpath, 'r+', load_namespaces=True)
+        if hasattr(self, 'io'):
+            self.io.close()   # closes current NWB file
+
+        self.io = pynwb.NWBHDF5IO(str(self.source_path), 'r+', load_namespaces=True)
         self.nwb = self.io.read()      # reads NWB file
+
         # Searches for signal source on file
         try:   # Tries to load Raw data
             lis = list(self.nwb.acquisition.keys())
@@ -542,7 +559,7 @@ class TimeSeriesPlotter:
             c5 = [self.AnnotationsList[i].session for i in range(len(self.AnnotationsList))]
             d = {'x': c0, 'y_va': c1, 'y_off': c2, 'color': c3, 'text': c4, 'session': c5}
             df = pd.DataFrame(data=d)
-            fullfile = os.path.join(self.pathName, self.fileName[:-4] + '_annotations_' +
+            fullfile = os.path.join('annotations_' +
                                     datetime.datetime.today().strftime('%Y-%m-%d') +
                                     '.csv')
             df.to_csv(fullfile, header=True, index=True)
@@ -669,7 +686,7 @@ class TimeSeriesPlotter:
                 c4.append(obj.session)   # session
             d = {'start': c0, 'stop': c1, 'type': c2, 'color': c3, 'session': c4}
             df = pd.DataFrame(data=d)
-            fullfile = os.path.join(self.pathName, self.fileName[:-4] + '_intervals_' +
+            fullfile = os.path.join('intervals_' +
                                     datetime.datetime.today().strftime('%Y-%m-%d') +
                                     '.csv')
             df.to_csv(fullfile, header=True, index=True)
@@ -741,7 +758,14 @@ class TimeSeriesPlotter:
             aux = [False] * self.nChTotal
             for ind in self.badChannels:
                 aux[ind] = True
-            self.nwb.electrodes['bad'].data[:] = aux
+            if 'bad' not in self.nwb.electrodes:
+                self.nwb.add_electrode_column(
+                    name='bad',
+                    description='electrode identified as too noisy',
+                    data=aux,
+                )
+            else:
+                self.nwb.electrodes['bad'].data[:] = aux
 
     def DrawMarkTime(self, position):
         """Marks temporary reference line when adding a new interval."""
@@ -758,7 +782,8 @@ class TimeSeriesPlotter:
 
     def close_nwbfile(self):
         """Close current nwbfile"""
-        self.io.close()
+        if hasattr(self, 'io'):
+            self.io.close()
 
 
 class CustomInterval:
