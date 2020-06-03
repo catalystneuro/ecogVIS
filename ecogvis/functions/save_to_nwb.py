@@ -35,13 +35,22 @@ class SaveToNWBDialog(QtGui.QDialog):
         self.form_1 = QVBoxLayout()
         self.form_1.addWidget(self.chk_raw)
 
-        # Include processing
-        self.checks_processing = []
+        # Include processing 'ecephys'
+        self.checks_processing_ecephys = []
         if 'ecephys' in self.curr_nwbfile.processing:
             for k, v in self.curr_nwbfile.processing['ecephys'].data_interfaces.items():
                 chk = QCheckBox(k)
                 chk.setChecked(False)
-                self.checks_processing.append(chk)
+                self.checks_processing_ecephys.append(chk)
+                self.form_1.addWidget(chk)
+
+        # Include processing 'behavior'
+        self.checks_processing_behavior = []
+        if 'behavior' in self.curr_nwbfile.processing:
+            for k, v in self.curr_nwbfile.processing['behavior'].data_interfaces.items():
+                chk = QCheckBox(k)
+                chk.setChecked(False)
+                self.checks_processing_behavior.append(chk)
                 self.form_1.addWidget(chk)
         self.panel_1 = QGroupBox('Include data:')
         self.panel_1.setLayout(self.form_1)
@@ -139,15 +148,19 @@ class SaveToNWBDialog(QtGui.QDialog):
             'subject': True,
             'acquisition': [],
             'stimulus': [],
-            'ecephys': []
+            'ecephys': [],
+            'behavior': [],
         }
         # Raw data
         if self.chk_raw.isChecked():
             self.cp_objs['acquisition'].append(self.raw_name)
         # Processed data
-        for chk in self.checks_processing:
+        for chk in self.checks_processing_ecephys:
             if chk.isChecked():
                 self.cp_objs['ecephys'].append(chk.text())
+        for chk in self.checks_processing_behavior:
+            if chk.isChecked():
+                self.cp_objs['behavior'].append(chk.text())
         # Mic recording
         for chk in self.checks_mic:
             if chk.isChecked():

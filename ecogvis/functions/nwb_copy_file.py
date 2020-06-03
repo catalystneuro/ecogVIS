@@ -2,6 +2,7 @@
 import numpy as np
 from hdmf.common.table import DynamicTable, VectorData
 from ndx_spectrum import Spectrum
+from ndx_survey_data.survey_definitions import nrs_survey_table, mpq_survey_table, vas_survey_table
 from nwbext_ecog import CorticalSurfaces, ECoGSubject
 from pynwb import NWBFile, NWBHDF5IO, get_manager, ProcessingModule
 from pynwb.base import TimeSeries
@@ -219,6 +220,20 @@ def nwb_copy_file(old_file, new_file, cp_objs={}, save_to_file=True):
                 if obj is not None:
                     ecephys_module.add_data_interface(obj)
 
+        if 'behavior' in cp_objs:
+            interfaces = [nwb_old.processing['behavior'].data_interfaces[key]
+                          for key in cp_objs['behavior']]
+            # Add behavior module to NWB file
+            behavior_module = ProcessingModule(
+                name='behavior',
+                description='behavioral data.'
+            )
+            nwb_new.add_processing_module(behavior_module)
+            for interface_old in interfaces:
+                obj = copy_obj(interface_old, nwb_old, nwb_new)
+                if obj is not None:
+                    behavior_module.add_data_interface(obj)
+
         # Acquisition -----------------------------------------------------
         # Can get raw ElecetricalSeries and Mic recording
         if 'acquisition' in cp_objs:
@@ -381,3 +396,54 @@ def copy_obj(obj_old, nwb_old, nwb_new):
             power=obj_old.power,
             electrodes=elecs_region
         )
+
+    # Survey tables ------------------------------------------------------------
+    if type(obj_old) is nrs_survey_table:
+        raise NotImplementedError('TODO')
+        n_rows = len(obj_old['nrs_pain_intensity_rating'].data[:])
+        for i in range(n_rows):
+            nrs_survey_table.add_row(
+                nrs_pain_intensity_rating=obj_old['nrs_pain_intensity_rating'].data[i],
+                nrs_relative_pain_intensity_rating=obj_old['nrs_relative_pain_intensity_rating'].data[i],
+                nrs_pain_unpleasantness=obj_old['nrs_pain_unpleasantness'].data[i],
+                nrs_pain_relief_rating=obj_old['nrs_pain_relief_rating'].data[i],
+                unix_timestamp=obj_old['unix_timestamp'].data[i]
+            )
+        return nrs_survey_table
+
+    if type(obj_old) is vas_survey_table:
+        raise NotImplementedError('TODO')
+        n_rows = len(obj_old['vas_pain_intensity_rating'].data[:])
+        for i in range(n_rows):
+            vas_survey_table.add_row(
+                vas_pain_intensity_rating=obj_old['vas_pain_intensity_rating'].data[i],
+                vas_pain_relief_rating=obj_old['vas_pain_relief_rating'].data[i],
+                vas_relative_pain_intensity_rating=obj_old['vas_relative_pain_intensity_rating'].data[i],
+                vas_pain_unpleasantness=obj_old['vas_pain_unpleasantness'].data[i],
+                unix_timestamp=obj_old['unix_timestamp'].data[i],
+            )
+        return vas_survey_table
+
+    if type(obj_old) is mpq_survey_table:
+        raise NotImplementedError('TODO')
+        n_rows = len(obj_old['throbbing'].data[:])
+        for i in range(n_rows):
+            mpq_survey_table.add_row(
+                throbbing=obj_old['throbbing'].data[i],
+                shooting=obj_old['shooting'].data[i],
+                stabbing=obj_old['stabbing'].data[i],
+                sharp=obj_old['sharp'].data[i],
+                cramping=obj_old['cramping'].data[i],
+                gnawing=obj_old['gnawing'].data[i],
+                hot_burning=obj_old['hot_burning'].data[i],
+                aching=obj_old['aching'].data[i],
+                heavy=obj_old['heavy'].data[i],
+                tender=obj_old['tender'].data[i],
+                splitting=obj_old['splitting'].data[i],
+                tiring_exhausting=obj_old['tiring_exhausting'].data[i],
+                sickening=obj_old['sickening'].data[i],
+                fearful=obj_old['fearful'].data[i],
+                cruel_punishing=obj_old['cruel_punishing'].data[i],
+                unix_timestamp=obj_old['unix_timestamp'].data[i],
+            )
+        return mpq_survey_table
