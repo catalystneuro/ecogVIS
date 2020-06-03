@@ -7,7 +7,7 @@ with open('README.md', 'r') as f:
 
 setup(
     name='ecogvis',
-    version='1.0.1',
+    version='1.1.0',
     description='Timeseries visualizer for Electrocorticography (ECoG) signals stored in NWB files.',
     long_description=long_description,
     long_description_content_type='text/markdown',
