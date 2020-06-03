@@ -1,19 +1,6 @@
-from ndx_survey_data import SurveyTable
+from ndx_survey_data.survey_definitions import nrs_survey_table, mpq_survey_table, vas_survey_table
 from scipy.io import loadmat
 import math
-
-
-def map_to_words(data, col_name):
-    """Map data to words"""
-    # Map nan to 'no answer'
-    data = ['no answer' if math.isnan(a) else int(a) for a in data]
-
-    # Map integers to words for McGill Pain Questionnaire
-    if ('mpq' in col_name) and ('total' not in col_name):
-        words = ['mild', 'moderate', 'severe']
-        data = [words[a - 1] if not isinstance(a, str) else a for a in data]
-
-    return data
 
 
 def add_survey_data(nwbfile, path_survey_file):
@@ -30,29 +17,69 @@ def add_survey_data(nwbfile, path_survey_file):
     survey_data = survey_dict['redcap_painscores']
     survey_dt = survey_dict['redcap_datetimes'][:, 0]
 
-    # Create Survey table
-    survey_table = SurveyTable(name='daily_pain_survey', description='desc')
+    # Mpq data values
+    def mpq_values(val):
+        if math.isnan(val):
+            return 'no answer'
+        elif int(val) == 1:
+            return 'mild'
+        elif int(val) == 2:
+            return 'moderate'
+        elif int(val) == 3:
+            return 'severe'
 
-    # Add unix timestamps
-    for d_t in survey_dt:
-        survey_table.add_row(unix_timestamp=d_t)
+    # NRS and VAS data values
+    def nrs_values(val):
+        if math.isnan(val):
+            return 'no answer'
+        else:
+            return int(val)
 
-    # Add columns
-    question_name = [q[0] for q in survey_dict['column_questionName'][0, :]]
-    question_category = [q[0] for q in survey_dict['column_taskCategory'][0, :]]
-    for i, (q, c) in enumerate(zip(question_name, question_category)):
-        # Join question name and category to form column name
-        col_name = q.lower().replace(' ', '_') + '_' + c.lower()
+    # Add rows to tables
+    for i, row in enumerate(survey_data):
+        # NRS table
+        nrs_null = all([math.isnan(v) for v in row[0:4]])
+        if not nrs_null:
+            nrs_survey_table.add_row(
+                nrs_pain_intensity_rating=nrs_values(row[0]),
+                nrs_relative_pain_intensity_rating=nrs_values(row[1]),
+                nrs_pain_unpleasantness=nrs_values(row[2]),
+                nrs_pain_relief_rating=nrs_values(row[3]),
+                unix_timestamp=survey_dt[i]
+            )
 
-        # Process data
-        data = map_to_words(data=survey_data[:, i], col_name=col_name)
+        # VAS table
+        vas_null = all([math.isnan(v) for v in row[4:8]])
+        if not vas_null:
+            vas_survey_table.add_row(
+                vas_pain_intensity_rating=nrs_values(row[4]),
+                vas_pain_relief_rating=nrs_values(row[5]),
+                vas_relative_pain_intensity_rating=nrs_values(row[6]),
+                vas_pain_unpleasantness=nrs_values(row[7]),
+                unix_timestamp=survey_dt[i]
+            )
 
-        # Add column
-        survey_table.add_column(
-            name=col_name,
-            description='desc',
-            data=data
-        )
+        # MPQ table
+        mpq_null = all([math.isnan(v) for v in row[9:]])
+        if not mpq_null:
+            mpq_survey_table.add_row(
+                throbbing=mpq_values(row[9]),
+                shooting=mpq_values(row[10]),
+                stabbing=mpq_values(row[11]),
+                sharp=mpq_values(row[12]),
+                cramping=mpq_values(row[13]),
+                gnawing=mpq_values(row[14]),
+                hot_burning=mpq_values(row[15]),
+                aching=mpq_values(row[16]),
+                heavy=mpq_values(row[17]),
+                tender=mpq_values(row[18]),
+                splitting=mpq_values(row[19]),
+                tiring_exhausting=mpq_values(row[20]),
+                sickening=mpq_values(row[21]),
+                fearful=mpq_values(row[22]),
+                cruel_punishing=mpq_values(row[23]),
+                unix_timestamp=survey_dt[i]
+            )
 
     # Create behavioral processing module, if not existent
     if 'behavior' not in nwbfile.processing:
@@ -61,7 +88,9 @@ def add_survey_data(nwbfile, path_survey_file):
             description='behavioral data'
         )
 
-    # Add survey table to behavioral processing module
-    nwbfile.processing['behavior'].add(survey_table)
+    # Add survey tables to behavioral processing module
+    nwbfile.processing['behavior'].add(nrs_survey_table)
+    nwbfile.processing['behavior'].add(vas_survey_table)
+    nwbfile.processing['behavior'].add(mpq_survey_table)
 
     print('Survey data added successfully!')
