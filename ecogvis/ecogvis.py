@@ -28,8 +28,7 @@ from ecogvis.functions.misc_dialogs import (CustomIntervalDialog, SelectChannels
                                             PeriodogramGridDialog, NoSpectrumDialog,
                                             PreprocessingDialog, NoRawDialog,
                                             NoAudioDialog, ExistIntervalsDialog,
-                                            ExistSurveyDialog, NoSurveyDialog,
-                                            ShowSurveyDialog)
+                                            ExistSurveyDialog, ShowSurveyDialog)
 from ecogvis.functions.audio_event_detection import AudioEventDetection
 from ecogvis.functions.event_related_potential import ERPDialog
 from ecogvis.functions.save_to_nwb import SaveToNWBDialog
@@ -199,9 +198,10 @@ class Application(QMainWindow):
         action_add_survey = QAction('Add Survey', self)
         survey_tools_menu.addAction(action_add_survey)
         action_add_survey.triggered.connect(self.add_survey)
-        action_vis_survey = QAction('Visualize Survey', self)
-        survey_tools_menu.addAction(action_vis_survey)
-        action_vis_survey.triggered.connect(self.visualize_survey)
+        self.action_vis_survey = QAction('Visualize Survey', self)
+        survey_tools_menu.addAction(self.action_vis_survey)
+        self.action_vis_survey.setEnabled(False)
+        self.action_vis_survey.triggered.connect(self.visualize_survey)
 
         helpMenu = mainMenu.addMenu('Help')
         action_about = QAction('About', self)
@@ -647,6 +647,7 @@ class Application(QMainWindow):
         path_file, _ = QFileDialog.getOpenFileName(None, 'Open file', '', "(*.mat)")
         if os.path.isfile(path_file):
             add_survey_data(nwbfile=self.model.nwb, path_survey_file=path_file)
+            self.action_vis_survey.setEnabled(True)
 
     def visualize_survey(self):
         """Visualize survey data in current nwb file."""
@@ -656,10 +657,6 @@ class Application(QMainWindow):
                             if v.neurodata_type == 'SurveyTable']
             if len(list_surveys) > 0:
                 ShowSurveyDialog(nwbfile=self.model.nwb)
-                return None
-        # If no survey data, warns user and return to main window
-        NoSurveyDialog()
-        return None
 
     def about(self):
         """About dialog."""
