@@ -15,6 +15,8 @@ import numpy as np
 import pandas as pd
 from hdmf.backends.hdf5 import H5DataIO
 from nwbext_ecog import ECoGSubject
+from ndx_bipolar_scheme import BipolarSchemeTable, EcephysExt
+from pynwb.file import DynamicTableRegion
 from pynwb import NWBFile, TimeSeries, get_manager, NWBHDF5IO
 from pynwb.ecephys import ElectricalSeries, LFP
 import scipy.io as sio
@@ -242,7 +244,8 @@ def chang2nwb(blockpath, out_file_path=None, save_to_file=False, htk_config=None
             anin3: {present: False, name: 'speaker2', type: 'stimulus'},
             anin4: {present: False, name: 'custom', type: 'acquisition'},
             metadata: metadata,
-            electrodes_file: electrodes_file
+            electrodes_file: electrodes_file,
+            bipolar_file: bipolar_file
         }
 
     Returns
@@ -294,8 +297,8 @@ def chang2nwb(blockpath, out_file_path=None, save_to_file=False, htk_config=None
         n_electrodes = nwbfile.electrodes[:].shape[0]
         all_elecs = list(range(n_electrodes))
         elecs_region = nwbfile.create_electrode_table_region(
-            all_elecs,
-            'ECoG electrodes on brain'
+            region=all_elecs,
+            description='ECoG electrodes on brain'
         )
     else:  # Get electrodes info from metadata file
         ecephys_dict = {
@@ -351,9 +354,44 @@ def chang2nwb(blockpath, out_file_path=None, save_to_file=False, htk_config=None
 
         all_elecs = list(range(n_electrodes))
         elecs_region = nwbfile.create_electrode_table_region(
-            all_elecs,
-            'ECoG electrodes on brain'
+            region=all_elecs,
+            description='ECoG electrodes on brain'
         )
+
+    # Get Bipolar table from file
+    if htk_config['bipolar_file'] is not None:
+        df = pd.read_csv(htk_config['bipolar_file'], index_col='id', sep='\t')
+
+        # Create bipolar scheme table
+        bipolar_scheme_table = BipolarSchemeTable(
+            name='bipolar_scheme_table',
+            description='desc'
+        )
+        # Iterate over anode / cathode rows
+        for i, r in df.iterrows():
+            if isinstance(r['anodes'], str):
+                anodes = [int(a) for a in r['anodes'].split(',')]
+            else:
+                anodes = [int(r['anodes'])]
+            if isinstance(r['cathodes'], str):
+                cathodes = [int(a) for a in r['cathodes'].split(',')]
+            else:
+                cathodes = [int(r['cathodes'])]
+            bipolar_scheme_table.add_row(anodes=anodes, cathodes=cathodes)
+        bipolar_scheme_table.anodes.table = nwbfile.electrodes
+        bipolar_scheme_table.cathodes.table = nwbfile.electrodes
+
+        # Creates bipolar table region
+        elecs_region = DynamicTableRegion(
+            name='electrodes',
+            data=np.arange(0, df.shape[0]),
+            description='desc',
+            table=bipolar_scheme_table
+        )
+
+        ecephys_ext = EcephysExt(name='ecephys_ext')
+        ecephys_ext.bipolar_scheme_table = bipolar_scheme_table
+        nwbfile.add_lab_meta_data(ecephys_ext)
 
     # Stores HTK electrophysiology data as raw, preprocessed or high gamma
     if htk_config['ecephys_type'] == 'raw':

@@ -266,6 +266,7 @@ class LoadHTKDialog(QtGui.QDialog):
         self.htk_config = None
         self.metadata = {}
         self.electrodes_file = None
+        self.bipolar_file = None
 
         # Metadata
         label_metadata = QLabel('File path:')
@@ -447,6 +448,23 @@ class LoadHTKDialog(QtGui.QDialog):
         groupBox4 = QGroupBox("Electrodes info")
         groupBox4.setLayout(vbox4)
 
+        # Bipolar electrodes table file
+        label_bipolar = QLabel('File path:')
+        self.push5 = QPushButton()
+        self.push5.clicked.connect(self.open_bipolarfile)
+        self.push5.setIcon(self.style().standardIcon(QStyle.SP_DialogOpenButton))
+        self.line5 = QLineEdit('')
+
+        hbox5 = QHBoxLayout()
+        hbox5.addWidget(label_bipolar)
+        hbox5.addWidget(self.push5)
+        hbox5.addWidget(self.line5)
+        vbox5 = QVBoxLayout()
+        vbox5.addLayout(hbox5)
+
+        groupBox5 = QGroupBox("Bipolar table")
+        groupBox5.setLayout(vbox5)
+
         # Load and Cancel buttons
         self.btn_load = QtGui.QPushButton("Load")
         self.btn_load.clicked.connect(lambda: self.out_close(val=1))
@@ -462,6 +480,7 @@ class LoadHTKDialog(QtGui.QDialog):
         vbox.addWidget(groupBox0)
         vbox.addWidget(groupBox1)
         vbox.addWidget(groupBox4)
+        vbox.addWidget(groupBox5)
         vbox.addLayout(hbox3)
 
         self.setLayout(vbox)
@@ -494,6 +513,14 @@ class LoadHTKDialog(QtGui.QDialog):
         if os.path.isfile(filename):
             self.line4.setText(filename)
             self.electrodes_file = Path(filename)
+
+    def open_bipolarfile(self):
+        """Reads a .csv file containing bipolar electrodes table info."""
+        filename, _ = QFileDialog.getOpenFileName(None, 'Open electrodes file',
+                                                  '', "(*.csv)")
+        if os.path.isfile(filename):
+            self.line5.setText(filename)
+            self.bipolar_file = Path(filename)
 
     def open_analog_dir(self):
         """Opens directory containing the HTK files with analog data."""
@@ -554,7 +581,8 @@ class LoadHTKDialog(QtGui.QDialog):
             anin3: {present: False, name: 'speaker2', type: 'stimulus'},
             anin4: {present: False, name: 'custom', type: 'acquisition'},
             metadata: metadata,
-            electrodes_file: electrodes_file
+            electrodes_file: electrodes_file,
+            bipolar_file: bipolar_file
         }
         """
         self.value = val
@@ -587,6 +615,7 @@ class LoadHTKDialog(QtGui.QDialog):
                 'type': ['acquisition' if self.radio_41.isChecked() else 'stimulus'][0]},
             'metadata': self.metadata,
             'electrodes_file': self.electrodes_file,
+            'bipolar_file': self.bipolar_file,
         }
         self.accept()
 
