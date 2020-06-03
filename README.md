@@ -1,6 +1,7 @@
 # ecogVIS
 Timeseries visualizer and data processing tools for Electrocorticography (ECoG) signals stored in [NWB](https://neurodatawithoutborders.github.io/) files, for Python.
 
+[![PyPI version](https://badge.fury.io/py/ecogvis.svg)](https://badge.fury.io/py/ecogvis)
 [![codecov](https://codecov.io/gh/ben-dichter-consulting/ecogVIS/branch/master/graph/badge.svg)](https://codecov.io/gh/ben-dichter-consulting/ecogVIS)
 
 
