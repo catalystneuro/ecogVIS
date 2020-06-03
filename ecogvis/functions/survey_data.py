@@ -33,7 +33,7 @@ def add_survey_data(nwbfile, path_survey_file):
         if math.isnan(val):
             return 'no answer'
         else:
-            return int(val)
+            return str(int(val))
 
     # Add rows to tables
     for i, row in enumerate(survey_data):

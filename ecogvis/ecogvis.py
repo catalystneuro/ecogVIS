@@ -639,6 +639,8 @@ class Application(QMainWindow):
         if os.path.isfile(path_file):
             add_survey_data(nwbfile=self.model.nwb, path_survey_file=path_file)
             self.action_vis_survey.setEnabled(True)
+            # Write changes to NWB file
+            self.model.io.write(self.model.nwb)
 
     def visualize_survey(self):
         """Visualize survey data in current nwb file."""
