@@ -609,24 +609,6 @@ class ExistSurveyDialog(QtGui.QDialog):
         self.accept()
 
 
-# Warning that Survey data does not exist in the NWB file --------------------
-class NoSurveyDialog(QtGui.QDialog):
-    def __init__(self):
-        super().__init__()
-        self.text = QLabel("There is no survey data in the current NWB file.")
-        self.okButton = QtGui.QPushButton("OK")
-        self.okButton.clicked.connect(self.onAccepted)
-        vbox = QtGui.QVBoxLayout()
-        vbox.addWidget(self.text)
-        vbox.addWidget(self.okButton)
-        self.setLayout(vbox)
-        self.setWindowTitle('Survey data does not exist')
-        self.exec_()
-
-    def onAccepted(self):
-        self.accept()
-
-
 # Show Survey data in a separate window --------------------------------------
 class ShowSurveyDialog(QtGui.QDialog):
     def __init__(self, nwbfile):

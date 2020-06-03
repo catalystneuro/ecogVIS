@@ -24,8 +24,12 @@ class TimeSeriesPlotter:
 
         # Makes nwbfile object from nwb file or from HTK directory
         if self.source_path.is_file():
-            self.subject_id = self.source_path.name.split('_')[0][2:]
-            self.block = self.source_path.name.split('_')[1][1:-4]
+            if '_' in self.source_path.name:
+                self.subject_id = self.source_path.name.split('_')[0][2:]
+                self.block = self.source_path.name.split('_')[1][1:-4]
+            else:
+                self.subject_id = ''
+                self.block = ''
             self.io = pynwb.NWBHDF5IO(str(self.source_path), 'r+', load_namespaces=True)
             self.nwb = self.io.read()      # reads NWB file
         elif self.source_path.is_dir():
@@ -141,6 +145,17 @@ class TimeSeriesPlotter:
             c.setPen(pg.mkPen(color='r'))
             c.setBrush(QtGui.QColor(255, 0, 0, 120))
             self.parent.win1.addItem(c)
+
+        # Test if current nwb file contains Survey table
+        if 'behavior' in self.nwb.processing:
+            list_surveys = [v for v in self.nwb.processing['behavior'].data_interfaces.values()
+                            if v.neurodata_type == 'SurveyTable']
+            if len(list_surveys) > 0:
+                self.parent.action_vis_survey.setEnabled(True)
+            else:
+                self.parent.action_vis_survey.setEnabled(False)
+        else:
+            self.parent.action_vis_survey.setEnabled(False)
 
         # Add Speaker and Mic Intervals if they exist
         self.SpeakerAndMicIntervalAdd()
