@@ -115,7 +115,6 @@ def nwb_copy_file(old_file, new_file, cp_objs={}, save_to_file=True):
                             'group', 'group_name']
             [new_vars.remove(var) for var in default_vars]
             for var in new_vars:
-
                 if var == 'label':
                     var_data = [str(elem) for elem in nwb_old.electrodes[var].data[:]]
                 else:
@@ -228,27 +227,28 @@ def nwb_copy_file(old_file, new_file, cp_objs={}, save_to_file=True):
                 nwb_new.add_acquisition(acq)
 
         # Subject ---------------------------------------------------------
-        if 'subject' in cp_objs:
-            try:
-                cortical_surfaces = CorticalSurfaces()
-                surfaces = nwb_old.subject.cortical_surfaces.surfaces
-                for sfc in list(surfaces.keys()):
-                    cortical_surfaces.create_surface(
-                        name=surfaces[sfc].name,
-                        faces=surfaces[sfc].faces,
-                        vertices=surfaces[sfc].vertices)
-                nwb_new.subject = ECoGSubject(
-                    cortical_surfaces=cortical_surfaces,
-                    subject_id=nwb_old.subject.subject_id,
-                    age=nwb_old.subject.age,
-                    description=nwb_old.subject.description,
-                    genotype=nwb_old.subject.genotype,
-                    sex=nwb_old.subject.sex,
-                    species=nwb_old.subject.species,
-                    weight=nwb_old.subject.weight,
-                    date_of_birth=nwb_old.subject.date_of_birth)
-            except:
-                nwb_new.subject = Subject(**nwb_old.subject.fields)
+        if nwb_old.subject is not None:
+            if 'subject' in cp_objs:
+                try:
+                    cortical_surfaces = CorticalSurfaces()
+                    surfaces = nwb_old.subject.cortical_surfaces.surfaces
+                    for sfc in list(surfaces.keys()):
+                        cortical_surfaces.create_surface(
+                            name=surfaces[sfc].name,
+                            faces=surfaces[sfc].faces,
+                            vertices=surfaces[sfc].vertices)
+                    nwb_new.subject = ECoGSubject(
+                        cortical_surfaces=cortical_surfaces,
+                        subject_id=nwb_old.subject.subject_id,
+                        age=nwb_old.subject.age,
+                        description=nwb_old.subject.description,
+                        genotype=nwb_old.subject.genotype,
+                        sex=nwb_old.subject.sex,
+                        species=nwb_old.subject.species,
+                        weight=nwb_old.subject.weight,
+                        date_of_birth=nwb_old.subject.date_of_birth)
+                except:
+                    nwb_new.subject = Subject(**nwb_old.subject.fields)
 
         # Write new file with copied fields
         if save_to_file:
