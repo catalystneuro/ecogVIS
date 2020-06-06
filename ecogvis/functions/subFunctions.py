@@ -72,6 +72,7 @@ class TimeSeriesPlotter:
         self.fs_signal = self.source.rate     # sampling frequency [Hz]
         self.tbin_signal = 1 / self.fs_signal  # time bin duration [seconds]
         self.nBins = self.source.data.shape[0]     # total number of bins
+        self.min_window_bins = 10                   # minimum number of bins to plot
         self.nChTotal = self.source.data.shape[1]     # total number of channels
         self.allChannels = np.arange(0, self.nChTotal)  # array with all channels
 
@@ -98,6 +99,8 @@ class TimeSeriesPlotter:
         self.selectedChannels = np.arange(self.firstCh - 1, self.lastCh)
 
         self.current_rect = []
+
+        # List of bad channels
         if 'bad' in self.nwb.electrodes:
             self.badChannels = np.where(self.nwb.electrodes['bad'][:])[0].tolist()
         else:
@@ -227,6 +230,13 @@ class TimeSeriesPlotter:
         # constrains the plotData to the chosen interval (and transpose matix)
         # plotData dims=[self.nChToShow, plotInterval]
         data = self.plotData[startSamp:endSamp, self.selectedChannels - 1].T
+
+        print('startsample: ', self.intervalStartSamples)
+        print('endsample: ', self.intervalEndSamples)
+        print('bins to plt: ', bins_to_plot)
+        print('startSamp: ', startSamp)
+        print('data shape: ', data.shape)
+
         data = data[:, bins_to_plot - startSamp - 1]
         means = np.reshape(np.mean(data, 1), (-1, 1))  # to align each trace around its reference trace
         plotData = data + scaleV - means  # data + offset
@@ -351,7 +361,7 @@ class TimeSeriesPlotter:
         self.intervalLengthGuiUnits = float(self.parent.qline3.text())
 
         max_dur = self.nBins * self.tbin_signal  # Max duration in seconds
-        min_len = 500 * self.tbin_signal          # Min accepted length
+        min_len = self.min_window_bins * self.tbin_signal          # Min accepted length
 
         # Check for max and min allowed values: START
         if self.intervalStartGuiUnits < 0.001:
@@ -374,7 +384,7 @@ class TimeSeriesPlotter:
         # Updates times in samples
         self.intervalLengthSamples = int(np.floor(self.intervalLengthGuiUnits / self.tbin_signal))
         self.intervalStartSamples = max(np.floor(self.intervalStartGuiUnits / self.tbin_signal), 0)
-        self.intervalStartSamples = int(min(self.intervalStartSamples, self.nBins - 501))
+        self.intervalStartSamples = int(min(self.intervalStartSamples, self.nBins - self.min_window_bins))
         self.intervalEndSamples = self.intervalStartSamples + self.intervalLengthSamples
 
         self.refreshScreen()
