@@ -28,7 +28,8 @@ from ecogvis.functions.misc_dialogs import (CustomIntervalDialog, SelectChannels
                                             PeriodogramGridDialog, NoSpectrumDialog,
                                             PreprocessingDialog, NoRawDialog,
                                             NoAudioDialog, ExistIntervalsDialog,
-                                            ExistSurveyDialog, ShowSurveyDialog)
+                                            ExistSurveyDialog, ShowSurveyDialog,
+                                            ShowBipolarDialog)
 from ecogvis.functions.audio_event_detection import AudioEventDetection
 from ecogvis.functions.event_related_potential import ERPDialog
 from ecogvis.functions.save_to_nwb import SaveToNWBDialog
@@ -202,6 +203,11 @@ class Application(QMainWindow):
         survey_tools_menu.addAction(self.action_vis_survey)
         self.action_vis_survey.setEnabled(False)
         self.action_vis_survey.triggered.connect(self.visualize_survey)
+
+        self.action_vis_bipolar = QAction('Visualize Bipolar Table', self)
+        toolsMenu.addAction(self.action_vis_bipolar)
+        self.action_vis_bipolar.setEnabled(False)
+        self.action_vis_bipolar.triggered.connect(self.visualize_bipolar)
 
         helpMenu = mainMenu.addMenu('Help')
         action_about = QAction('About', self)
@@ -659,6 +665,10 @@ class Application(QMainWindow):
                             if v.neurodata_type == 'SurveyTable']
             if len(list_surveys) > 0:
                 ShowSurveyDialog(nwbfile=self.model.nwb)
+
+    def visualize_bipolar(self):
+        """Visualize bipolar electrodes table in current nwb file."""
+        ShowBipolarDialog(nwbfile=self.model.nwb)
 
     def about(self):
         """About dialog."""

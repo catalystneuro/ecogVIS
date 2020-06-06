@@ -675,6 +675,43 @@ class ShowSurveyDialog(QtGui.QDialog):
         self.accept()
 
 
+# Show Bipolar table in a separate window --------------------------------------
+class ShowBipolarDialog(QtGui.QDialog):
+    def __init__(self, nwbfile):
+        super().__init__()
+        self.nwbfile = nwbfile
+        # self.list_surveys = [v for v in nwbfile.processing['behavior'].data_interfaces.values()
+        #                      if v.neurodata_type == 'SurveyTable']
+
+        self.combo = QComboBox()
+        self.combo.activated.connect(self.render_bipolar_table)
+        # for sv in self.list_surveys:
+        #     self.combo.addItem(sv.name)
+
+        self.html_viewer = QWebEngineView()
+        self.render_bipolar_table()
+
+        vbox = QtGui.QVBoxLayout()
+        vbox.addWidget(self.combo)
+        vbox.addWidget(self.html_viewer)
+        self.setLayout(vbox)
+        self.setWindowTitle('Bipolar Scheme Table')
+        self.resize(500, 400)
+        self.exec_()
+
+    def render_bipolar_table(self):
+        """Renders bipolar table in html"""
+        # survey_name = self.combo.currentText()
+        bipolar_table = self.nwbfile.processing['behavior'].data_interfaces[survey_name]
+        html = survey_table.to_dataframe().to_html()
+
+        self.html_viewer.setHtml(html)
+        self.html_viewer.show()
+
+    def onAccepted(self):
+        self.accept()
+
+
 # Selects channels from specific brain regions to be plotted -----------------
 class SelectChannelsDialog(QtGui.QDialog):
     def __init__(self, stringlist, checked):
