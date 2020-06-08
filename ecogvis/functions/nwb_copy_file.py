@@ -307,7 +307,7 @@ def copy_obj(obj_old, nwb_old, nwb_new):
             LFP_dynamic_table = nwb_new.electrodes
         ####
 
-        region = list(obj_old.electrodes.to_dataframe().index)
+        region = list(els.electrodes.to_dataframe().index)
         elecs_region = LFP_dynamic_table.create_region(
             name='electrodes',
             region=region,
