@@ -261,7 +261,7 @@ class TimeSeriesPlotter:
                 plt2.plot(timebaseGuiUnits, plotData[i], pen=c)
         plt2.setLabel('bottom', 'Time', units='sec')
         plt2.setLabel('left', 'Channel #')
-        labels = [str(ch + 1) for ch in self.selectedChannels]
+        labels = [str(self.all_channels_ids[ch]) for ch in self.selectedChannels]
         ticks = list(zip(self.scaleVec, labels))
         plt2.getAxis('left').setTicks([ticks])
         plt2.setXRange(timebaseGuiUnits[0], timebaseGuiUnits[-1], padding=0.003)
