@@ -266,10 +266,10 @@ def copy_obj(obj_old, nwb_old, nwb_new):
 
     # ElectricalSeries --------------------------------------------------------
     if type(obj_old) is ElectricalSeries:
-        nChannels = len(obj_old.electrodes.table['x'].data)
-        elecs_region = nwb_new.electrodes.create_region(
+        region = list(obj_old.electrodes.to_dataframe().index)
+        elecs_region = nwb_new.create_electrode_table_region(
             name='electrodes',
-            region=np.arange(nChannels).tolist(),
+            region=region,
             description=''
         )
         els = ElectricalSeries(
@@ -297,7 +297,6 @@ def copy_obj(obj_old, nwb_old, nwb_new):
             'Expected precisely one electrical series, got %i!' %
             len(obj_old.electrical_series))
         els = list(obj_old.electrical_series.values())[0]
-        nChannels = els.data.shape[1]
 
         ####
         # first check for a table among the new file's data_interfaces
@@ -308,9 +307,10 @@ def copy_obj(obj_old, nwb_old, nwb_new):
             LFP_dynamic_table = nwb_new.electrodes
         ####
 
+        region = list(obj_old.electrodes.to_dataframe().index)
         elecs_region = LFP_dynamic_table.create_region(
             name='electrodes',
-            region=[i for i in range(nChannels)],
+            region=region,
             description=els.electrodes.description
         )
 

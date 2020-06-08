@@ -73,15 +73,15 @@ class TimeSeriesPlotter:
         self.tbin_signal = 1 / self.fs_signal  # time bin duration [seconds]
         self.nBins = self.source.data.shape[0]     # total number of bins
         self.min_window_bins = 10                   # minimum number of bins to plot
-        self.nChTotal = self.source.data.shape[1]     # total number of channels
-        self.allChannels = np.arange(0, self.nChTotal)  # array with all channels
+        self.all_channels_ids = list(self.source.electrodes.to_dataframe().index)  # all channels ids
+        self.n_channels_total = len(self.all_channels_ids)     # total number of channels
 
         # Get Brain regions present in current file
-        self.all_regions = list(set(list(self.nwb.electrodes['location'][:])))
+        self.all_regions = list(set(list(self.nwb.electrodes['location'][self.all_channels_ids])))
         self.all_regions.sort()
         self.regions_mask = [True] * len(self.all_regions)
 
-        self.channels_mask = np.ones(len(self.nwb.electrodes['location'][:]))
+        self.channels_mask = np.ones(len(self.nwb.electrodes['location'][self.all_channels_ids]))
         self.channels_mask_ind = np.where(self.channels_mask)[0]
 
         self.h = []
@@ -93,7 +93,7 @@ class TimeSeriesPlotter:
 
         # Channels to show
         self.firstCh = int(self.parent.qline1.text())
-        self.lastCh = min(self.nChTotal, int(self.parent.qline0.text()))
+        self.lastCh = min(self.n_channels_total, int(self.parent.qline0.text()))
         self.parent.qline0.setText(str(self.lastCh))
         self.nChToShow = self.lastCh - self.firstCh + 1
         self.selectedChannels = np.arange(self.firstCh - 1, self.lastCh)
@@ -102,9 +102,11 @@ class TimeSeriesPlotter:
 
         # List of bad channels
         if 'bad' in self.nwb.electrodes:
-            self.badChannels = np.where(self.nwb.electrodes['bad'][:])[0].tolist()
+            aux_mask = self.nwb.electrodes[self.all_channels_ids]['bad']
+            self.bad_channels_ids = list(self.nwb.electrodes[self.all_channels_ids][aux_mask].index)
+            # self.bad_channels_ids = np.where(self.nwb.electrodes['bad'][self.all_channels_ids])[0].tolist()
         else:
-            self.badChannels = []
+            self.bad_channels_ids = []
 
         # Load invalid intervals from NWB file
         self.allIntervals = []
@@ -249,7 +251,8 @@ class TimeSeriesPlotter:
         # Iterate over chosen channels, plot one at a time
         nrows, ncols = np.shape(plotData)
         for i in range(nrows):
-            if self.selectedChannels[i] in self.badChannels:
+            elec_index = self.source.electrodes[int(self.selectedChannels[i])].index[0]
+            if elec_index in self.bad_channels_ids:
                 plt2.plot(timebaseGuiUnits, plotData[i], pen=pg.mkPen((220, 0, 0), width=1.2))
             else:
                 c = pg.mkPen((0, 120, 0), width=1.2)
@@ -414,11 +417,11 @@ class TimeSeriesPlotter:
     def channel_Scroll_Up(self, opt='unit'):
         """Updates the channels to be plotted. Buttons: ^, ^^ """
         # Test upper limit
-        if self.lastCh < self.nChTotal:
+        if self.lastCh < self.n_channels_total:
             if opt == 'unit':
                 step = 1
             elif opt == 'page':
-                step = np.minimum(self.nChToShow, self.nChTotal - self.lastCh)
+                step = np.minimum(self.nChToShow, self.n_channels_total - self.lastCh)
             # Add +1 to first and last channels
             self.firstCh += step
             self.lastCh += step
@@ -454,15 +457,15 @@ class TimeSeriesPlotter:
         if self.firstCh < 1:
             self.firstCh = 1
 
-        if self.firstCh > self.nChTotal:
-            self.firstCh = self.nChTotal
-            self.lastCh = self.nChTotal
+        if self.firstCh > self.n_channels_total:
+            self.firstCh = self.n_channels_total
+            self.lastCh = self.n_channels_total
 
         if self.lastCh < 1:
             self.lastCh = self.firstCh
 
-        if self.lastCh > self.nChTotal:
-            self.lastCh = self.nChTotal
+        if self.lastCh > self.n_channels_total:
+            self.lastCh = self.n_channels_total
 
         if self.lastCh - self.firstCh < 1:
             self.lastCh = self.firstCh
@@ -733,9 +736,28 @@ class TimeSeriesPlotter:
         ch_list : list of integers
             List of indices of channels to be marked as 'bad'.
         """
+        # Update list of bad electrodes ids
         for ch in ch_list:
-            if ch not in self.badChannels:
-                self.badChannels.append(ch)
+            if ch not in self.bad_channels_ids:
+                self.bad_channels_ids.append(ch)
+
+        # List of electrodes IDs
+        elecs_ids = list(self.nwb.electrodes.id[:])
+        is_bad_list = [False] * len(elecs_ids)
+        for i, id in enumerate(elecs_ids):
+            if id in self.bad_channels_ids:
+                is_bad_list[i] = True
+
+        if 'bad' not in self.nwb.electrodes:
+            self.nwb.add_electrode_column(
+                name='bad',
+                description='electrode identified as too noisy',
+                data=is_bad_list,
+            )
+        else:
+            self.nwb.electrodes['bad'].data[:] = is_bad_list
+
+        # Refresh screen
         self.refreshScreen()
 
     def BadChannelDel(self, ch_list):
@@ -747,9 +769,28 @@ class TimeSeriesPlotter:
         ch_list : list of integers
             List of indices of channels to be un-marked as 'bad'.
         """
+        # Update list of bad electrodes ids
         for ch in ch_list:
-            if ch in self.badChannels:
-                self.badChannels.remove(ch)
+            if ch in self.bad_channels_ids:
+                self.bad_channels_ids.remove(ch)
+
+        # List of electrodes IDs
+        elecs_ids = list(self.nwb.electrodes.id[:])
+        is_bad_list = [False] * len(elecs_ids)
+        for i, id in enumerate(elecs_ids):
+            if id in self.bad_channels_ids:
+                is_bad_list[i] = True
+
+        if 'bad' not in self.nwb.electrodes:
+            self.nwb.add_electrode_column(
+                name='bad',
+                description='electrode identified as too noisy',
+                data=is_bad_list,
+            )
+        else:
+            self.nwb.electrodes['bad'].data[:] = is_bad_list
+
+        # Refresh screen
         self.refreshScreen()
 
     def BadChannelSave(self):
@@ -757,18 +798,7 @@ class TimeSeriesPlotter:
         buttonReply = QMessageBox.question(None, ' ', 'Save Bad Channels on current NWB file?',
                                            QMessageBox.No | QMessageBox.Yes)
         if buttonReply == QMessageBox.Yes:
-            # Modify current list of bad channels
-            aux = [False] * self.nChTotal
-            for ind in self.badChannels:
-                aux[ind] = True
-            if 'bad' not in self.nwb.electrodes:
-                self.nwb.add_electrode_column(
-                    name='bad',
-                    description='electrode identified as too noisy',
-                    data=aux,
-                )
-            else:
-                self.nwb.electrodes['bad'].data[:] = aux
+            pass
 
     def DrawMarkTime(self, position):
         """Marks temporary reference line when adding a new interval."""
