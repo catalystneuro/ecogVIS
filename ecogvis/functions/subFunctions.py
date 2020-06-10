@@ -73,7 +73,9 @@ class TimeSeriesPlotter:
         self.tbin_signal = 1 / self.fs_signal  # time bin duration [seconds]
         self.nBins = self.source.data.shape[0]     # total number of bins
         self.min_window_bins = 10                   # minimum number of bins to plot
-        self.electrical_series_channel_ids = list(self.source.electrodes.to_dataframe().index)  # all channels ids
+        # all electricalseries channels ids
+        self.all_channels_ids = self.source.electrodes.table.id[:]
+        self.electrical_series_channel_ids = np.array(self.all_channels_ids)[self.source.electrodes.data[:]].tolist()
         self.n_channels_total = len(self.electrical_series_channel_ids)     # total number of channels
 
         # Get Brain regions present in current file
@@ -81,7 +83,7 @@ class TimeSeriesPlotter:
         self.all_regions.sort()
         self.regions_mask = [True] * len(self.all_regions)
 
-        self.channels_mask = np.ones(len(self.nwb.electrodes['location'][self.electrical_series_channel_ids]))
+        self.channels_mask = np.ones(len(self.regions_mask))
         self.channels_mask_ind = np.where(self.channels_mask)[0]
 
         self.h = []
@@ -104,7 +106,6 @@ class TimeSeriesPlotter:
         if 'bad' in self.nwb.electrodes:
             aux_mask = self.nwb.electrodes[self.electrical_series_channel_ids]['bad']
             self.bad_channels_ids = list(self.nwb.electrodes[self.electrical_series_channel_ids][aux_mask].index)
-            # self.bad_channels_ids = np.where(self.nwb.electrodes['bad'][self.electrical_series_channel_ids])[0].tolist()
         else:
             self.bad_channels_ids = []
 

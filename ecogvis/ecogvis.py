@@ -746,7 +746,7 @@ class Application(QMainWindow):
         self.reset_buttons()
         # Dialog to choose channels from specific brain regions
         w = SelectChannelsDialog(self.model.all_regions, self.model.regions_mask)
-        all_locs = self.model.nwb.electrodes['location'][:]
+        all_locs = self.model.nwb.electrodes['location'][self.model.electrical_series_channel_ids]
         self.model.channels_mask = np.zeros(len(all_locs))
         for loc in w.choices:
             self.model.channels_mask += all_locs == np.array(loc)

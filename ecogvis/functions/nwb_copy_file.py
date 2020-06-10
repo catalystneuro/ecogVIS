@@ -266,7 +266,7 @@ def copy_obj(obj_old, nwb_old, nwb_new):
 
     # ElectricalSeries --------------------------------------------------------
     if type(obj_old) is ElectricalSeries:
-        region = list(obj_old.electrodes.to_dataframe().index)
+        region = np.array(obj_old.electrodes.table.id[:])[obj_old.electrodes.data[:]].tolist()
         elecs_region = nwb_new.create_electrode_table_region(
             name='electrodes',
             region=region,
@@ -307,7 +307,7 @@ def copy_obj(obj_old, nwb_old, nwb_new):
             LFP_dynamic_table = nwb_new.electrodes
         ####
 
-        region = list(els.electrodes.to_dataframe().index)
+        region = np.array(els.electrodes.table.id[:])[els.electrodes.data[:]].tolist()
         elecs_region = LFP_dynamic_table.create_region(
             name='electrodes',
             region=region,
