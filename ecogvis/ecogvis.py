@@ -33,6 +33,7 @@ from ecogvis.functions.event_related_potential import ERPDialog
 from ecogvis.functions.save_to_nwb import SaveToNWBDialog
 from ecogvis.functions.nwb_copy_file import nwb_copy_file
 
+
 annotationAdd_ = False
 annotationDel_ = False
 annotationColor_ = 'red'
@@ -178,9 +179,6 @@ class Application(QMainWindow):
         action_del_badchannel = QAction('Del Bad Channel', self)
         channels_tools_menu.addAction(action_del_badchannel)
         action_del_badchannel.triggered.connect(self.del_badchannel)
-        action_save_badchannel = QAction('Save Bad Channels', self)
-        channels_tools_menu.addAction(action_save_badchannel)
-        action_save_badchannel.triggered.connect(self.save_badchannel)
         action_spectral_decomposition = QAction('Spectral Decomposition', self)
         toolsMenu.addAction(action_spectral_decomposition)
         action_spectral_decomposition.triggered.connect(self.spectral_decomposition)
@@ -251,8 +249,6 @@ class Application(QMainWindow):
         self.push3_1.clicked.connect(self.add_badchannel)
         self.push3_2 = QPushButton('Del')
         self.push3_2.clicked.connect(self.del_badchannel)
-        self.push3_3 = QPushButton('Save')
-        self.push3_3.clicked.connect(self.save_badchannel)
 
         # Get channel by brain region
         self.push4_0 = QPushButton('Select regions')
@@ -284,7 +280,6 @@ class Application(QMainWindow):
         grid1.addWidget(qlabelBadChannels, 4, 0, 1, 6)
         grid1.addWidget(self.push3_1, 5, 0, 1, 2)
         grid1.addWidget(self.push3_2, 5, 2, 1, 2)
-        grid1.addWidget(self.push3_3, 5, 4, 1, 2)
         grid1.addWidget(self.push4_0, 6, 0, 1, 3)
         grid1.addWidget(self.push5_0, 6, 3, 1, 3)
         grid1.addWidget(self.push6_0, 7, 0, 1, 3)
@@ -575,10 +570,6 @@ class Application(QMainWindow):
                 self.model.BadChannelDel(ch_list=ch_list)
             except Exception as ex:
                 print(str(ex))
-
-    def save_badchannel(self):
-        """Saves bad channels to file."""
-        self.model.BadChannelSave()
 
     def spectral_decomposition(self):
         """Opens Spectral decomposition dialog."""

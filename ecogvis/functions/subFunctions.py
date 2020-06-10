@@ -740,25 +740,7 @@ class TimeSeriesPlotter:
         for ch in ch_list:
             if ch not in self.bad_channels_ids:
                 self.bad_channels_ids.append(ch)
-
-        # List of electrodes IDs
-        elecs_ids = list(self.nwb.electrodes.id[:])
-        is_bad_list = [False] * len(elecs_ids)
-        for i, id in enumerate(elecs_ids):
-            if id in self.bad_channels_ids:
-                is_bad_list[i] = True
-
-        if 'bad' not in self.nwb.electrodes:
-            self.nwb.add_electrode_column(
-                name='bad',
-                description='electrode identified as too noisy',
-                data=is_bad_list,
-            )
-        else:
-            self.nwb.electrodes['bad'].data[:] = is_bad_list
-
-        # Refresh screen
-        self.refreshScreen()
+        self.update_bad_channels()
 
     def BadChannelDel(self, ch_list):
         """
@@ -773,7 +755,10 @@ class TimeSeriesPlotter:
         for ch in ch_list:
             if ch in self.bad_channels_ids:
                 self.bad_channels_ids.remove(ch)
+        self.update_bad_channels()
 
+    def update_bad_channels(self):
+        """Updates list of bad channels after add or del"""
         # List of electrodes IDs
         elecs_ids = list(self.nwb.electrodes.id[:])
         is_bad_list = [False] * len(elecs_ids)
@@ -792,13 +777,6 @@ class TimeSeriesPlotter:
 
         # Refresh screen
         self.refreshScreen()
-
-    def BadChannelSave(self):
-        """Saves list of bad channels in current NWB file."""
-        buttonReply = QMessageBox.question(None, ' ', 'Save Bad Channels on current NWB file?',
-                                           QMessageBox.No | QMessageBox.Yes)
-        if buttonReply == QMessageBox.Yes:
-            pass
 
     def DrawMarkTime(self, position):
         """Marks temporary reference line when adding a new interval."""
