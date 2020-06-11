@@ -320,6 +320,7 @@ class TimeSeriesPlotter:
         # Bottom plot - Stimuli
         plt3 = self.parent.win3
         plt3.clear()
+        stimData = None
         if self.parent.combo4.currentText() != '':
             try:
                 xmask = (self.stimX > timebaseGuiUnits[0]) * (self.stimX < timebaseGuiUnits[-1])
@@ -334,6 +335,8 @@ class TimeSeriesPlotter:
                 plt3.plot(stimData, pen='k', width=1)
                 # remove this later -------------------------------------------
 
+        if stimData is not None:
+            plt3.setYRange(np.min(stimData), np.max(stimData))
         plt3.setLabel('left', 'Stim')
         plt3.getAxis('left').setWidth(w=53)
         plt3.getAxis('left').setStyle(showValues=False)
