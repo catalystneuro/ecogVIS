@@ -6,6 +6,7 @@ import os
 # Third party libraries
 import OpenGL.GL as ogl
 import numpy as np
+import pandas as pd
 import pyqtgraph as pg
 import pyqtgraph.opengl as gl
 from PyQt5.QtWebEngineWidgets import QWebEngineView
@@ -21,7 +22,7 @@ from ecogvis.signal_processing.periodogram import psd_estimate
 from ecogvis.signal_processing.processing_data import processing_data
 from pynwb import NWBHDF5IO
 from pynwb.epoch import TimeIntervals
-
+from ndx_bipolar_scheme.bipolar_scheme import BipolarSchemeTable
 from .FS_colorLUT import get_lut
 
 # from threading import Event, Thread
@@ -675,36 +676,52 @@ class ShowSurveyDialog(QtGui.QDialog):
         self.accept()
 
 
-# Show Bipolar table in a separate window --------------------------------------
-class ShowBipolarDialog(QtGui.QDialog):
-    def __init__(self, nwbfile):
+# Show Electrodes tables in a separate window --------------------------------------
+class ShowElectrodesDialog(QtGui.QDialog):
+    def __init__(self, parent):
         super().__init__()
-        self.nwbfile = nwbfile
-        # self.list_surveys = [v for v in nwbfile.processing['behavior'].data_interfaces.values()
-        #                      if v.neurodata_type == 'SurveyTable']
+        self.parent = parent
+        self.nwbfile = parent.model.nwb
+        self.source = parent.model.source
 
         self.combo = QComboBox()
-        self.combo.activated.connect(self.render_bipolar_table)
-        # for sv in self.list_surveys:
-        #     self.combo.addItem(sv.name)
+        self.combo.activated.connect(self.render_table)
+        self.combo.addItem('Electrodes table')
+
+        # all electrodes table
+        elecs_df = self.nwbfile.electrodes.to_dataframe()
+        elecs_df.drop(labels=['group'], axis='columns', inplace=True)
+        self.list_tables = [elecs_df]
+
+        # bipolar scheme table
+        if isinstance(self.source.electrodes.table, BipolarSchemeTable):
+            aux_df = self.source.electrodes.table.to_dataframe()
+            bipolar_df = pd.DataFrame(columns=['anodes', 'cathodes'])
+            for (id, row) in aux_df.iterrows():
+                bipolar_df.loc[id, 'anodes'] = list(row['anodes'].index)
+                bipolar_df.loc[id, 'cathodes'] = list(row['cathodes'].index)
+            self.list_tables.append(bipolar_df)
+            self.combo.addItem('Bipolar table')
 
         self.html_viewer = QWebEngineView()
-        self.render_bipolar_table()
+        self.render_table()
 
         vbox = QtGui.QVBoxLayout()
         vbox.addWidget(self.combo)
         vbox.addWidget(self.html_viewer)
         self.setLayout(vbox)
-        self.setWindowTitle('Bipolar Scheme Table')
-        self.resize(500, 400)
+        self.setWindowTitle('Electrodes Tables')
+        self.resize(600, 600)
         self.exec_()
 
-    def render_bipolar_table(self):
-        """Renders bipolar table in html"""
-        # survey_name = self.combo.currentText()
-        bipolar_table = self.nwbfile.processing['behavior'].data_interfaces[survey_name]
-        html = survey_table.to_dataframe().to_html()
-
+    def render_table(self):
+        """Renders table in html"""
+        table_name = self.combo.currentText()
+        if table_name == 'Electrodes table':
+            table = self.list_tables[0]
+        elif table_name == 'Bipolar table':
+            table = self.list_tables[1]
+        html = table.to_html()
         self.html_viewer.setHtml(html)
         self.html_viewer.show()
 
@@ -2055,4 +2072,3 @@ class QHLine(QtGui.QFrame):
         super().__init__()
         self.setFrameShape(QtGui.QFrame.HLine)
         self.setFrameShadow(QtGui.QFrame.Sunken)
-
