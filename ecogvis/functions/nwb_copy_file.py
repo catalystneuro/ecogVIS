@@ -222,12 +222,13 @@ def nwb_copy_file(old_file, new_file, cp_objs={}, save_to_file=True):
         if 'behavior' in cp_objs:
             interfaces = [nwb_old.processing['behavior'].data_interfaces[key]
                           for key in cp_objs['behavior']]
-            # Add behavior module to NWB file
-            behavior_module = ProcessingModule(
-                name='behavior',
-                description='behavioral data.'
-            )
-            nwb_new.add_processing_module(behavior_module)
+            if 'behavior' not in nwb_new.processing:
+                # Add behavior module to NWB file
+                behavior_module = ProcessingModule(
+                    name='behavior',
+                    description='behavioral data.'
+                )
+                nwb_new.add_processing_module(behavior_module)
             for interface_old in interfaces:
                 obj = copy_obj(interface_old, nwb_old, nwb_new)
                 if obj is not None:
@@ -240,6 +241,22 @@ def nwb_copy_file(old_file, new_file, cp_objs={}, save_to_file=True):
                 obj_old = nwb_old.acquisition[acq_name]
                 acq = copy_obj(obj_old, nwb_old, nwb_new)
                 nwb_new.add_acquisition(acq)
+
+        # Surveys ---------------------------------------------------------
+        if 'surveys' in cp_objs and 'behavior' in nwb_old.processing:
+            surveys_list = [v for v in nwb_old.processing['behavior'].data_interfaces.values()
+                            if v.neurodata_type == 'SurveyTable']
+            if cp_objs['surveys'] and len(surveys_list) > 0:
+                if 'behavior' not in nwb_new.processing:
+                    # Add behavior module to NWB file
+                    behavior_module = ProcessingModule(
+                        name='behavior',
+                        description='behavioral data.'
+                    )
+                    nwb_new.add_processing_module(behavior_module)
+                for obj_old in surveys_list:
+                    srv = copy_obj(obj_old, nwb_old, nwb_new)
+                    behavior_module.add_data_interface(srv)
 
         # Subject ---------------------------------------------------------
         if nwb_old.subject is not None:
@@ -398,52 +415,50 @@ def copy_obj(obj_old, nwb_old, nwb_new):
         )
 
     # Survey tables ------------------------------------------------------------
-    if type(obj_old) is nrs_survey_table:
-        raise NotImplementedError('TODO')
-        n_rows = len(obj_old['nrs_pain_intensity_rating'].data[:])
-        for i in range(n_rows):
-            nrs_survey_table.add_row(
-                nrs_pain_intensity_rating=obj_old['nrs_pain_intensity_rating'].data[i],
-                nrs_relative_pain_intensity_rating=obj_old['nrs_relative_pain_intensity_rating'].data[i],
-                nrs_pain_unpleasantness=obj_old['nrs_pain_unpleasantness'].data[i],
-                nrs_pain_relief_rating=obj_old['nrs_pain_relief_rating'].data[i],
-                unix_timestamp=obj_old['unix_timestamp'].data[i]
-            )
-        return nrs_survey_table
+    if obj_old.neurodata_type == 'SurveyTable':
+        if obj_old.name == 'nrs_survey_table':
+            n_rows = len(obj_old['nrs_pain_intensity_rating'].data[:])
+            for i in range(n_rows):
+                nrs_survey_table.add_row(
+                    nrs_pain_intensity_rating=obj_old['nrs_pain_intensity_rating'].data[i],
+                    nrs_relative_pain_intensity_rating=obj_old['nrs_relative_pain_intensity_rating'].data[i],
+                    nrs_pain_unpleasantness=obj_old['nrs_pain_unpleasantness'].data[i],
+                    nrs_pain_relief_rating=obj_old['nrs_pain_relief_rating'].data[i],
+                    unix_timestamp=obj_old['unix_timestamp'].data[i]
+                )
+            return nrs_survey_table
 
-    if type(obj_old) is vas_survey_table:
-        raise NotImplementedError('TODO')
-        n_rows = len(obj_old['vas_pain_intensity_rating'].data[:])
-        for i in range(n_rows):
-            vas_survey_table.add_row(
-                vas_pain_intensity_rating=obj_old['vas_pain_intensity_rating'].data[i],
-                vas_pain_relief_rating=obj_old['vas_pain_relief_rating'].data[i],
-                vas_relative_pain_intensity_rating=obj_old['vas_relative_pain_intensity_rating'].data[i],
-                vas_pain_unpleasantness=obj_old['vas_pain_unpleasantness'].data[i],
-                unix_timestamp=obj_old['unix_timestamp'].data[i],
-            )
-        return vas_survey_table
+        elif obj_old.name == 'vas_survey_table':
+            n_rows = len(obj_old['vas_pain_intensity_rating'].data[:])
+            for i in range(n_rows):
+                vas_survey_table.add_row(
+                    vas_pain_intensity_rating=obj_old['vas_pain_intensity_rating'].data[i],
+                    vas_pain_relief_rating=obj_old['vas_pain_relief_rating'].data[i],
+                    vas_relative_pain_intensity_rating=obj_old['vas_relative_pain_intensity_rating'].data[i],
+                    vas_pain_unpleasantness=obj_old['vas_pain_unpleasantness'].data[i],
+                    unix_timestamp=obj_old['unix_timestamp'].data[i],
+                )
+            return vas_survey_table
 
-    if type(obj_old) is mpq_survey_table:
-        raise NotImplementedError('TODO')
-        n_rows = len(obj_old['throbbing'].data[:])
-        for i in range(n_rows):
-            mpq_survey_table.add_row(
-                throbbing=obj_old['throbbing'].data[i],
-                shooting=obj_old['shooting'].data[i],
-                stabbing=obj_old['stabbing'].data[i],
-                sharp=obj_old['sharp'].data[i],
-                cramping=obj_old['cramping'].data[i],
-                gnawing=obj_old['gnawing'].data[i],
-                hot_burning=obj_old['hot_burning'].data[i],
-                aching=obj_old['aching'].data[i],
-                heavy=obj_old['heavy'].data[i],
-                tender=obj_old['tender'].data[i],
-                splitting=obj_old['splitting'].data[i],
-                tiring_exhausting=obj_old['tiring_exhausting'].data[i],
-                sickening=obj_old['sickening'].data[i],
-                fearful=obj_old['fearful'].data[i],
-                cruel_punishing=obj_old['cruel_punishing'].data[i],
-                unix_timestamp=obj_old['unix_timestamp'].data[i],
-            )
-        return mpq_survey_table
+        elif obj_old.name == 'mpq_survey_table':
+            n_rows = len(obj_old['throbbing'].data[:])
+            for i in range(n_rows):
+                mpq_survey_table.add_row(
+                    throbbing=obj_old['throbbing'].data[i],
+                    shooting=obj_old['shooting'].data[i],
+                    stabbing=obj_old['stabbing'].data[i],
+                    sharp=obj_old['sharp'].data[i],
+                    cramping=obj_old['cramping'].data[i],
+                    gnawing=obj_old['gnawing'].data[i],
+                    hot_burning=obj_old['hot_burning'].data[i],
+                    aching=obj_old['aching'].data[i],
+                    heavy=obj_old['heavy'].data[i],
+                    tender=obj_old['tender'].data[i],
+                    splitting=obj_old['splitting'].data[i],
+                    tiring_exhausting=obj_old['tiring_exhausting'].data[i],
+                    sickening=obj_old['sickening'].data[i],
+                    fearful=obj_old['fearful'].data[i],
+                    cruel_punishing=obj_old['cruel_punishing'].data[i],
+                    unix_timestamp=obj_old['unix_timestamp'].data[i],
+                )
+            return mpq_survey_table

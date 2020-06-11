@@ -26,8 +26,8 @@ class SaveToNWBDialog(QtGui.QDialog):
 
         # Include raw data
         self.chk_raw = QCheckBox('Raw data')
-        self.chk_raw.setChecked(False)
-        self.chk_raw.setEnabled(False)
+        self.chk_raw.setChecked(True)
+        self.chk_raw.setEnabled(True)
         for v in self.curr_nwbfile.acquisition.values():
             if v.__class__ is pynwb.ecephys.ElectricalSeries:
                 self.chk_raw.setEnabled(True)
@@ -40,7 +40,7 @@ class SaveToNWBDialog(QtGui.QDialog):
         if 'ecephys' in self.curr_nwbfile.processing:
             for k, v in self.curr_nwbfile.processing['ecephys'].data_interfaces.items():
                 chk = QCheckBox(k)
-                chk.setChecked(False)
+                chk.setChecked(True)
                 self.checks_processing_ecephys.append(chk)
                 self.form_1.addWidget(chk)
 
@@ -48,10 +48,11 @@ class SaveToNWBDialog(QtGui.QDialog):
         self.checks_processing_behavior = []
         if 'behavior' in self.curr_nwbfile.processing:
             for k, v in self.curr_nwbfile.processing['behavior'].data_interfaces.items():
-                chk = QCheckBox(k)
-                chk.setChecked(False)
-                self.checks_processing_behavior.append(chk)
-                self.form_1.addWidget(chk)
+                if v.neurodata_type != 'SurveyTable':
+                    chk = QCheckBox(k)
+                    chk.setChecked(True)
+                    self.checks_processing_behavior.append(chk)
+                    self.form_1.addWidget(chk)
         self.panel_1 = QGroupBox('Include data:')
         self.panel_1.setLayout(self.form_1)
 
@@ -61,7 +62,7 @@ class SaveToNWBDialog(QtGui.QDialog):
         for k, v in self.curr_nwbfile.acquisition.items():
             if v.__class__ is pynwb.ecephys.TimeSeries:
                 chk = QCheckBox(k)
-                chk.setChecked(False)
+                chk.setChecked(True)
                 self.checks_mic.append(chk)
                 self.form_2.addWidget(chk)
         self.panel_2 = QGroupBox('Include microphone:')
@@ -72,21 +73,30 @@ class SaveToNWBDialog(QtGui.QDialog):
         self.checks_stimuli = []
         for k, v in self.curr_nwbfile.stimulus.items():
             chk = QCheckBox(k)
-            chk.setChecked(False)
+            chk.setChecked(True)
             self.checks_stimuli.append(chk)
             self.form_3.addWidget(chk)
         self.panel_3 = QGroupBox('Include stimuli:')
         self.panel_3.setLayout(self.form_3)
+
+        self.form_4 = QVBoxLayout()
+
+        # Surveys tables
+        self.chk_surveys = QCheckBox('Surveys')
+        self.chk_surveys.setChecked(False)
+        if 'behavior' in self.curr_nwbfile.processing:
+            if any([v for v in self.curr_nwbfile.processing['behavior'].data_interfaces.values()
+                    if v.neurodata_type == 'SurveyTable']):
+                self.form_4.addWidget(self.chk_surveys)
+                self.chk_surveys.setChecked(True)
 
         # Include user-edited information
         self.chk_intervals = QCheckBox('Intervals')
         self.chk_intervals.setChecked(False)
         self.chk_annotations = QCheckBox('Annotations')
         self.chk_annotations.setChecked(False)
-
-        self.form_4 = QGridLayout()
-        self.form_4.addWidget(self.chk_intervals, 0, 0)
-        self.form_4.addWidget(self.chk_annotations, 1, 0)
+        self.form_4.addWidget(self.chk_intervals)
+        self.form_4.addWidget(self.chk_annotations)
 
         self.panel_4 = QGroupBox('Include info:')
         self.panel_4.setLayout(self.form_4)
@@ -150,6 +160,7 @@ class SaveToNWBDialog(QtGui.QDialog):
             'stimulus': [],
             'ecephys': [],
             'behavior': [],
+            'surveys': False,
         }
         # Raw data
         if self.chk_raw.isChecked():
@@ -169,6 +180,9 @@ class SaveToNWBDialog(QtGui.QDialog):
         for chk in self.checks_stimuli:
             if chk.isChecked():
                 self.cp_objs['stimulus'].append(chk.text())
+        # Surveys
+        if self.chk_surveys.isChecked():
+            self.cp_objs.update({'surveys': True})
         # User-defined info
         if self.chk_intervals.isChecked():
             self.cp_objs.update({'intervals': True})

@@ -660,7 +660,7 @@ class ShowSurveyDialog(QtGui.QDialog):
         vbox.addWidget(self.html_viewer)
         self.setLayout(vbox)
         self.setWindowTitle('Survey data')
-        self.resize(500, 400)
+        self.resize(600, 600)
         self.exec_()
 
     def render_survey_table(self):
