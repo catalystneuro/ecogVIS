@@ -197,7 +197,7 @@ class ERPDialog(QMainWindow):
         self.grid_order = np.where(self.electrodes.table['group_name'].data[:] == self.elec_group)[0]
         self.nElecs = len(self.grid_order)
         self.nCols = 16
-        self.nRows = int(self.nElecs / self.nCols)
+        self.nRows = max(int(self.nElecs / self.nCols), 1)
         self.set_grid()
         self.draw_erp()
 
@@ -416,8 +416,9 @@ class ERPDialog(QMainWindow):
             # Background
             loc = 'ctx-lh-' + self.parent.model.nwb.electrodes['location'][ch]
             vb = p.getViewBox()
-            color = tuple(cmap[loc])
-            vb.setBackgroundColor((*color, min(elem_alpha, 70)))  # append alpha to color tuple
+            color = tuple(cmap.get(loc, cmap['Unknown']))
+            vb.setBackgroundColor(
+                (*color, min(elem_alpha, 70)))  # append alpha to color tuple
             # Main plots
             mean = p.plot(x=X, y=Y_mean, pen=pg.mkPen((50, 50, 50, min(elem_alpha, 255)), width=1.))
             semp = p.plot(x=X, y=Y_mean + Y_sem, pen=pg.mkPen((100, 100, 100, min(elem_alpha, 100)), width=.1))
@@ -591,7 +592,7 @@ class IndividualERPDialog(QtGui.QDialog):
         # Background color
         loc = 'ctx-lh-' + self.parent.parent.parent.model.nwb.electrodes['location'][self.ch]
         vb = p.getViewBox()
-        color = tuple(cmap[loc])
+        color = tuple(cmap.get(loc, cmap['Unknown']))
         vb.setBackgroundColor((*color, 70))  # append alpha to color tuple
         vb.border = pg.mkPen(color='w')
         # Main plots
