@@ -87,7 +87,7 @@ class TimeSeriesPlotter:
         self.all_regions.sort()
         self.regions_mask = [True] * len(self.all_regions)
 
-        self.channels_mask = np.ones(len(self.regions_mask))
+        self.channels_mask = np.ones(len(list(self.nwb.electrodes['location'][self.electrical_series_channel_ids])))
         self.channels_mask_ind = np.where(self.channels_mask)[0]
 
         self.h = []
