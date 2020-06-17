@@ -467,6 +467,7 @@ class Application(QMainWindow):
         if filename is None:  # Opens new file dialog
             filename, _ = QFileDialog.getOpenFileName(None, 'Open file', '', "(*.nwb)")
         if os.path.isfile(filename):
+            self.model.io.close()
             self.source_path = Path(filename)
             # Reset file specific variables on GUI
             self.combo3.setCurrentIndex(self.combo3.findText('raw'))
