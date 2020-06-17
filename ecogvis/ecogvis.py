@@ -27,11 +27,15 @@ from ecogvis.functions.misc_dialogs import (CustomIntervalDialog, SelectChannels
                                             ExitDialog, HighGammaDialog, LoadHTKDialog,
                                             PeriodogramGridDialog, NoSpectrumDialog,
                                             PreprocessingDialog, NoRawDialog,
-                                            NoAudioDialog, ExistIntervalsDialog)
+                                            NoAudioDialog, ExistIntervalsDialog,
+                                            ExistSurveyDialog, ShowSurveyDialog,
+                                            ShowElectrodesDialog)
 from ecogvis.functions.audio_event_detection import AudioEventDetection
 from ecogvis.functions.event_related_potential import ERPDialog
 from ecogvis.functions.save_to_nwb import SaveToNWBDialog
 from ecogvis.functions.nwb_copy_file import nwb_copy_file
+from ecogvis.functions.survey_data import add_survey_data
+
 
 
 annotationAdd_ = False
@@ -188,6 +192,19 @@ class Application(QMainWindow):
         action_event_detection = QAction('CV Event Detection', self)
         toolsMenu.addAction(action_event_detection)
         action_event_detection.triggered.connect(self.audio_event_detection)
+
+        survey_tools_menu = toolsMenu.addMenu('Survey')
+        action_add_survey = QAction('Add Survey', self)
+        survey_tools_menu.addAction(action_add_survey)
+        action_add_survey.triggered.connect(self.add_survey)
+        self.action_vis_survey = QAction('Visualize Survey', self)
+        survey_tools_menu.addAction(self.action_vis_survey)
+        self.action_vis_survey.setEnabled(False)
+        self.action_vis_survey.triggered.connect(self.visualize_survey)
+
+        self.action_vis_electrodes = QAction('Visualize Electrodes Tables', self)
+        toolsMenu.addAction(self.action_vis_electrodes)
+        self.action_vis_electrodes.triggered.connect(self.visualize_electrodes)
 
         helpMenu = mainMenu.addMenu('Help')
         action_about = QAction('About', self)
@@ -450,6 +467,7 @@ class Application(QMainWindow):
         if filename is None:  # Opens new file dialog
             filename, _ = QFileDialog.getOpenFileName(None, 'Open file', '', "(*.nwb)")
         if os.path.isfile(filename):
+            self.model.io.close()
             self.source_path = Path(filename)
             # Reset file specific variables on GUI
             self.combo3.setCurrentIndex(self.combo3.findText('raw'))
@@ -503,12 +521,14 @@ class Application(QMainWindow):
         """
         save_dialog = SaveToNWBDialog(parent=self)
         if save_dialog.value:
+            print('Copying content to new nwb file, please wait...')
             nwb_copy_file(
                 old_file=self.model.nwb,
                 new_file=save_dialog.newfile,
                 cp_objs=save_dialog.cp_objs,
                 save_to_file=True
             )
+            print('File successfully copied!')
 
     def change_session(self):
         """Changes session name."""
@@ -543,10 +563,10 @@ class Application(QMainWindow):
                 for elem in ch_str:
                     if '-' in elem:   # if given a range e.g. 7-12
                         elem_lims = elem.split('-')
-                        seq = range(int(elem_lims[0]) - 1, int(elem_lims[1]))
+                        seq = range(int(elem_lims[0]), int(elem_lims[1]) + 1)
                         ch_list.extend(seq)
                     else:             # if given a single value
-                        ch_list.append(int(elem) - 1)
+                        ch_list.append(int(elem))
                 self.model.BadChannelAdd(ch_list=ch_list)
             except Exception as ex:
                 print(str(ex))
@@ -563,10 +583,10 @@ class Application(QMainWindow):
                 for elem in ch_str:
                     if '-' in elem:   # if given a range e.g. 7-12
                         elem_lims = elem.split('-')
-                        seq = range(int(elem_lims[0]) - 1, int(elem_lims[1]))
+                        seq = range(int(elem_lims[0]), int(elem_lims[1]) + 1)
                         ch_list.extend(seq)
                     else:             # if given a single value
-                        ch_list.append(int(elem) - 1)
+                        ch_list.append(int(elem))
                 self.model.BadChannelDel(ch_list=ch_list)
             except Exception as ex:
                 print(str(ex))
@@ -611,6 +631,37 @@ class Application(QMainWindow):
                 NoAudioDialog()
         else:
             ExistIntervalsDialog()
+
+    def add_survey(self):
+        """Add survey data from .mat file to current nwb file."""
+        # Test if current nwb file already contains Survey table
+        if 'behavior' in self.model.nwb.processing:
+            list_surveys = [v for v in self.model.nwb.processing['behavior'].data_interfaces.values()
+                            if v.neurodata_type == 'SurveyTable']
+            if len(list_surveys) > 0:
+                ExistSurveyDialog()
+                return None
+
+        # Open file dialog
+        path_file, _ = QFileDialog.getOpenFileName(None, 'Open file', '', "(*.mat)")
+        if os.path.isfile(path_file):
+            add_survey_data(nwbfile=self.model.nwb, path_survey_file=path_file)
+            self.action_vis_survey.setEnabled(True)
+            # Write changes to NWB file
+            self.model.io.write(self.model.nwb)
+
+    def visualize_survey(self):
+        """Visualize survey data in current nwb file."""
+        # Test if current nwb file contains Survey table
+        if 'behavior' in self.model.nwb.processing:
+            list_surveys = [v for v in self.model.nwb.processing['behavior'].data_interfaces.values()
+                            if v.neurodata_type == 'SurveyTable']
+            if len(list_surveys) > 0:
+                ShowSurveyDialog(nwbfile=self.model.nwb)
+
+    def visualize_electrodes(self):
+        """Visualize electrodes tables in current nwb file."""
+        ShowElectrodesDialog(parent=self)
 
     def about(self):
         """About dialog."""
@@ -745,16 +796,19 @@ class Application(QMainWindow):
         self.active_mode = 'default'
         self.reset_buttons()
         # Dialog to choose channels from specific brain regions
-        w = SelectChannelsDialog(self.model.all_regions, self.model.regions_mask)
-        all_locs = self.model.nwb.electrodes['location'][self.model.electrical_series_channel_ids]
+        w = SelectChannelsDialog(
+            stringlist=self.model.all_regions,
+            checked=self.model.regions_mask
+        )
+        all_locs = self.model.electrodes_table['location'][self.model.electrical_series_channel_ids]
         self.model.channels_mask = np.zeros(len(all_locs))
         for loc in w.choices:
             self.model.channels_mask += all_locs == np.array(loc)
         # Indices of channels from chosen regions
         self.model.channels_mask_ind = np.where(self.model.channels_mask)[0]
-        self.model.nChTotal = len(self.model.channels_mask_ind)
+        self.model.n_channels_total = len(self.model.channels_mask_ind)
         # Reset channels span control
-        self.model.lastCh = np.minimum(16, self.model.nChTotal)
+        self.model.lastCh = np.minimum(16, self.model.n_channels_total)
         self.model.firstCh = 1
         self.model.nChToShow = self.model.lastCh - self.model.firstCh + 1
         self.qline0.setText(str(self.model.lastCh))

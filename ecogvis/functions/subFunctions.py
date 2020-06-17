@@ -24,8 +24,12 @@ class TimeSeriesPlotter:
 
         # Makes nwbfile object from nwb file or from HTK directory
         if self.source_path.is_file():
-            self.subject_id = self.source_path.name.split('_')[0][2:]
-            self.block = self.source_path.name.split('_')[1][1:-4]
+            if '_' in self.source_path.name:
+                self.subject_id = self.source_path.name.split('_')[0][2:]
+                self.block = self.source_path.name.split('_')[1][1:-4]
+            else:
+                self.subject_id = ''
+                self.block = ''
             self.io = pynwb.NWBHDF5IO(str(self.source_path), 'r+', load_namespaces=True)
             self.nwb = self.io.read()      # reads NWB file
         elif self.source_path.is_dir():
@@ -68,22 +72,25 @@ class TimeSeriesPlotter:
             self.parent.push7_0.setEnabled(False)
         except:
             print("No 'high_gamma' data in 'processing' group.")
+
         self.plotData = self.source.data
         self.fs_signal = self.source.rate     # sampling frequency [Hz]
         self.tbin_signal = 1 / self.fs_signal  # time bin duration [seconds]
         self.nBins = self.source.data.shape[0]     # total number of bins
         self.min_window_bins = 10                   # minimum number of bins to plot
+        # Electrodes table - bipolar or regular table
+        self.electrodes_table = self.source.electrodes.table
         # all electricalseries channels ids
-        self.all_channels_ids = self.source.electrodes.table.id[:]
+        self.all_channels_ids = self.electrodes_table.id[:]
         self.electrical_series_channel_ids = np.array(self.all_channels_ids)[self.source.electrodes.data[:]].tolist()
         self.n_channels_total = len(self.electrical_series_channel_ids)     # total number of channels
 
         # Get Brain regions present in current file
-        self.all_regions = list(set(list(self.nwb.electrodes['location'][self.electrical_series_channel_ids])))
+        self.all_regions = list(self.electrodes_table['location'][self.electrical_series_channel_ids])
         self.all_regions.sort()
         self.regions_mask = [True] * len(self.all_regions)
 
-        self.channels_mask = np.ones(len(self.regions_mask))
+        self.channels_mask = np.ones(len(list(self.electrodes_table['location'][self.electrical_series_channel_ids])))
         self.channels_mask_ind = np.where(self.channels_mask)[0]
 
         self.h = []
@@ -103,9 +110,9 @@ class TimeSeriesPlotter:
         self.current_rect = []
 
         # List of bad channels
-        if 'bad' in self.nwb.electrodes:
-            aux_mask = self.nwb.electrodes[self.electrical_series_channel_ids]['bad']
-            self.bad_channels_ids = list(self.nwb.electrodes[self.electrical_series_channel_ids][aux_mask].index)
+        if 'bad' in self.electrodes_table:
+            aux_mask = self.electrodes_table[self.electrical_series_channel_ids]['bad']
+            self.bad_channels_ids = list(self.electrodes_table[self.electrical_series_channel_ids][aux_mask].index)
         else:
             self.bad_channels_ids = []
 
@@ -141,6 +148,17 @@ class TimeSeriesPlotter:
             c.setPen(pg.mkPen(color='r'))
             c.setBrush(QtGui.QColor(255, 0, 0, 120))
             self.parent.win1.addItem(c)
+
+        # Test if current nwb file contains Survey table
+        if 'behavior' in self.nwb.processing:
+            list_surveys = [v for v in self.nwb.processing['behavior'].data_interfaces.values()
+                            if v.neurodata_type == 'SurveyTable']
+            if len(list_surveys) > 0:
+                self.parent.action_vis_survey.setEnabled(True)
+            else:
+                self.parent.action_vis_survey.setEnabled(False)
+        else:
+            self.parent.action_vis_survey.setEnabled(False)
 
         # Add Speaker and Mic Intervals if they exist
         self.SpeakerAndMicIntervalAdd()
@@ -426,7 +444,7 @@ class TimeSeriesPlotter:
                 step = 1
             elif opt == 'page':
                 step = np.minimum(self.nChToShow, self.n_channels_total - self.lastCh)
-            # Add +1 to first and last channels
+            # Add to first and last channels
             self.firstCh += step
             self.lastCh += step
             self.parent.qline0.setText(str(self.lastCh))
@@ -764,20 +782,20 @@ class TimeSeriesPlotter:
     def update_bad_channels(self):
         """Updates list of bad channels after add or del"""
         # List of electrodes IDs
-        elecs_ids = list(self.nwb.electrodes.id[:])
+        elecs_ids = list(self.electrodes_table.id[:])
         is_bad_list = [False] * len(elecs_ids)
         for i, id in enumerate(elecs_ids):
             if id in self.bad_channels_ids:
                 is_bad_list[i] = True
 
-        if 'bad' not in self.nwb.electrodes:
-            self.nwb.add_electrode_column(
+        if 'bad' not in self.electrodes_table:
+            self.electrodes_table.add_column(
                 name='bad',
                 description='electrode identified as too noisy',
                 data=is_bad_list,
             )
         else:
-            self.nwb.electrodes['bad'].data[:] = is_bad_list
+            self.electrodes_table['bad'].data[:] = is_bad_list
 
         # Refresh screen
         self.refreshScreen()

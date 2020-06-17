@@ -197,7 +197,7 @@ class ERPDialog(QMainWindow):
         self.grid_order = np.where(self.electrodes.table['group_name'].data[:] == self.elec_group)[0]
         self.nElecs = len(self.grid_order)
         self.nCols = 16
-        self.nRows = max(int(self.nElecs / self.nCols), 1)
+        self.nRows = int(np.ceil(self.nElecs / self.nCols))
         self.set_grid()
         self.draw_erp()
 
@@ -379,12 +379,20 @@ class ERPDialog(QMainWindow):
         self.combo1.setEnabled(True)
         self.push3_0.setEnabled(True)
         self.push4_0.setEnabled(True)
-        self.push5_0.setEnabled(True)
-        self.push5_1.setEnabled(True)
-        self.push5_2.setEnabled(True)
-        self.push5_3.setEnabled(True)
-        self.push5_4.setEnabled(True)
-        self.push5_5.setEnabled(True)
+        if self.nElecs % 16 == 0:
+            self.push5_0.setEnabled(True)
+            self.push5_1.setEnabled(True)
+            self.push5_2.setEnabled(True)
+            self.push5_3.setEnabled(True)
+            self.push5_4.setEnabled(True)
+            self.push5_5.setEnabled(True)
+        else:
+            self.push5_0.setEnabled(False)
+            self.push5_1.setEnabled(False)
+            self.push5_2.setEnabled(False)
+            self.push5_3.setEnabled(False)
+            self.push5_4.setEnabled(False)
+            self.push5_5.setEnabled(False)
         self.combo1.setCurrentIndex(self.combo1.findText('individual'))
         self.set_grid()
         cmap = get_lut()

@@ -1,14 +1,15 @@
 # Standard libraries
 from pathlib import Path
-from scipy.io import loadmat
 import yaml
 import os
 
 # Third party libraries
 import OpenGL.GL as ogl
 import numpy as np
+import pandas as pd
 import pyqtgraph as pg
 import pyqtgraph.opengl as gl
+from PyQt5.QtWebEngineWidgets import QWebEngineView
 from PyQt5 import QtGui, QtCore, uic
 from PyQt5.QtWidgets import (QTableWidgetItem, QGridLayout, QGroupBox,
                              QLineEdit, QStyle, QMainWindow, QCheckBox,
@@ -21,7 +22,7 @@ from ecogvis.signal_processing.periodogram import psd_estimate
 from ecogvis.signal_processing.processing_data import processing_data
 from pynwb import NWBHDF5IO
 from pynwb.epoch import TimeIntervals
-
+from ndx_bipolar_scheme.bipolar_scheme import BipolarSchemeTable
 from .FS_colorLUT import get_lut
 
 # from threading import Event, Thread
@@ -266,6 +267,7 @@ class LoadHTKDialog(QtGui.QDialog):
         self.htk_config = None
         self.metadata = {}
         self.electrodes_file = None
+        self.bipolar_file = None
 
         # Metadata
         label_metadata = QLabel('File path:')
@@ -447,6 +449,23 @@ class LoadHTKDialog(QtGui.QDialog):
         groupBox4 = QGroupBox("Electrodes info")
         groupBox4.setLayout(vbox4)
 
+        # Bipolar electrodes table file
+        label_bipolar = QLabel('File path:')
+        self.push5 = QPushButton()
+        self.push5.clicked.connect(self.open_bipolarfile)
+        self.push5.setIcon(self.style().standardIcon(QStyle.SP_DialogOpenButton))
+        self.line5 = QLineEdit('')
+
+        hbox5 = QHBoxLayout()
+        hbox5.addWidget(label_bipolar)
+        hbox5.addWidget(self.push5)
+        hbox5.addWidget(self.line5)
+        vbox5 = QVBoxLayout()
+        vbox5.addLayout(hbox5)
+
+        groupBox5 = QGroupBox("Bipolar table")
+        groupBox5.setLayout(vbox5)
+
         # Load and Cancel buttons
         self.btn_load = QtGui.QPushButton("Load")
         self.btn_load.clicked.connect(lambda: self.out_close(val=1))
@@ -462,6 +481,7 @@ class LoadHTKDialog(QtGui.QDialog):
         vbox.addWidget(groupBox0)
         vbox.addWidget(groupBox1)
         vbox.addWidget(groupBox4)
+        vbox.addWidget(groupBox5)
         vbox.addLayout(hbox3)
 
         self.setLayout(vbox)
@@ -494,6 +514,14 @@ class LoadHTKDialog(QtGui.QDialog):
         if os.path.isfile(filename):
             self.line4.setText(filename)
             self.electrodes_file = Path(filename)
+
+    def open_bipolarfile(self):
+        """Reads a .csv file containing bipolar electrodes table info."""
+        filename, _ = QFileDialog.getOpenFileName(None, 'Open electrodes file',
+                                                  '', "(*.csv)")
+        if os.path.isfile(filename):
+            self.line5.setText(filename)
+            self.bipolar_file = Path(filename)
 
     def open_analog_dir(self):
         """Opens directory containing the HTK files with analog data."""
@@ -554,7 +582,8 @@ class LoadHTKDialog(QtGui.QDialog):
             anin3: {present: False, name: 'speaker2', type: 'stimulus'},
             anin4: {present: False, name: 'custom', type: 'acquisition'},
             metadata: metadata,
-            electrodes_file: electrodes_file
+            electrodes_file: electrodes_file,
+            bipolar_file: bipolar_file
         }
         """
         self.value = val
@@ -587,7 +616,116 @@ class LoadHTKDialog(QtGui.QDialog):
                 'type': ['acquisition' if self.radio_41.isChecked() else 'stimulus'][0]},
             'metadata': self.metadata,
             'electrodes_file': self.electrodes_file,
+            'bipolar_file': self.bipolar_file,
         }
+        self.accept()
+
+
+# Warning that Survey data already exists in the NWB file --------------------
+class ExistSurveyDialog(QtGui.QDialog):
+    def __init__(self):
+        super().__init__()
+        self.text = QLabel("Survey data already exists in the current NWB file.")
+        self.okButton = QtGui.QPushButton("OK")
+        self.okButton.clicked.connect(self.onAccepted)
+        vbox = QtGui.QVBoxLayout()
+        vbox.addWidget(self.text)
+        vbox.addWidget(self.okButton)
+        self.setLayout(vbox)
+        self.setWindowTitle('Survey data already exists')
+        self.exec_()
+
+    def onAccepted(self):
+        self.accept()
+
+
+# Show Survey data in a separate window --------------------------------------
+class ShowSurveyDialog(QtGui.QDialog):
+    def __init__(self, nwbfile):
+        super().__init__()
+        self.nwbfile = nwbfile
+        self.list_surveys = [v for v in nwbfile.processing['behavior'].data_interfaces.values()
+                             if v.neurodata_type == 'SurveyTable']
+
+        self.combo = QComboBox()
+        self.combo.activated.connect(self.render_survey_table)
+        for sv in self.list_surveys:
+            self.combo.addItem(sv.name)
+
+        self.html_viewer = QWebEngineView()
+        self.render_survey_table()
+
+        vbox = QtGui.QVBoxLayout()
+        vbox.addWidget(self.combo)
+        vbox.addWidget(self.html_viewer)
+        self.setLayout(vbox)
+        self.setWindowTitle('Survey data')
+        self.resize(600, 600)
+        self.exec_()
+
+    def render_survey_table(self):
+        """Renders survey table in html"""
+        survey_name = self.combo.currentText()
+        survey_table = self.nwbfile.processing['behavior'].data_interfaces[survey_name]
+        html = survey_table.to_dataframe().to_html()
+
+        self.html_viewer.setHtml(html)
+        self.html_viewer.show()
+
+    def onAccepted(self):
+        self.accept()
+
+
+# Show Electrodes tables in a separate window --------------------------------------
+class ShowElectrodesDialog(QtGui.QDialog):
+    def __init__(self, parent):
+        super().__init__()
+        self.parent = parent
+        self.nwbfile = parent.model.nwb
+        self.source = parent.model.source
+
+        self.combo = QComboBox()
+        self.combo.activated.connect(self.render_table)
+        self.combo.addItem('Electrodes table')
+
+        # all electrodes table
+        elecs_df = self.nwbfile.electrodes.to_dataframe()
+        elecs_df.drop(labels=['group'], axis='columns', inplace=True)
+        self.list_tables = [elecs_df]
+
+        # bipolar scheme table
+        if isinstance(self.source.electrodes.table, BipolarSchemeTable):
+            aux_df = self.source.electrodes.table.to_dataframe()
+            bipolar_df = pd.DataFrame(columns=['anodes', 'cathodes'])
+            for (id, row) in aux_df.iterrows():
+                bipolar_df.loc[id, 'anodes'] = list(row['anodes'].index)
+                bipolar_df.loc[id, 'cathodes'] = list(row['cathodes'].index)
+            self.list_tables.append(bipolar_df)
+            self.combo.addItem('Bipolar table')
+
+        self.html_viewer = QWebEngineView()
+        self.render_table()
+
+        vbox = QtGui.QVBoxLayout()
+        vbox.addWidget(self.combo)
+        vbox.addWidget(self.html_viewer)
+        self.setLayout(vbox)
+        self.setWindowTitle('Electrodes Tables')
+        self.resize(600, 600)
+        self.exec_()
+
+    def render_table(self):
+        """Renders table in html"""
+        table_name = self.combo.currentText()
+        if table_name == 'Electrodes table':
+            table = self.list_tables[0]
+        elif table_name == 'Bipolar table':
+            table = self.list_tables[1]
+        html = table.to_html()
+        self.html_viewer.setHtml(html)
+        self.html_viewer.show()
+
+    def onAccepted(self):
         self.accept()
 
 
@@ -1934,4 +2072,3 @@ class QHLine(QtGui.QFrame):
         super().__init__()
         self.setFrameShape(QtGui.QFrame.HLine)
         self.setFrameShadow(QtGui.QFrame.Sunken)
-

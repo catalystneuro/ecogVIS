@@ -2,13 +2,15 @@
 import numpy as np
 from hdmf.common.table import DynamicTable, VectorData
 from ndx_spectrum import Spectrum
+from ndx_survey_data.survey_definitions import nrs_survey_table, mpq_survey_table, vas_survey_table
+from ndx_bipolar_scheme import BipolarSchemeTable, EcephysExt
 from nwbext_ecog import CorticalSurfaces, ECoGSubject
 from pynwb import NWBFile, NWBHDF5IO, get_manager, ProcessingModule
 from pynwb.base import TimeSeries
 from pynwb.device import Device
 from pynwb.ecephys import LFP, ElectricalSeries
 from pynwb.epoch import TimeIntervals
-from pynwb.file import Subject
+from pynwb.file import Subject, DynamicTableRegion
 from pynwb.misc import DecompositionSeries
 import string
 import random
@@ -126,6 +128,18 @@ def nwb_copy_file(old_file, new_file, cp_objs={}, save_to_file=True):
                     data=var_data
                 )
 
+            # If Bipolar scheme for electrodes
+            for v in nwb_old.lab_meta_data.values():
+                if isinstance(v, EcephysExt) and hasattr(v, 'bipolar_scheme_table'):
+                    bst_old = v.bipolar_scheme_table
+                    bst_new = BipolarSchemeTable(
+                        name=bst_old.name,
+                        description=bst_old.description
+                    )
+                    ecephys_ext = EcephysExt(name=v.name)
+                    ecephys_ext.bipolar_scheme_table = bst_new
+                    nwb_new.add_lab_meta_data(ecephys_ext)
+
         # Epochs ----------------------------------------------------------
         if 'epochs' in cp_objs and nwb_old.epochs is not None:
             nEpochs = len(nwb_old.epochs['start_time'].data[:])
@@ -218,6 +232,21 @@ def nwb_copy_file(old_file, new_file, cp_objs={}, save_to_file=True):
                 if obj is not None:
                     ecephys_module.add_data_interface(obj)
 
+        if 'behavior' in cp_objs:
+            interfaces = [nwb_old.processing['behavior'].data_interfaces[key]
+                          for key in cp_objs['behavior']]
+            if 'behavior' not in nwb_new.processing:
+                # Add behavior module to NWB file
+                behavior_module = ProcessingModule(
+                    name='behavior',
+                    description='behavioral data.'
+                )
+                nwb_new.add_processing_module(behavior_module)
+            for interface_old in interfaces:
+                obj = copy_obj(interface_old, nwb_old, nwb_new)
+                if obj is not None:
+                    behavior_module.add_data_interface(obj)
+
         # Acquisition -----------------------------------------------------
         # Can get raw ElecetricalSeries and Mic recording
         if 'acquisition' in cp_objs:
@@ -225,6 +254,22 @@ def nwb_copy_file(old_file, new_file, cp_objs={}, save_to_file=True):
                 obj_old = nwb_old.acquisition[acq_name]
                 acq = copy_obj(obj_old, nwb_old, nwb_new)
                 nwb_new.add_acquisition(acq)
+
+        # Surveys ---------------------------------------------------------
+        if 'surveys' in cp_objs and 'behavior' in nwb_old.processing:
+            surveys_list = [v for v in nwb_old.processing['behavior'].data_interfaces.values()
+                            if v.neurodata_type == 'SurveyTable']
+            if cp_objs['surveys'] and len(surveys_list) > 0:
+                if 'behavior' not in nwb_new.processing:
+                    # Add behavior module to NWB file
+                    behavior_module = ProcessingModule(
+                        name='behavior',
+                        description='behavioral data.'
+                    )
+                    nwb_new.add_processing_module(behavior_module)
+                for obj_old in surveys_list:
+                    srv = copy_obj(obj_old, nwb_old, nwb_new)
+                    behavior_module.add_data_interface(srv)
 
         # Subject ---------------------------------------------------------
         if nwb_old.subject is not None:
@@ -266,12 +311,44 @@ def copy_obj(obj_old, nwb_old, nwb_new):
 
     # ElectricalSeries --------------------------------------------------------
     if type(obj_old) is ElectricalSeries:
-        region = np.array(obj_old.electrodes.table.id[:])[obj_old.electrodes.data[:]].tolist()
-        elecs_region = nwb_new.create_electrode_table_region(
-            name='electrodes',
-            region=region,
-            description=''
-        )
+        # If reference electrodes table is bipolar scheme
+        if isinstance(obj_old.electrodes.table, BipolarSchemeTable):
+            bst_old = obj_old.electrodes.table
+            bst_old_df = bst_old.to_dataframe()
+            bst_new = nwb_new.lab_meta_data['ecephys_ext'].bipolar_scheme_table
+
+            for id, row in bst_old_df.iterrows():
+                index_anodes = row['anodes'].index.tolist()
+                index_cathodes = row['cathodes'].index.tolist()
+                bst_new.add_row(anodes=index_anodes, cathodes=index_cathodes)
+            bst_new.anodes.table = nwb_new.electrodes
+            bst_new.cathodes.table = nwb_new.electrodes
+
+            # if there are custom columns
+            new_cols = list(bst_old_df.columns)
+            default_cols = ['anodes', 'cathodes']
+            [new_cols.remove(col) for col in default_cols]
+            for col in new_cols:
+                col_data = list(bst_old[col].data[:])
+                bst_new.add_column(
+                    name=str(col),
+                    description=str(bst_old[col].description),
+                    data=col_data
+                )
+
+            elecs_region = DynamicTableRegion(
+                name='electrodes',
+                data=bst_old_df.index.tolist(),
+                description='desc',
+                table=bst_new
+            )
+        else:
+            region = np.array(obj_old.electrodes.table.id[:])[obj_old.electrodes.data[:]].tolist()
+            elecs_region = nwb_new.create_electrode_table_region(
+                name='electrodes',
+                region=region,
+                description=''
+            )
         els = ElectricalSeries(
             name=obj_old.name,
             data=obj_old.data[:],
@@ -381,3 +458,23 @@ def copy_obj(obj_old, nwb_old, nwb_new):
             power=obj_old.power,
             electrodes=elecs_region
         )
+
+    # Survey tables ------------------------------------------------------------
+    if obj_old.neurodata_type == 'SurveyTable':
+        if obj_old.name == 'nrs_survey_table':
+            n_rows = len(obj_old['nrs_pain_intensity_rating'].data)
+            for i in range(n_rows):
+                nrs_survey_table.add_row(**{c: obj_old[c][i] for c in obj_old.colnames})
+            return nrs_survey_table
+
+        elif obj_old.name == 'vas_survey_table':
+            n_rows = len(obj_old['vas_pain_intensity_rating'].data)
+            for i in range(n_rows):
+                vas_survey_table.add_row(**{c: obj_old[c][i] for c in obj_old.colnames})
+            return vas_survey_table
+
+        elif obj_old.name == 'mpq_survey_table':
+            n_rows = len(obj_old['throbbing'].data)
+            for i in range(n_rows):
+                mpq_survey_table.add_row(**{c: obj_old[c][i] for c in obj_old.colnames})
+            return mpq_survey_table
