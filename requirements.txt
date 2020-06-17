@@ -11,7 +11,7 @@ pynwb
 nwbext_ecog
 ndx-spectrum
 ndx-survey-data
-ndx-bipolar-scheme
+ndx-bipolar-scheme>=0.3.1
 pyopengl
 process_nwb
 PyYAML
