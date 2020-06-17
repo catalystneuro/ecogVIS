@@ -1,5 +1,6 @@
-from ndx_survey_data.survey_definitions import nrs_survey_table, mpq_survey_table, vas_survey_table
+from ndx_survey_data import survey_definitions
 from scipy.io import loadmat
+from importlib import reload
 import math
 
 
@@ -13,6 +14,10 @@ def add_survey_data(nwbfile, path_survey_file):
     path_survey_fila: path
         Path to .mat file containing survey data
     """
+
+    # Reload definitions
+    reload(survey_definitions)
+
     survey_dict = loadmat(path_survey_file)
     survey_data = survey_dict['redcap_painscores']
     survey_dt = survey_dict['redcap_datetimes'][:, 0]
@@ -40,7 +45,7 @@ def add_survey_data(nwbfile, path_survey_file):
         # NRS table
         nrs_null = all([math.isnan(v) for v in row[0:4]])
         if not nrs_null:
-            nrs_survey_table.add_row(
+            survey_definitions.nrs_survey_table.add_row(
                 nrs_pain_intensity_rating=nrs_values(row[0]),
                 nrs_relative_pain_intensity_rating=nrs_values(row[1]),
                 nrs_pain_unpleasantness=nrs_values(row[2]),
@@ -51,7 +56,7 @@ def add_survey_data(nwbfile, path_survey_file):
         # VAS table
         vas_null = all([math.isnan(v) for v in row[4:8]])
         if not vas_null:
-            vas_survey_table.add_row(
+            survey_definitions.vas_survey_table.add_row(
                 vas_pain_intensity_rating=nrs_values(row[4]),
                 vas_pain_relief_rating=nrs_values(row[5]),
                 vas_relative_pain_intensity_rating=nrs_values(row[6]),
@@ -62,7 +67,7 @@ def add_survey_data(nwbfile, path_survey_file):
         # MPQ table
         mpq_null = all([math.isnan(v) for v in row[9:]])
         if not mpq_null:
-            mpq_survey_table.add_row(
+            survey_definitions.mpq_survey_table.add_row(
                 throbbing=mpq_values(row[9]),
                 shooting=mpq_values(row[10]),
                 stabbing=mpq_values(row[11]),
@@ -89,8 +94,8 @@ def add_survey_data(nwbfile, path_survey_file):
         )
 
     # Add survey tables to behavioral processing module
-    nwbfile.processing['behavior'].add(nrs_survey_table)
-    nwbfile.processing['behavior'].add(vas_survey_table)
-    nwbfile.processing['behavior'].add(mpq_survey_table)
+    nwbfile.processing['behavior'].add(survey_definitions.nrs_survey_table)
+    nwbfile.processing['behavior'].add(survey_definitions.vas_survey_table)
+    nwbfile.processing['behavior'].add(survey_definitions.mpq_survey_table)
 
     print('Survey data added successfully!')
