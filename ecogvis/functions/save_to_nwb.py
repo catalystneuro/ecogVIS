@@ -26,11 +26,12 @@ class SaveToNWBDialog(QtGui.QDialog):
 
         # Include raw data
         self.chk_raw = QCheckBox('Raw data')
-        self.chk_raw.setChecked(True)
-        self.chk_raw.setEnabled(True)
+        self.chk_raw.setChecked(False)
+        self.chk_raw.setEnabled(False)
         for v in self.curr_nwbfile.acquisition.values():
             if v.__class__ is pynwb.ecephys.ElectricalSeries:
                 self.chk_raw.setEnabled(True)
+                self.chk_raw.setChecked(True)
                 self.raw_name = v.name
         self.form_1 = QVBoxLayout()
         self.form_1.addWidget(self.chk_raw)

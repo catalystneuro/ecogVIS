@@ -313,8 +313,8 @@ def copy_obj(obj_old, nwb_old, nwb_new):
     if type(obj_old) is ElectricalSeries:
         # If reference electrodes table is bipolar scheme
         if isinstance(obj_old.electrodes.table, BipolarSchemeTable):
-            bst_old_df = obj_old.electrodes.table
-            bst_new = nwb_new.lab_meta_data['ecephys_ext']
+            bst_old_df = obj_old.electrodes.table.to_dataframe()
+            bst_new = nwb_new.lab_meta_data['ecephys_ext'].bipolar_scheme_table
 
             for id, row in bst_old_df.iterrows():
                 index_anodes = row['anodes'].index.tolist()
