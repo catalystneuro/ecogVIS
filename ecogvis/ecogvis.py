@@ -560,10 +560,10 @@ class Application(QMainWindow):
                 for elem in ch_str:
                     if '-' in elem:   # if given a range e.g. 7-12
                         elem_lims = elem.split('-')
-                        seq = range(int(elem_lims[0]) - 1, int(elem_lims[1]))
+                        seq = range(int(elem_lims[0]), int(elem_lims[1]) + 1)
                         ch_list.extend(seq)
                     else:             # if given a single value
-                        ch_list.append(int(elem) - 1)
+                        ch_list.append(int(elem))
                 self.model.BadChannelAdd(ch_list=ch_list)
             except Exception as ex:
                 print(str(ex))
@@ -580,10 +580,10 @@ class Application(QMainWindow):
                 for elem in ch_str:
                     if '-' in elem:   # if given a range e.g. 7-12
                         elem_lims = elem.split('-')
-                        seq = range(int(elem_lims[0]) - 1, int(elem_lims[1]))
+                        seq = range(int(elem_lims[0]), int(elem_lims[1]) + 1)
                         ch_list.extend(seq)
                     else:             # if given a single value
-                        ch_list.append(int(elem) - 1)
+                        ch_list.append(int(elem))
                 self.model.BadChannelDel(ch_list=ch_list)
             except Exception as ex:
                 print(str(ex))
@@ -793,16 +793,19 @@ class Application(QMainWindow):
         self.active_mode = 'default'
         self.reset_buttons()
         # Dialog to choose channels from specific brain regions
-        w = SelectChannelsDialog(self.model.all_regions, self.model.regions_mask)
-        all_locs = self.model.nwb.electrodes['location'][self.model.electrical_series_channel_ids]
+        w = SelectChannelsDialog(
+            stringlist=self.model.all_regions,
+            checked=self.model.regions_mask
+        )
+        all_locs = self.model.electrodes_table['location'][self.model.electrical_series_channel_ids]
         self.model.channels_mask = np.zeros(len(all_locs))
         for loc in w.choices:
             self.model.channels_mask += all_locs == np.array(loc)
         # Indices of channels from chosen regions
         self.model.channels_mask_ind = np.where(self.model.channels_mask)[0]
-        self.model.nChTotal = len(self.model.channels_mask_ind)
+        self.model.n_channels_total = len(self.model.channels_mask_ind)
         # Reset channels span control
-        self.model.lastCh = np.minimum(16, self.model.nChTotal)
+        self.model.lastCh = np.minimum(16, self.model.n_channels_total)
         self.model.firstCh = 1
         self.model.nChToShow = self.model.lastCh - self.model.firstCh + 1
         self.qline0.setText(str(self.model.lastCh))

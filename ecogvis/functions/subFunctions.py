@@ -72,6 +72,7 @@ class TimeSeriesPlotter:
             self.parent.push7_0.setEnabled(False)
         except:
             print("No 'high_gamma' data in 'processing' group.")
+
         self.plotData = self.source.data
         self.fs_signal = self.source.rate     # sampling frequency [Hz]
         self.tbin_signal = 1 / self.fs_signal  # time bin duration [seconds]
@@ -443,7 +444,7 @@ class TimeSeriesPlotter:
                 step = 1
             elif opt == 'page':
                 step = np.minimum(self.nChToShow, self.n_channels_total - self.lastCh)
-            # Add +1 to first and last channels
+            # Add to first and last channels
             self.firstCh += step
             self.lastCh += step
             self.parent.qline0.setText(str(self.lastCh))
