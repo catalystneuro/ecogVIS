@@ -462,48 +462,19 @@ def copy_obj(obj_old, nwb_old, nwb_new):
     # Survey tables ------------------------------------------------------------
     if obj_old.neurodata_type == 'SurveyTable':
         if obj_old.name == 'nrs_survey_table':
-            n_rows = len(obj_old['nrs_pain_intensity_rating'].data[:])
+            n_rows = len(obj_old['nrs_pain_intensity_rating'].data)
             for i in range(n_rows):
-                nrs_survey_table.add_row(
-                    nrs_pain_intensity_rating=obj_old['nrs_pain_intensity_rating'].data[i],
-                    nrs_relative_pain_intensity_rating=obj_old['nrs_relative_pain_intensity_rating'].data[i],
-                    nrs_pain_unpleasantness=obj_old['nrs_pain_unpleasantness'].data[i],
-                    nrs_pain_relief_rating=obj_old['nrs_pain_relief_rating'].data[i],
-                    unix_timestamp=obj_old['unix_timestamp'].data[i]
-                )
+                nrs_survey_table.add_row(**{c: obj_old[c][i] for c in obj_old.colnames})
             return nrs_survey_table
 
         elif obj_old.name == 'vas_survey_table':
-            n_rows = len(obj_old['vas_pain_intensity_rating'].data[:])
+            n_rows = len(obj_old['vas_pain_intensity_rating'].data)
             for i in range(n_rows):
-                vas_survey_table.add_row(
-                    vas_pain_intensity_rating=obj_old['vas_pain_intensity_rating'].data[i],
-                    vas_pain_relief_rating=obj_old['vas_pain_relief_rating'].data[i],
-                    vas_relative_pain_intensity_rating=obj_old['vas_relative_pain_intensity_rating'].data[i],
-                    vas_pain_unpleasantness=obj_old['vas_pain_unpleasantness'].data[i],
-                    unix_timestamp=obj_old['unix_timestamp'].data[i],
-                )
+                vas_survey_table.add_row(**{c: obj_old[c][i] for c in obj_old.colnames})
             return vas_survey_table
 
         elif obj_old.name == 'mpq_survey_table':
-            n_rows = len(obj_old['throbbing'].data[:])
+            n_rows = len(obj_old['throbbing'].data)
             for i in range(n_rows):
-                mpq_survey_table.add_row(
-                    throbbing=obj_old['throbbing'].data[i],
-                    shooting=obj_old['shooting'].data[i],
-                    stabbing=obj_old['stabbing'].data[i],
-                    sharp=obj_old['sharp'].data[i],
-                    cramping=obj_old['cramping'].data[i],
-                    gnawing=obj_old['gnawing'].data[i],
-                    hot_burning=obj_old['hot_burning'].data[i],
-                    aching=obj_old['aching'].data[i],
-                    heavy=obj_old['heavy'].data[i],
-                    tender=obj_old['tender'].data[i],
-                    splitting=obj_old['splitting'].data[i],
-                    tiring_exhausting=obj_old['tiring_exhausting'].data[i],
-                    sickening=obj_old['sickening'].data[i],
-                    fearful=obj_old['fearful'].data[i],
-                    cruel_punishing=obj_old['cruel_punishing'].data[i],
-                    unix_timestamp=obj_old['unix_timestamp'].data[i],
-                )
+                mpq_survey_table.add_row(**{c: obj_old[c][i] for c in obj_old.colnames})
             return mpq_survey_table
