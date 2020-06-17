@@ -313,7 +313,8 @@ def copy_obj(obj_old, nwb_old, nwb_new):
     if type(obj_old) is ElectricalSeries:
         # If reference electrodes table is bipolar scheme
         if isinstance(obj_old.electrodes.table, BipolarSchemeTable):
-            bst_old_df = obj_old.electrodes.table.to_dataframe()
+            bst_old = obj_old.electrodes.table
+            bst_old_df = bst_old.to_dataframe()
             bst_new = nwb_new.lab_meta_data['ecephys_ext'].bipolar_scheme_table
 
             for id, row in bst_old_df.iterrows():
@@ -322,6 +323,18 @@ def copy_obj(obj_old, nwb_old, nwb_new):
                 bst_new.add_row(anodes=index_anodes, cathodes=index_cathodes)
             bst_new.anodes.table = nwb_new.electrodes
             bst_new.cathodes.table = nwb_new.electrodes
+
+            # if there are custom columns
+            new_cols = list(bst_old_df.columns)
+            default_cols = ['anodes', 'cathodes']
+            [new_cols.remove(col) for col in default_cols]
+            for col in new_cols:
+                col_data = list(bst_old[col].data[:])
+                bst_new.add_column(
+                    name=str(col),
+                    description=str(bst_old[col].description),
+                    data=col_data
+                )
 
             elecs_region = DynamicTableRegion(
                 name='electrodes',

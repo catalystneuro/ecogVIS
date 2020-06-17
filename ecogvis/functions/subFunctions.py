@@ -77,17 +77,19 @@ class TimeSeriesPlotter:
         self.tbin_signal = 1 / self.fs_signal  # time bin duration [seconds]
         self.nBins = self.source.data.shape[0]     # total number of bins
         self.min_window_bins = 10                   # minimum number of bins to plot
+        # Electrodes table - bipolar or regular table
+        self.electrodes_table = self.source.electrodes.table
         # all electricalseries channels ids
-        self.all_channels_ids = self.source.electrodes.table.id[:]
+        self.all_channels_ids = self.electrodes_table.id[:]
         self.electrical_series_channel_ids = np.array(self.all_channels_ids)[self.source.electrodes.data[:]].tolist()
         self.n_channels_total = len(self.electrical_series_channel_ids)     # total number of channels
 
         # Get Brain regions present in current file
-        self.all_regions = list(set(list(self.nwb.electrodes['location'][self.electrical_series_channel_ids])))
+        self.all_regions = list(set(list(self.electrodes_table['location'][self.electrical_series_channel_ids])))
         self.all_regions.sort()
         self.regions_mask = [True] * len(self.all_regions)
 
-        self.channels_mask = np.ones(len(list(self.nwb.electrodes['location'][self.electrical_series_channel_ids])))
+        self.channels_mask = np.ones(len(list(self.electrodes_table['location'][self.electrical_series_channel_ids])))
         self.channels_mask_ind = np.where(self.channels_mask)[0]
 
         self.h = []
@@ -107,9 +109,9 @@ class TimeSeriesPlotter:
         self.current_rect = []
 
         # List of bad channels
-        if 'bad' in self.nwb.electrodes:
-            aux_mask = self.nwb.electrodes[self.electrical_series_channel_ids]['bad']
-            self.bad_channels_ids = list(self.nwb.electrodes[self.electrical_series_channel_ids][aux_mask].index)
+        if 'bad' in self.electrodes_table:
+            aux_mask = self.electrodes_table[self.electrical_series_channel_ids]['bad']
+            self.bad_channels_ids = list(self.electrodes_table[self.electrical_series_channel_ids][aux_mask].index)
         else:
             self.bad_channels_ids = []
 
@@ -779,20 +781,20 @@ class TimeSeriesPlotter:
     def update_bad_channels(self):
         """Updates list of bad channels after add or del"""
         # List of electrodes IDs
-        elecs_ids = list(self.nwb.electrodes.id[:])
+        elecs_ids = list(self.electrodes_table.id[:])
         is_bad_list = [False] * len(elecs_ids)
         for i, id in enumerate(elecs_ids):
             if id in self.bad_channels_ids:
                 is_bad_list[i] = True
 
-        if 'bad' not in self.nwb.electrodes:
-            self.nwb.add_electrode_column(
+        if 'bad' not in self.electrodes_table:
+            self.electrodes_table.add_column(
                 name='bad',
                 description='electrode identified as too noisy',
                 data=is_bad_list,
             )
         else:
-            self.nwb.electrodes['bad'].data[:] = is_bad_list
+            self.electrodes_table['bad'].data[:] = is_bad_list
 
         # Refresh screen
         self.refreshScreen()

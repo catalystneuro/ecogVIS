@@ -367,6 +367,18 @@ def chang2nwb(blockpath, out_file_path=None, save_to_file=False, htk_config=None
             name='bipolar_scheme_table',
             description='desc'
         )
+
+        # Columns for bipolar scheme - all anodes and cathodes within the same
+        # bipolar row are considered to have the same group and location
+        bipolar_scheme_table.add_column(
+            name='group_name',
+            description='electrode group name'
+        )
+        bipolar_scheme_table.add_column(
+            name='location',
+            description='electrode location'
+        )
+
         # Iterate over anode / cathode rows
         for i, r in df.iterrows():
             if isinstance(r['anodes'], str):
@@ -377,7 +389,13 @@ def chang2nwb(blockpath, out_file_path=None, save_to_file=False, htk_config=None
                 cathodes = [int(a) for a in r['cathodes'].split(',')]
             else:
                 cathodes = [int(r['cathodes'])]
-            bipolar_scheme_table.add_row(anodes=anodes, cathodes=cathodes)
+            bipolar_scheme_table.add_row(
+                anodes=anodes,
+                cathodes=cathodes,
+                group_name=nwbfile.electrodes['group_name'][anodes[0]],
+                location=nwbfile.electrodes['location'][anodes[0]]
+            )
+
         bipolar_scheme_table.anodes.table = nwbfile.electrodes
         bipolar_scheme_table.cathodes.table = nwbfile.electrodes
 
