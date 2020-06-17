@@ -300,7 +300,7 @@ def chang2nwb(blockpath, out_file_path=None, save_to_file=False, htk_config=None
             region=all_elecs,
             description='ECoG electrodes on brain'
         )
-    else:  # Get electrodes info from metadata file
+    else:
         ecephys_dict = {
             'Device': [{'name': 'auto_device'}],
             'ElectricalSeries': [{'name': 'ECoG', 'description': 'description'}],
@@ -336,7 +336,7 @@ def chang2nwb(blockpath, out_file_path=None, save_to_file=False, htk_config=None
         for elec_counter in range(n_electrodes):
             bad = elec_counter in bad_elecs_inds
             nwbfile.add_electrode(
-                id=elec_counter + 1,
+                id=elec_counter,
                 x=np.nan,
                 y=np.nan,
                 z=np.nan,

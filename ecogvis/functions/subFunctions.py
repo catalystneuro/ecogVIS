@@ -86,7 +86,7 @@ class TimeSeriesPlotter:
         self.n_channels_total = len(self.electrical_series_channel_ids)     # total number of channels
 
         # Get Brain regions present in current file
-        self.all_regions = list(set(list(self.electrodes_table['location'][self.electrical_series_channel_ids])))
+        self.all_regions = list(self.electrodes_table['location'][self.electrical_series_channel_ids])
         self.all_regions.sort()
         self.regions_mask = [True] * len(self.all_regions)
 
