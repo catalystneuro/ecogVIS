@@ -3,13 +3,14 @@ import numpy as np
 from hdmf.common.table import DynamicTable, VectorData
 from ndx_spectrum import Spectrum
 from ndx_survey_data.survey_definitions import nrs_survey_table, mpq_survey_table, vas_survey_table
+from ndx_bipolar_scheme import BipolarSchemeTable, EcephysExt
 from nwbext_ecog import CorticalSurfaces, ECoGSubject
 from pynwb import NWBFile, NWBHDF5IO, get_manager, ProcessingModule
 from pynwb.base import TimeSeries
 from pynwb.device import Device
 from pynwb.ecephys import LFP, ElectricalSeries
 from pynwb.epoch import TimeIntervals
-from pynwb.file import Subject
+from pynwb.file import Subject, DynamicTableRegion
 from pynwb.misc import DecompositionSeries
 import string
 import random
@@ -126,6 +127,18 @@ def nwb_copy_file(old_file, new_file, cp_objs={}, save_to_file=True):
                     description=str(nwb_old.electrodes[var].description),
                     data=var_data
                 )
+
+            # If Bipolar scheme for electrodes
+            for v in nwb_old.lab_meta_data.values():
+                if isinstance(v, EcephysExt) and hasattr(v, 'bipolar_scheme_table'):
+                    bst_old = v.bipolar_scheme_table
+                    bst_new = BipolarSchemeTable(
+                        name=bst_old.name,
+                        description=bst_old.description
+                    )
+                    ecephys_ext = EcephysExt(name=v.name)
+                    ecephys_ext.bipolar_scheme_table = bst_new
+                    nwb_new.add_lab_meta_data(ecephys_ext)
 
         # Epochs ----------------------------------------------------------
         if 'epochs' in cp_objs and nwb_old.epochs is not None:
@@ -298,12 +311,31 @@ def copy_obj(obj_old, nwb_old, nwb_new):
 
     # ElectricalSeries --------------------------------------------------------
     if type(obj_old) is ElectricalSeries:
-        region = np.array(obj_old.electrodes.table.id[:])[obj_old.electrodes.data[:]].tolist()
-        elecs_region = nwb_new.create_electrode_table_region(
-            name='electrodes',
-            region=region,
-            description=''
-        )
+        # If reference electrodes table is bipolar scheme
+        if isinstance(obj_old.electrodes.table, BipolarSchemeTable):
+            bst_old_df = obj_old.electrodes.table
+            bst_new = nwb_new.lab_meta_data['ecephys_ext']
+
+            for id, row in bst_old_df.iterrows():
+                index_anodes = row['anodes'].index.tolist()
+                index_cathodes = row['cathodes'].index.tolist()
+                bst_new.add_row(anodes=index_anodes, cathodes=index_cathodes)
+            bst_new.anodes.table = nwb_new.electrodes
+            bst_new.cathodes.table = nwb_new.electrodes
+
+            elecs_region = DynamicTableRegion(
+                name='electrodes',
+                data=bst_old_df.index.tolist(),
+                description='desc',
+                table=bst_new
+            )
+        else:
+            region = np.array(obj_old.electrodes.table.id[:])[obj_old.electrodes.data[:]].tolist()
+            elecs_region = nwb_new.create_electrode_table_region(
+                name='electrodes',
+                region=region,
+                description=''
+            )
         els = ElectricalSeries(
             name=obj_old.name,
             data=obj_old.data[:],
