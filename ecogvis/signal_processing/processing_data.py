@@ -158,27 +158,24 @@ def preprocess_raw_data(block_path, config):
                 print("Downsampling signals to "+str(config['Downsample'])+" Hz.")
                 print("Please wait, this might take around 30 minutes.")
                 start = time.time()
-                # zeros to pad to make signal length a power of 2
+                # Note: zero padding the signal to make the length
+                # a power of 2 won't help, since resample will further pad it
+                # (breaking the power of 2)
                 nBins = source.data.shape[0]
-                extraBins0 = 2**(np.ceil(np.log2(nBins)).astype('int')) - nBins
-                extraZeros = np.zeros(extraBins0)
                 rate = config['Downsample']
 
                 # malloc
-                T = int(np.ceil((nBins + extraBins0)*rate/source.rate))
+                T = int(np.ceil(nBins*rate/source.rate))
                 X = np.zeros((source.data.shape[1], T))
 
                 # One channel at a time, to improve memory usage for long signals
                 for ch in np.arange(nChannels):
                     # 1e6 scaling helps with numerical accuracy
                     Xch = source.data[:, ch]*1e6
-                    # Make length a power of 2, improves performance
-                    Xch = np.append(Xch, extraZeros)
                     X[ch, :] = resample(Xch, rate, source.rate)
                 print('Downsampling finished in {} seconds'.format(
                     time.time()-start))
             else:  # No downsample
-                extraBins0 = 0
                 rate = source.rate
                 X = source.data[()].T*1e6
 
@@ -206,29 +203,18 @@ def preprocess_raw_data(block_path, config):
             # Apply Notch filters
             if config['Notch'] is not None:
                 print("Applying notch filtering of "+str(config['Notch'])+" Hz")
-                #  zeros to pad to make signal lenght a power of 2
-                nBins = X.shape[1]
-                extraBins1 = 2**(np.ceil(np.log2(nBins)).astype('int')) - nBins
-                extraZeros = np.zeros(extraBins1)
+                # Note: zero padding the signal to make the length a power
+                # of 2 won't help, since notch filtering will further pad it
                 start = time.time()
                 for ch in np.arange(nChannels):
-                    Xch = np.append(X[ch, :], extraZeros).reshape(1, -1)
+                    # NOTE: apply_linenoise_notch takes a signal that is
+                    # (n_timePoints, n_channels). The documentation may be wrong
+                    Xch = X[ch, :].reshape(-1, 1)
                     Xch = apply_linenoise_notch(Xch, rate)
-                    if ch == 0:
-                        X2 = Xch.reshape(1, -1)
-                    else:
-                        X2 = np.append(X2, Xch.reshape(1, -1), axis=0)
+                    X[ch,:] = Xch[:,0]
                 print('Notch filter time for {}: {} seconds'.format(
                     block_name, time.time()-start))
 
-                X = np.copy(X2)
-                del X2
-            else:
-                extraBins1 = 0
-
-            # Remove excess bins (because of zero padding on previous steps)
-            excessBins = int(np.ceil(extraBins0*rate/source.rate) + extraBins1)
-            X = X[:, 0:-excessBins]
             X = X.astype('float32')     # signal (nChannels,nSamples)
             X /= 1e6                    # Scales signals back to volts
 
