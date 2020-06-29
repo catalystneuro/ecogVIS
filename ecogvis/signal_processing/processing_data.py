@@ -136,12 +136,7 @@ def preprocess_raw_data(block_path, config):
 
         # LFP: Downsampled and power line signal removed ----------------------
         if 'LFP' in nwb.processing['ecephys'].data_interfaces:
-            ######
-            # What's the point of this?  Nothing is done with these vars...
-            lfp = nwb.processing['ecephys'].data_interfaces['LFP']
-            lfp_ts = nwb.processing['ecephys'].data_interfaces[
-                'LFP'].electrical_series['preprocessed']
-            ######
+            raise RuntimeWarning('LFP data already exists in the nwb file. Skipping preprocessing.')
         else:  # creates LFP data interface container
             lfp = LFP()
 
