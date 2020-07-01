@@ -8,7 +8,7 @@ from PyQt5 import QtGui
 import pyqtgraph as pg
 import datetime
 import pynwb
-import nwbext_ecog
+import ndx_ecog
 from ecogvis.functions.htk_to_nwb.chang2nwb import chang2nwb
 
 
