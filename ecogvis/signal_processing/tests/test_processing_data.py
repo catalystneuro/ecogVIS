@@ -1,13 +1,9 @@
 import numpy as np
-from datetime import datetime
-from dateutil.tz import tzlocal
-from pynwb import NWBFile
 from pynwb import NWBHDF5IO
-from pynwb.ecephys import ElectricalSeries
-from pynwb.ecephys import LFP
 from ecogvis.signal_processing.processing_data import high_gamma_estimation, spectral_decomposition, preprocess_raw_data, make_new_nwb
 import unittest
 import os
+
 
 class ProcessingDataTestCase(unittest.TestCase):
 
@@ -15,7 +11,7 @@ class ProcessingDataTestCase(unittest.TestCase):
         here_path = os.path.dirname(os.path.abspath(__file__))
 
         # processed and raw example data
-        self.processed_name = os.path.join(here_path,'example_ecephys.nwb')
+        self.processed_name = os.path.join(here_path, 'example_ecephys.nwb')
 
         # temporary files
         self.test_name = 'ecephys_exmpl_test.nwb'
@@ -52,7 +48,7 @@ class ProcessingDataTestCase(unittest.TestCase):
             'devices': True,
             'electrode_groups': True,
             'electrodes': True,
-            'acquisition':['raw']
+            'acquisition': ['raw']
         }
         make_new_nwb(self.processed_name, self.test_name, cp_objs=cp_objs)
 
@@ -176,5 +172,3 @@ class ProcessingDataTestCase(unittest.TestCase):
             high_gamma_data_expected = nwbfile_correct.processing['ecephys'].data_interfaces['high_gamma'].data[:]
 
         np.testing.assert_almost_equal(high_gamma_data, high_gamma_data_expected)
-
-
