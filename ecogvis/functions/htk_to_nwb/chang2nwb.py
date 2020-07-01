@@ -14,7 +14,7 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 from hdmf.backends.hdf5 import H5DataIO
-from nwbext_ecog import ECoGSubject
+from ndx_ecog import ECoGSubject
 from ndx_bipolar_scheme import BipolarSchemeTable, EcephysExt
 from pynwb.file import DynamicTableRegion
 from pynwb import NWBFile, TimeSeries, get_manager, NWBHDF5IO

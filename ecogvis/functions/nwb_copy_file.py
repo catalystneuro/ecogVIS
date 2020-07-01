@@ -4,7 +4,7 @@ from hdmf.common.table import DynamicTable, VectorData
 from ndx_spectrum import Spectrum
 from ndx_survey_data.survey_definitions import nrs_survey_table, mpq_survey_table, vas_survey_table
 from ndx_bipolar_scheme import BipolarSchemeTable, EcephysExt
-from nwbext_ecog import CorticalSurfaces, ECoGSubject
+from ndx_ecog import CorticalSurfaces, ECoGSubject
 from pynwb import NWBFile, NWBHDF5IO, get_manager, ProcessingModule
 from pynwb.base import TimeSeries
 from pynwb.device import Device

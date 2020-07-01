@@ -20,6 +20,6 @@ dependencies:
 - hdmf
 - pip:
   - PyQt5
-  - nwbext_ecog==0.7.2
+  - ndx-ecog
   - ndx-spectrum
   - -e .
