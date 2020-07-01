@@ -623,9 +623,7 @@ class Application(QMainWindow):
         if 'TimeIntervals_speaker' not in self.model.nwb.intervals:
             # Test if file contains audio signals
             if any(name in self.model.nwb.stimulus for name in ['speaker1', 'speaker2']):
-                w = AudioEventDetection(parent=self)
-                if w.value == 1:  # Trial times were detected
-                    self.model.refresh_file()  # re-opens the file, now with new data
+                AudioEventDetection(parent=self)
             else:
                 NoAudioDialog()
         else:

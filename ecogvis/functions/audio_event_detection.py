@@ -389,26 +389,23 @@ class AudioEventDetection(QtGui.QDialog):
             self.stimTimes = self.thread.stimTimes
             self.respTimes = self.thread.respTimes
 
-            io = self.parent.model.io
-            nwb = self.parent.model.nwb
-
             # Speaker stimuli times
             ti_stim = TimeIntervals(name='TimeIntervals_speaker')
             times = self.stimTimes.reshape((-1, 2)).astype('float')
             for start, stop in times:
                 ti_stim.add_interval(start, stop)
+            self.parent.model.nwb.add_time_intervals(ti_stim)
 
             # Microphone responses times
-            ti_resp = TimeIntervals(name='TimeIntervals_mic')
-            times = self.respTimes.reshape((-1, 2)).astype('float')
-            for start, stop in times:
-                ti_resp.add_interval(start, stop)
+            if self.respTimes is not None:
+                ti_resp = TimeIntervals(name='TimeIntervals_mic')
+                times = self.respTimes.reshape((-1, 2)).astype('float')
+                for start, stop in times:
+                    ti_resp.add_interval(start, stop)
+                self.parent.model.nwb.add_time_intervals(ti_resp)
 
-            # Add both to file
-            nwb.add_time_intervals(ti_stim)
-            nwb.add_time_intervals(ti_resp)
             # Write file
-            io.write(nwb)
+            self.parent.model.io.write(self.parent.model.nwb)
 
             self.parent.model.refresh_file()
             self.parent.model.SpeakerAndMicIntervalAdd()
