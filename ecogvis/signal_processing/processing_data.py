@@ -1,7 +1,9 @@
 from __future__ import print_function, division
 
-import time, os
+import time
+import os
 import numpy as np
+import warnings
 
 from pynwb import NWBHDF5IO, ProcessingModule
 from pynwb.ecephys import LFP, ElectricalSeries
@@ -136,7 +138,7 @@ def preprocess_raw_data(block_path, config):
 
         # LFP: Downsampled and power line signal removed ----------------------
         if 'LFP' in nwb.processing['ecephys'].data_interfaces:
-            raise RuntimeWarning('LFP data already exists in the nwb file. Skipping preprocessing.')
+            warnings.warn('LFP data already exists in the nwb file. Skipping preprocessing.')
         else:  # creates LFP data interface container
             lfp = LFP()
 
@@ -150,7 +152,7 @@ def preprocess_raw_data(block_path, config):
 
             # Downsampling
             if config['Downsample'] is not None:
-                print("Downsampling signals to "+str(config['Downsample'])+" Hz.")
+                print("Downsampling signals to " + str(config['Downsample']) + " Hz.")
                 print("Please wait, this might take around 30 minutes.")
                 start = time.time()
                 # Note: zero padding the signal to make the length
@@ -160,19 +162,19 @@ def preprocess_raw_data(block_path, config):
                 rate = config['Downsample']
 
                 # malloc
-                T = int(np.ceil(nBins*rate/source.rate))
+                T = int(np.ceil(nBins * rate / source.rate))
                 X = np.zeros((source.data.shape[1], T))
 
                 # One channel at a time, to improve memory usage for long signals
                 for ch in np.arange(nChannels):
                     # 1e6 scaling helps with numerical accuracy
-                    Xch = source.data[:, ch]*1e6
+                    Xch = source.data[:, ch] * 1e6
                     X[ch, :] = resample(Xch, rate, source.rate)
                 print('Downsampling finished in {} seconds'.format(
-                    time.time()-start))
+                    time.time() - start))
             else:  # No downsample
                 rate = source.rate
-                X = source.data[()].T*1e6
+                X = source.data[()].T * 1e6
 
             # re-reference the (scaled by 1e6!) data
             electrodes = source.electrodes
@@ -183,21 +185,21 @@ def preprocess_raw_data(block_path, config):
                     start = time.time()
                     X = subtract_CAR(X, b_size=config['referencing'][1])
                     print('CAR subtract time for {}: {} seconds'.format(
-                        block_name, time.time()-start))
+                        block_name, time.time() - start))
                 elif config['referencing'][0] == 'bipolar':
                     X, bipolarTable, electrodes = get_bipolar_referenced_electrodes(
                         X, electrodes, rate, grid_step=1)
 
                     # add data interface for the metadata for saving
                     ecephys_module.add_data_interface(bipolarTable)
-                    print('bipolarElectrodes stored for saving in '+block_path)
+                    print('bipolarElectrodes stored for saving in ' + block_path)
                 else:
                     print('UNRECOGNIZED REFERENCING SCHEME; ', end='')
                     print('SKIPPING REFERENCING!')
 
             # Apply Notch filters
             if config['Notch'] is not None:
-                print("Applying notch filtering of "+str(config['Notch'])+" Hz")
+                print("Applying notch filtering of " + str(config['Notch']) + " Hz")
                 # Note: zero padding the signal to make the length a power
                 # of 2 won't help, since notch filtering will further pad it
                 start = time.time()
@@ -206,9 +208,9 @@ def preprocess_raw_data(block_path, config):
                     # (n_timePoints, n_channels). The documentation may be wrong
                     Xch = X[ch, :].reshape(-1, 1)
                     Xch = apply_linenoise_notch(Xch, rate)
-                    X[ch,:] = Xch[:,0]
+                    X[ch, :] = Xch[:, 0]
                 print('Notch filter time for {}: {} seconds'.format(
-                    block_name, time.time()-start))
+                    block_name, time.time() - start))
 
             X = X.astype('float32')     # signal (nChannels,nSamples)
             X /= 1e6                    # Scales signals back to volts
@@ -220,12 +222,12 @@ def preprocess_raw_data(block_path, config):
             downs = 'No' if config['Downsample'] is None else 'Yes'
             config_comment = (
                 'referencing:' + referencing
-                + ',Notch:' + notch
+                + ', Notch:' + notch
                 + ', Downsampled:' + downs
             )
 
             # create an electrical series for the LFP and store it in lfp
-            lfp_ts = lfp.create_electrical_series(
+            lfp.create_electrical_series(
                 name='preprocessed',
                 data=X.T,
                 electrodes=electrodes,
@@ -237,7 +239,7 @@ def preprocess_raw_data(block_path, config):
 
             # Write LFP to NWB file
             io.write(nwb)
-            print('LFP saved in '+block_path)
+            print('LFP saved in ' + block_path)
 
 
 def get_bipolar_referenced_electrodes(
@@ -275,10 +277,10 @@ def get_bipolar_referenced_electrodes(
         grid_size = np.array([16, 16])
 
     # malloc
-    elec_layout = np.arange(np.prod(grid_size)-1, -1, -1).reshape(grid_size).T
+    elec_layout = np.arange(np.prod(grid_size) - 1, -1, -1).reshape(grid_size).T
     elec_layout = elec_layout[::grid_step, ::grid_step]
     grid_size = elec_layout.T.shape  # in case grid_step > 1
-    Nchannels = 2*np.prod(grid_size) - np.sum(grid_size)
+    Nchannels = 2 * np.prod(grid_size) - np.sum(grid_size)
     XX = np.zeros((Nchannels, X.shape[1]))
 
     # create a new dynamic table to hold the metadata
@@ -323,19 +325,19 @@ def get_bipolar_referenced_electrodes(
                    for name in ['x', 'y', 'z', 'imp']},
             }
         )
-        return iChannel+1
+        return iChannel + 1
 
     iChannel = 0
 
     # loop across columns and rows (remembering that grid is transposed)
     for i in range(grid_size[1]):
         for j in range(grid_size[0]):
-            if j < grid_size[0]-1:
+            if j < grid_size[0] - 1:
                 iChannel = add_new_channel(
-                    iChannel, elec_layout[i, j], elec_layout[i, j+1])
-            if i < grid_size[1]-1:
+                    iChannel, elec_layout[i, j], elec_layout[i, j + 1])
+            if i < grid_size[1] - 1:
                 iChannel = add_new_channel(
-                    iChannel, elec_layout[i, j], elec_layout[i+1, j])
+                    iChannel, elec_layout[i, j], elec_layout[i + 1, j])
 
     # create one big region for the entire table
     bipolarTableRegion = bipolarTable.create_region(
@@ -375,13 +377,13 @@ def spectral_decomposition(block_path, bands_vals):
         nBands = len(band_param_0)
         nSamples = lfp.data.shape[0]
         nChannels = lfp.data.shape[1]
-        Xp = np.zeros((nBands, nChannels, nSamples))  #power (nBands,nChannels,nSamples)
+        Xp = np.zeros((nBands, nChannels, nSamples))  # power (nBands,nChannels,nSamples)
 
         # Apply Hilbert transform ---------------------------------------------
         print('Running Spectral Decomposition...')
         start = time.time()
         for ch in np.arange(nChannels):
-            Xch = lfp.data[:, ch]*1e6       # 1e6 scaling helps with numerical accuracy
+            Xch = lfp.data[:, ch] * 1e6       # 1e6 scaling helps with numerical accuracy
             Xch = Xch.reshape(1, -1)
             Xch = Xch.astype('float32')     # signal (nChannels,nSamples)
             X_fft_h = None
@@ -389,7 +391,7 @@ def spectral_decomposition(block_path, bands_vals):
                 kernel = gaussian(Xch.shape[-1], rate, bp0, bp1)
                 X_analytic, X_fft_h = hilbert_transform(Xch, rate, kernel, phase=None, X_fft_h=X_fft_h)
                 Xp[ii, ch, :] = abs(X_analytic).astype('float32')
-        print('Spectral Decomposition finished in {} seconds'.format(time.time()-start))
+        print('Spectral Decomposition finished in {} seconds'.format(time.time() - start))
 
         # data: (ndarray) dims: num_times * num_channels * num_bands
         Xp = np.swapaxes(Xp, 0, 2)
@@ -465,7 +467,7 @@ def high_gamma_estimation(block_path, bands_vals, new_file=''):
         nBands = len(band_param_0)
         nSamples = lfp.data.shape[0]
         nChannels = lfp.data.shape[1]
-        Xp = np.zeros((nBands, nChannels, nSamples))  #power (nBands,nChannels,nSamples)
+        Xp = np.zeros((nBands, nChannels, nSamples))  # power (nBands,nChannels,nSamples)
 
         # Apply Hilbert transform ---------------------------------------------
         print('Running High Gamma estimation...')
@@ -480,8 +482,7 @@ def high_gamma_estimation(block_path, bands_vals, new_file=''):
                 X_analytic, X_fft_h = hilbert_transform(
                     Xch, rate, kernel, phase=None, X_fft_h=X_fft_h)
                 Xp[ii, ch, :] = abs(X_analytic).astype('float32')
-        print('High Gamma estimation finished in {} seconds'.format(
-            time.time()-start))
+        print('High Gamma estimation finished in {} seconds'.format(time.time() - start))
 
         # data: (ndarray) dims: num_times * num_channels * num_bands
         Xp = np.swapaxes(Xp, 0, 2)
@@ -517,7 +518,7 @@ def high_gamma_estimation(block_path, bands_vals, new_file=''):
 
             ecephys_module.add_data_interface(hg)
             io.write(nwb)
-            print('High Gamma power saved in '+block_path)
+            print('High Gamma power saved in ' + block_path)
         else:  # on new file
             with NWBHDF5IO(new_file, 'r+', load_namespaces=True) as io_new:
                 nwb_new = io_new.read()
@@ -545,4 +546,4 @@ def high_gamma_estimation(block_path, bands_vals, new_file=''):
 
                 ecephys_module.add_data_interface(hg)
                 io_new.write(nwb_new)
-                print('High Gamma power saved in '+new_file)
+                print('High Gamma power saved in ' + new_file)
