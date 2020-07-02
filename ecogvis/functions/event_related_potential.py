@@ -10,6 +10,7 @@ import numpy as np
 default_interval = 'TimeIntervals_speaker'
 default_alignment = 'start_time'
 
+
 # Creates Event-Related Potential dialog ---------------------------------------
 class ERPDialog(QMainWindow):
     def __init__(self, parent):
@@ -30,12 +31,12 @@ class ERPDialog(QMainWindow):
 
         # Make intervals dictionary, e.g. self.intervals['TimeIntervals_speaker']['start_time']['times'] = data[:]
         self.intervals = {}
-        for interval_type,interval_obj in self.parent.model.nwb.intervals.items():
+        for interval_type, interval_obj in self.parent.model.nwb.intervals.items():
             self.intervals[interval_type] = {}
-            for alignment_type,obj in zip(interval_obj.colnames,interval_obj.columns):
+            for alignment_type, obj in zip(interval_obj.colnames, interval_obj.columns):
                 times = obj.data[:]
                 # Get only reference times smaller than the main signal duration
-                times = times[times<self.maxTime]
+                times = times[times < self.maxTime]
                 self.intervals[interval_type][alignment_type] = {}
                 self.intervals[interval_type][alignment_type]['times'] = times
                 self.intervals[interval_type][alignment_type]['Y_mean'] = {}
@@ -182,7 +183,7 @@ class ERPDialog(QMainWindow):
         for ivl in intervals:
             self.combo_interval.addItem(ivl)
 
-    def find_alignments(self,starting_sel=default_alignment):
+    def find_alignments(self, starting_sel=default_alignment):
         """Find alignment types for current interval type"""
         self.combo_alignment.clear()
         ivl = self.combo_interval.currentText()
@@ -202,8 +203,8 @@ class ERPDialog(QMainWindow):
         self.set_grid()
         self.draw_erp()
 
-    def set_interval(self,sel=None):
-        if isinstance(sel,int):
+    def set_interval(self, sel=None):
+        if isinstance(sel, int):
             sel = self.combo_interval.itemText(sel)
         if sel is not None:
             index = self.combo_interval.findText(sel, QtCore.Qt.MatchFixedString)
@@ -214,8 +215,8 @@ class ERPDialog(QMainWindow):
         self.interval_sel = sel
         self.find_alignments(starting_sel=self.alignment_sel)
 
-    def set_alignment(self,sel=None):
-        if isinstance(sel,int):
+    def set_alignment(self, sel=None):
+        if isinstance(sel, int):
             sel = self.combo_alignment.itemText(sel)
         if sel is not None:
             index = self.combo_alignment.findText(sel, QtCore.Qt.MatchFixedString)
@@ -241,8 +242,8 @@ class ERPDialog(QMainWindow):
             self.win.ci.layout.setRowSpacing(i, 3)
 
     def set_width(self):
-        for interval_type,interval_dict in self.intervals.items():
-            for alignment_type,alignment_dict in interval_dict.items():
+        for interval_type, interval_dict in self.intervals.items():
+            for alignment_type, alignment_dict in interval_dict.items():
                 alignment_dict['Y_mean'] = {}
                 alignment_dict['Y_sem'] = {}
         self.X = []
@@ -327,7 +328,9 @@ class ERPDialog(QMainWindow):
         nTrials = len(ref_times)
         Y = np.zeros((nTrials, 2 * nBinsTr)) + np.nan
         for tr in np.arange(nTrials):
-            Y[tr, :] = self.source[start_bins[tr]:stop_bins[tr], ch]
+            # Get only trials with enough data points
+            if self.source[start_bins[tr]:stop_bins[tr], ch].shape[0] == Y.shape[1]:
+                Y[tr, :] = self.source[start_bins[tr]:stop_bins[tr], ch]
         Y_mean = np.nanmean(Y, 0)
         Y_sem = np.nanstd(Y, 0) / np.sqrt(Y.shape[0])
         X = np.arange(0, 2 * nBinsTr) / self.fs
