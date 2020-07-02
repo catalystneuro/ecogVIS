@@ -600,12 +600,8 @@ class Application(QMainWindow):
     def event_related_potential(self):
         """Opens ERP window."""
         open_dialog = True
-        try:  # Checks if file contains proper intervals information
-            speaker_start_times = self.model.nwb.intervals['TimeIntervals_speaker']['start_time'].data
-            speaker_stop_times = self.model.nwb.intervals['TimeIntervals_speaker']['stop_time'].data
-            mic_start_times = self.model.nwb.intervals['TimeIntervals_mic']['start_time'].data
-            mic_stop_times = self.model.nwb.intervals['TimeIntervals_mic']['stop_time'].data
-        except:  # if it fails, raises a no intervals data message
+        # if no intervals exist, raise a no intervals data message
+        if len(self.model.nwb.intervals)==0:
             NoTrialsDialog()
             open_dialog = False
         try:  # Tries to load High Gamma and intervals data

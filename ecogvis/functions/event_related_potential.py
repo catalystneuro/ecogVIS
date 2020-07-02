@@ -7,6 +7,9 @@ from ecogvis.functions.misc_dialogs import SelectChannelsDialog
 from .FS_colorLUT import get_lut
 import numpy as np
 
+default_interval = 'TimeIntervals_speaker'
+default_alignment = 'start_time'
+
 
 # Creates Event-Related Potential dialog ---------------------------------------
 class ERPDialog(QMainWindow):
@@ -17,34 +20,31 @@ class ERPDialog(QMainWindow):
 
         self.parent = parent
         self.nCols = 16
-        self.alignment = 'start_time'
-        self.interval_type = 'speaker'
         self.grid_order = np.arange(256)
         self.transparent = []
-        self.Y_start_speaker_mean = {}
-        self.Y_start_speaker_sem = {}
-        self.Y_stop_speaker_mean = {}
-        self.Y_stop_speaker_sem = {}
-        self.Y_start_mic_mean = {}
-        self.Y_start_mic_sem = {}
-        self.Y_stop_mic_mean = {}
-        self.Y_stop_mic_sem = {}
-        self.X = []
         self.Yscale = {}
 
         self.source = self.parent.model.nwb.processing['ecephys'].data_interfaces['high_gamma'].data
         self.fs = self.parent.model.nwb.processing['ecephys'].data_interfaces['high_gamma'].rate
         self.electrodes = self.parent.model.nwb.processing['ecephys'].data_interfaces['high_gamma'].electrodes
-        self.speaker_start_times = self.parent.model.nwb.intervals['TimeIntervals_speaker']['start_time'].data[:]
-        self.speaker_stop_times = self.parent.model.nwb.intervals['TimeIntervals_speaker']['stop_time'].data[:]
-        self.mic_start_times = self.parent.model.nwb.intervals['TimeIntervals_mic']['start_time'].data[:]
-        self.mic_stop_times = self.parent.model.nwb.intervals['TimeIntervals_mic']['stop_time'].data[:]
-        # Get only reference times smaller than the main signal duration
         self.maxTime = self.source.shape[0] / self.fs
-        self.speaker_start_times = self.speaker_start_times[self.speaker_start_times < self.maxTime]
-        self.speaker_stop_times = self.speaker_stop_times[self.speaker_stop_times < self.maxTime]
-        self.mic_start_times = self.mic_start_times[self.mic_start_times < self.maxTime]
-        self.mic_stop_times = self.mic_stop_times[self.mic_stop_times < self.maxTime]
+
+        # Make intervals dictionary, e.g. self.intervals['TimeIntervals_speaker']['start_time']['times'] = data[:]
+        self.intervals = {}
+        for interval_type, interval_obj in self.parent.model.nwb.intervals.items():
+            self.intervals[interval_type] = {}
+            for alignment_type, obj in zip(interval_obj.colnames, interval_obj.columns):
+                times = obj.data[:]
+                # Get only reference times smaller than the main signal duration
+                times = times[times < self.maxTime]
+                self.intervals[interval_type][alignment_type] = {}
+                self.intervals[interval_type][alignment_type]['times'] = times
+                self.intervals[interval_type][alignment_type]['Y_mean'] = {}
+                self.intervals[interval_type][alignment_type]['Y_sem'] = {}
+        self.X = []
+
+        self.interval_sel = default_interval
+        self.alignment_sel = default_alignment
 
         # Left panel
         self.push0_0 = QPushButton('Draw ERP')
@@ -54,22 +54,12 @@ class ERPDialog(QMainWindow):
         self.find_groups()
         self.combo0.activated.connect(self.set_elec_group)
         label1 = QLabel('Alignment:')
-        self.push1_0 = QPushButton('Onset')
-        self.push1_0.setCheckable(True)
-        self.push1_0.setChecked(True)
-        self.push1_0.clicked.connect(self.set_onset)
-        self.push1_1 = QPushButton('Offset')
-        self.push1_1.setCheckable(True)
-        self.push1_1.setChecked(False)
-        self.push1_1.clicked.connect(self.set_offset)
-        self.push1_2 = QPushButton('Stimulus')
-        self.push1_2.setCheckable(True)
-        self.push1_2.setChecked(True)
-        self.push1_2.clicked.connect(self.set_stim)
-        self.push1_3 = QPushButton('Response')
-        self.push1_3.setCheckable(True)
-        self.push1_3.setChecked(False)
-        self.push1_3.clicked.connect(self.set_resp)
+        self.combo_interval = QComboBox()
+        self.combo_interval.activated.connect(self.set_interval)
+        self.combo_alignment = QComboBox()
+        self.combo_alignment.activated.connect(self.set_alignment)
+        self.find_intervals()
+
         label2 = QLabel('Width (sec):')
         self.qline2 = QLineEdit('2')
         self.qline2.returnPressed.connect(self.set_width)
@@ -107,10 +97,6 @@ class ERPDialog(QMainWindow):
         self.push5_5.clicked.connect(lambda: self.rearrange_grid('2FL'))
         self.push5_5.setToolTip('Double flip')
 
-        self.push1_0.setEnabled(False)
-        self.push1_1.setEnabled(False)
-        self.push1_2.setEnabled(False)
-        self.push1_3.setEnabled(False)
         self.qline2.setEnabled(False)
         self.combo1.setEnabled(False)
         self.push2_0.setEnabled(False)
@@ -127,10 +113,8 @@ class ERPDialog(QMainWindow):
         grid0.addWidget(label0, 0, 0, 1, 2)
         grid0.addWidget(self.combo0, 0, 2, 1, 4)
         grid0.addWidget(label1, 1, 0, 1, 6)
-        grid0.addWidget(self.push1_0, 2, 0, 1, 3)
-        grid0.addWidget(self.push1_1, 2, 3, 1, 3)
-        grid0.addWidget(self.push1_2, 3, 0, 1, 3)
-        grid0.addWidget(self.push1_3, 3, 3, 1, 3)
+        grid0.addWidget(self.combo_interval, 2, 0, 1, 6)
+        grid0.addWidget(self.combo_alignment, 3, 0, 1, 6)
         grid0.addWidget(QHLine(), 4, 0, 1, 6)
         grid0.addWidget(label2, 5, 0, 1, 6)
         grid0.addWidget(self.qline2, 6, 0, 1, 6)
@@ -185,11 +169,29 @@ class ERPDialog(QMainWindow):
         self.hbox.addWidget(self.scroll)
         self.show()
 
+        self.set_elec_group()
+        self.set_interval(sel=self.interval_sel)
+
     def find_groups(self):
         """Find electrodes groups present in current file."""
         elec_groups = list(self.parent.model.nwb.electrode_groups.keys())
         for grp in elec_groups:
             self.combo0.addItem(grp)
+
+    def find_intervals(self):
+        intervals = list(self.intervals.keys())
+        for ivl in intervals:
+            self.combo_interval.addItem(ivl)
+
+    def find_alignments(self, starting_sel=default_alignment):
+        """Find alignment types for current interval type"""
+        self.combo_alignment.clear()
+        ivl = self.combo_interval.currentText()
+        alignments = list(self.intervals[ivl].keys())
+        for aln in alignments:
+            self.combo_alignment.addItem(aln)
+
+        self.set_alignment(sel=starting_sel)
 
     def set_elec_group(self):
         """Sets electrodes group to be plotted, resizes plot grid."""
@@ -199,6 +201,30 @@ class ERPDialog(QMainWindow):
         self.nCols = 16
         self.nRows = int(np.ceil(self.nElecs / self.nCols))
         self.set_grid()
+        self.draw_erp()
+
+    def set_interval(self, sel=None):
+        if isinstance(sel, int):
+            sel = self.combo_interval.itemText(sel)
+        if sel is not None:
+            index = self.combo_interval.findText(sel, QtCore.Qt.MatchFixedString)
+            if index >= 0:
+                self.combo_interval.setCurrentIndex(index)
+
+        sel = self.combo_interval.currentText()
+        self.interval_sel = sel
+        self.find_alignments(starting_sel=self.alignment_sel)
+
+    def set_alignment(self, sel=None):
+        if isinstance(sel, int):
+            sel = self.combo_alignment.itemText(sel)
+        if sel is not None:
+            index = self.combo_alignment.findText(sel, QtCore.Qt.MatchFixedString)
+            if index >= 0:
+                self.combo_alignment.setCurrentIndex(index)
+
+        sel = self.combo_alignment.currentText()
+        self.alignment_sel = sel
         self.draw_erp()
 
     def set_grid(self):
@@ -215,35 +241,11 @@ class ERPDialog(QMainWindow):
             self.win.ci.layout.setRowFixedHeight(i, 60)
             self.win.ci.layout.setRowSpacing(i, 3)
 
-    def set_onset(self):
-        self.alignment = 'start_time'
-        self.push1_1.setChecked(False)
-        self.draw_erp()
-
-    def set_offset(self):
-        self.alignment = 'stop_time'
-        self.push1_0.setChecked(False)
-        self.draw_erp()
-
-    def set_stim(self):
-        self.interval_type = 'speaker'
-        self.push1_3.setChecked(False)
-        self.draw_erp()
-
-    def set_resp(self):
-        self.interval_type = 'mic'
-        self.push1_2.setChecked(False)
-        self.draw_erp()
-
     def set_width(self):
-        self.Y_start_speaker_mean = {}
-        self.Y_start_speaker_sem = {}
-        self.Y_stop_speaker_mean = {}
-        self.Y_stop_speaker_sem = {}
-        self.Y_start_mic_mean = {}
-        self.Y_start_mic_sem = {}
-        self.Y_stop_mic_mean = {}
-        self.Y_stop_mic_sem = {}
+        for interval_type, interval_dict in self.intervals.items():
+            for alignment_type, alignment_dict in interval_dict.items():
+                alignment_dict['Y_mean'] = {}
+                alignment_dict['Y_sem'] = {}
         self.X = []
         self.draw_erp()
 
@@ -300,63 +302,25 @@ class ERPDialog(QMainWindow):
                 if curr_txt != 'individual':
                     p.setYRange(self.Yscale[curr_txt][0], self.Yscale[curr_txt][1])
                 else:
-                    if (self.alignment == 'start_time') and (self.interval_type == 'speaker'):
-                        yrng = max(abs(self.Y_start_speaker_mean[str(ch)]))
-                    elif (self.alignment == 'start_time') and (self.interval_type == 'mic'):
-                        yrng = max(abs(self.Y_start_mic_mean[str(ch)]))
-                    elif (self.alignment == 'stop_time') and (self.interval_type == 'speaker'):
-                        yrng = max(abs(self.Y_stop_speaker_mean[str(ch)]))
-                    elif (self.alignment == 'stop_time') and (self.interval_type == 'mic'):
-                        yrng = max(abs(self.Y_stop_mic_mean[str(ch)]))
+                    yrng = max(abs(self.intervals[self.interval_sel][self.alignment_sel]['Y_mean'][str(ch)]))
                     p.setYRange(-yrng, yrng)
 
     def get_erp(self, ch):
-        if (self.alignment == 'start_time') and (self.interval_type == 'speaker'):
-            if str(ch) in self.Y_start_speaker_mean:   # If it was calculated already
-                return self.Y_start_speaker_mean[str(ch)], self.Y_start_speaker_sem[str(ch)], self.X
-            else:                              # If it isn't calculated yet
-                Y_mean, Y_sem, X = self.calc_erp(ch=ch)
-                self.Y_start_speaker_mean[str(ch)] = Y_mean
-                self.Y_start_speaker_sem[str(ch)] = Y_sem
-                self.X = X
-                return self.Y_start_speaker_mean[str(ch)], self.Y_start_speaker_sem[str(ch)], self.X
-        if (self.alignment == 'start_time') and (self.interval_type == 'mic'):
-            if str(ch) in self.Y_start_mic_mean:   # If it was calculated already
-                return self.Y_start_mic_mean[str(ch)], self.Y_start_mic_sem[str(ch)], self.X
-            else:                              # If it isn't calculated yet
-                Y_mean, Y_sem, X = self.calc_erp(ch=ch)
-                self.Y_start_mic_mean[str(ch)] = Y_mean
-                self.Y_start_mic_sem[str(ch)] = Y_sem
-                self.X = X
-                return self.Y_start_mic_mean[str(ch)], self.Y_start_mic_sem[str(ch)], self.X
-        if (self.alignment == 'stop_time') and (self.interval_type == 'speaker'):
-            if str(ch) in self.Y_stop_speaker_mean:  # If it was calculated already
-                return self.Y_stop_speaker_mean[str(ch)], self.Y_stop_speaker_sem[str(ch)], self.X
-            else:                               # If it isn't calculated yet
-                Y_mean, Y_sem, X = self.calc_erp(ch=ch)
-                self.Y_stop_speaker_mean[str(ch)] = Y_mean
-                self.Y_stop_speaker_sem[str(ch)] = Y_sem
-                self.X = X
-                return self.Y_stop_speaker_mean[str(ch)], self.Y_stop_speaker_sem[str(ch)], self.X
-        if (self.alignment == 'stop_time') and (self.interval_type == 'mic'):
-            if str(ch) in self.Y_stop_mic_mean:  # If it was calculated already
-                return self.Y_stop_mic_mean[str(ch)], self.Y_stop_mic_sem[str(ch)], self.X
-            else:                               # If it isn't calculated yet
-                Y_mean, Y_sem, X = self.calc_erp(ch=ch)
-                self.Y_stop_mic_mean[str(ch)] = Y_mean
-                self.Y_stop_mic_sem[str(ch)] = Y_sem
-                self.X = X
-                return self.Y_stop_mic_mean[str(ch)], self.Y_stop_mic_sem[str(ch)], self.X
+        try:
+            return self.intervals[self.interval_sel][self.alignment_sel]['Y_mean'][str(ch)], \
+                   self.intervals[self.interval_sel][self.alignment_sel]['Y_sem'][str(ch)], \
+                   self.X
+        except:
+            Y_mean, Y_sem, X = self.calc_erp(ch=ch)
+            self.intervals[self.interval_sel][self.alignment_sel]['Y_mean'][str(ch)] = Y_mean
+            self.intervals[self.interval_sel][self.alignment_sel]['Y_sem'][str(ch)] = Y_sem
+            self.X = X
+            return self.intervals[self.interval_sel][self.alignment_sel]['Y_mean'][str(ch)], \
+                   self.intervals[self.interval_sel][self.alignment_sel]['Y_sem'][str(ch)], \
+                   self.X
 
     def calc_erp(self, ch):
-        if (self.alignment == 'start_time') and (self.interval_type == 'speaker'):
-            ref_times = self.speaker_start_times
-        if (self.alignment == 'stop_time') and (self.interval_type == 'speaker'):
-            ref_times = self.speaker_stop_times
-        if (self.alignment == 'start_time') and (self.interval_type == 'mic'):
-            ref_times = self.mic_start_times
-        if (self.alignment == 'stop_time') and (self.interval_type == 'mic'):
-            ref_times = self.mic_stop_times
+        ref_times = self.intervals[self.interval_sel][self.alignment_sel]['times']
         ref_bins = (ref_times * self.fs).astype('int')
         nBinsTr = int(float(self.qline2.text()) * self.fs / 2)
         start_bins = ref_bins - nBinsTr
@@ -364,17 +328,15 @@ class ERPDialog(QMainWindow):
         nTrials = len(ref_times)
         Y = np.zeros((nTrials, 2 * nBinsTr)) + np.nan
         for tr in np.arange(nTrials):
-            Y[tr, :] = self.source[start_bins[tr]:stop_bins[tr], ch]
+            # Get only trials with enough data points
+            if self.source[start_bins[tr]:stop_bins[tr], ch].shape[0] == Y.shape[1]:
+                Y[tr, :] = self.source[start_bins[tr]:stop_bins[tr], ch]
         Y_mean = np.nanmean(Y, 0)
         Y_sem = np.nanstd(Y, 0) / np.sqrt(Y.shape[0])
         X = np.arange(0, 2 * nBinsTr) / self.fs
         return Y_mean, Y_sem, X
 
     def draw_erp(self):
-        self.push1_0.setEnabled(True)
-        self.push1_1.setEnabled(True)
-        self.push1_2.setEnabled(True)
-        self.push1_3.setEnabled(True)
         self.qline2.setEnabled(True)
         self.combo1.setEnabled(True)
         self.push3_0.setEnabled(True)
