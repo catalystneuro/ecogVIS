@@ -449,39 +449,27 @@ class IndividualERPDialog(QtGui.QDialog):
         self.interval_type = 'speaker'
         self.source = self.parent.parent.source
         self.fs = self.parent.parent.fs
-        self.speaker_start_times = self.parent.parent.speaker_start_times
-        self.speaker_stop_times = self.parent.parent.speaker_stop_times
-        self.mic_start_times = self.parent.parent.mic_start_times
-        self.mic_stop_times = self.parent.parent.mic_stop_times
+        self.intervals = self.parent.parent.intervals
+
+        self.interval_sel = self.parent.parent.interval_sel
+        self.alignment_sel = self.parent.parent.alignment_sel
 
         # Left panel
         label1 = QLabel('Alignment:')
-        self.push1_0 = QPushButton('Onset')
-        self.push1_0.setCheckable(True)
-        self.push1_0.setChecked(True)
-        self.push1_0.clicked.connect(self.set_onset)
-        self.push1_1 = QPushButton('Offset')
-        self.push1_1.setCheckable(True)
-        self.push1_1.setChecked(False)
-        self.push1_1.clicked.connect(self.set_offset)
-        self.push1_2 = QPushButton('Stimulus')
-        self.push1_2.setCheckable(True)
-        self.push1_2.setChecked(True)
-        self.push1_2.clicked.connect(self.set_stim)
-        self.push1_3 = QPushButton('Response')
-        self.push1_3.setCheckable(True)
-        self.push1_3.setChecked(False)
-        self.push1_3.clicked.connect(self.set_resp)
+        self.combo_interval = QComboBox()
+        self.combo_interval.activated.connect(self.set_interval)
+        self.combo_alignment = QComboBox()
+        self.combo_alignment.activated.connect(self.set_alignment)
+        self.find_intervals()
+
         label2 = QLabel('Width (sec):')
         self.qline2 = QLineEdit('2')
         self.qline2.returnPressed.connect(self.draw_erp)
 
         grid0 = QGridLayout()
         grid0.addWidget(label1, 0, 0, 1, 2)
-        grid0.addWidget(self.push1_0, 1, 0, 1, 1)
-        grid0.addWidget(self.push1_1, 1, 1, 1, 1)
-        grid0.addWidget(self.push1_2, 2, 0, 1, 1)
-        grid0.addWidget(self.push1_3, 2, 1, 1, 1)
+        grid0.addWidget(self.combo_interval, 1, 0, 1, 6)
+        grid0.addWidget(self.combo_alignment, 2, 0, 1, 6)
         grid0.addWidget(label2, 3, 0, 1, 1)
         grid0.addWidget(self.qline2, 3, 1, 1, 1)
         grid0.setAlignment(QtCore.Qt.AlignTop)
@@ -503,38 +491,63 @@ class IndividualERPDialog(QtGui.QDialog):
         self.setWindowTitle('Individual Event-Related Potential - Ch ' + str(self.ch + 1))
         self.resize(900, 600)
 
+        self.set_interval(sel=self.interval_sel)
+
         self.draw_erp()
         self.exec_()
 
-    def set_onset(self):
-        self.alignment = 'start_time'
-        self.push1_1.setChecked(False)
+    def find_intervals(self):
+        intervals = list(self.intervals.keys())
+        for ivl in intervals:
+            self.combo_interval.addItem(ivl)
+
+    def find_alignments(self, starting_sel=default_alignment):
+        """Find alignment types for current interval type"""
+        self.combo_alignment.clear()
+        ivl = self.combo_interval.currentText()
+        alignments = list(self.intervals[ivl].keys())
+        for aln in alignments:
+            self.combo_alignment.addItem(aln)
+        self.set_alignment(sel=starting_sel)
+
+    def set_interval(self, sel=None):
+        if isinstance(sel, int):
+            sel = self.combo_interval.itemText(sel)
+        if sel is not None:
+            index = self.combo_interval.findText(sel, QtCore.Qt.MatchFixedString)
+            if index >= 0:
+                self.combo_interval.setCurrentIndex(index)
+        sel = self.combo_interval.currentText()
+        self.interval_sel = sel
+        self.find_alignments(starting_sel=self.alignment_sel)
+
+    def set_alignment(self, sel=None):
+        if isinstance(sel, int):
+            sel = self.combo_alignment.itemText(sel)
+        if sel is not None:
+            index = self.combo_alignment.findText(sel, QtCore.Qt.MatchFixedString)
+            if index >= 0:
+                self.combo_alignment.setCurrentIndex(index)
+        sel = self.combo_alignment.currentText()
+        self.alignment_sel = sel
         self.draw_erp()
 
-    def set_offset(self):
-        self.alignment = 'stop_time'
-        self.push1_0.setChecked(False)
-        self.draw_erp()
-
-    def set_stim(self):
-        self.interval_type = 'speaker'
-        self.push1_3.setChecked(False)
-        self.draw_erp()
-
-    def set_resp(self):
-        self.interval_type = 'mic'
-        self.push1_2.setChecked(False)
-        self.draw_erp()
+    def get_erp(self, ch):
+        try:
+            return self.intervals[self.interval_sel][self.alignment_sel]['Y_mean'][str(ch)], \
+                   self.intervals[self.interval_sel][self.alignment_sel]['Y_sem'][str(ch)], \
+                   self.X
+        except:
+            Y_mean, Y_sem, X = self.calc_erp(ch=ch)
+            self.intervals[self.interval_sel][self.alignment_sel]['Y_mean'][str(ch)] = Y_mean
+            self.intervals[self.interval_sel][self.alignment_sel]['Y_sem'][str(ch)] = Y_sem
+            self.X = X
+            return self.intervals[self.interval_sel][self.alignment_sel]['Y_mean'][str(ch)], \
+                   self.intervals[self.interval_sel][self.alignment_sel]['Y_sem'][str(ch)], \
+                   self.X
 
     def calc_erp(self, ch):
-        if (self.alignment == 'start_time') and (self.interval_type == 'speaker'):
-            ref_times = self.speaker_start_times
-        if (self.alignment == 'stop_time') and (self.interval_type == 'speaker'):
-            ref_times = self.speaker_stop_times
-        if (self.alignment == 'start_time') and (self.interval_type == 'mic'):
-            ref_times = self.mic_start_times
-        if (self.alignment == 'stop_time') and (self.interval_type == 'mic'):
-            ref_times = self.mic_stop_times
+        ref_times = self.intervals[self.interval_sel][self.alignment_sel]['times']
         ref_bins = (ref_times * self.fs).astype('int')
         nBinsTr = int(float(self.qline2.text()) * self.fs / 2)
         start_bins = ref_bins - nBinsTr
@@ -542,7 +555,9 @@ class IndividualERPDialog(QtGui.QDialog):
         nTrials = len(ref_times)
         Y = np.zeros((nTrials, 2 * nBinsTr)) + np.nan
         for tr in np.arange(nTrials):
-            Y[tr, :] = self.source[start_bins[tr]:stop_bins[tr], ch]
+            # Get only trials with enough data points
+            if self.source[start_bins[tr]:stop_bins[tr], ch].shape[0] == Y.shape[1]:
+                Y[tr, :] = self.source[start_bins[tr]:stop_bins[tr], ch]
         Y_mean = np.nanmean(Y, 0)
         Y_sem = np.nanstd(Y, 0) / np.sqrt(Y.shape[0])
         X = np.arange(0, 2 * nBinsTr) / self.fs
