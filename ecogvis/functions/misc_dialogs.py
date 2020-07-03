@@ -676,6 +676,75 @@ class ShowSurveyDialog(QtGui.QDialog):
         self.accept()
 
 
+# Show Transcription data in a separate window ----------------------
+class ShowTranscriptionDialog(QtGui.QDialog):
+    def __init__(self, nwbfile):
+        super().__init__()
+        self.nwbfile = nwbfile
+        self.mode = 'Simple'
+        self.list_transcripts = [v for v in nwbfile.processing['behavior'].data_interfaces.values()
+                                 if v.neurodata_type == 'HierarchicalBehavioralTable']
+
+        self.combo = QComboBox()
+        self.combo.activated.connect(self.render_table)
+        for sv in self.list_transcripts:
+            self.combo.addItem(sv.name)
+
+        self.groupBox0 = QGroupBox("Visualization Mode:")
+        self.radio_0 = QRadioButton("Simple")
+        self.radio_1 = QRadioButton("Hierarchical")
+        self.radio_2 = QRadioButton("Denormalized")
+        self.radio_0.setChecked(True)
+        vbox0 = QVBoxLayout()
+        vbox0.addWidget(self.radio_0)
+        vbox0.addWidget(self.radio_1)
+        vbox0.addWidget(self.radio_2)
+        vbox0.addStretch()
+        self.groupBox0.setLayout(vbox0)
+        self.radio_0.toggled.connect(self.change_mode)
+        self.radio_1.toggled.connect(self.change_mode)
+        self.radio_2.toggled.connect(self.change_mode)
+
+        hbox1 = QHBoxLayout()
+        hbox1.addWidget(self.combo)
+        hbox1.addWidget(self.groupBox0)
+
+        # Web Engine Viewer
+        self.html_viewer = QWebEngineView()
+        self.render_table()
+
+        vbox = QVBoxLayout()
+        vbox.addLayout(hbox1)
+        vbox.addWidget(self.html_viewer)
+        self.setLayout(vbox)
+        self.setWindowTitle('Transcription Data')
+        self.resize(800, 600)
+        self.exec_()
+
+    def render_table(self):
+        """Renders table in html"""
+        transcript_name = self.combo.currentText()
+        transcript_table = self.nwbfile.processing['behavior'].data_interfaces[transcript_name]
+        if self.mode == 'Simple':
+            html = transcript_table.to_dataframe().to_html()
+        elif self.mode == 'Hierarchical':
+            html = transcript_table.to_hierarchical_dataframe().to_html()
+        elif self.mode == 'Denormalized':
+            html = transcript_table.to_denormalized_dataframe().to_html()
+        self.html_viewer.setHtml(html)
+        self.html_viewer.show()
+
+    def change_mode(self):
+        """Change mode of Dataframe visualization"""
+        radio_btn = self.sender()
+        if radio_btn.isChecked():
+            self.mode = str(radio_btn.text())
+            self.render_table()
+
+    def onAccepted(self):
+        self.accept()
+
+
 # Show Electrodes tables in a separate window --------------------------------------
 class ShowElectrodesDialog(QtGui.QDialog):
     def __init__(self, parent):

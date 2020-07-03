@@ -29,13 +29,13 @@ from ecogvis.functions.misc_dialogs import (CustomIntervalDialog, SelectChannels
                                             PreprocessingDialog, NoRawDialog,
                                             NoAudioDialog, ExistIntervalsDialog,
                                             ExistSurveyDialog, ShowSurveyDialog,
-                                            ShowElectrodesDialog)
+                                            ShowElectrodesDialog, ShowTranscriptionDialog)
 from ecogvis.functions.audio_event_detection import AudioEventDetection
 from ecogvis.functions.event_related_potential import ERPDialog
 from ecogvis.functions.save_to_nwb import SaveToNWBDialog
 from ecogvis.functions.nwb_copy_file import nwb_copy_file
 from ecogvis.functions.survey_data import add_survey_data
-
+from ecogvis.functions.transcription_data import add_transcription_data
 
 
 annotationAdd_ = False
@@ -201,6 +201,15 @@ class Application(QMainWindow):
         survey_tools_menu.addAction(self.action_vis_survey)
         self.action_vis_survey.setEnabled(False)
         self.action_vis_survey.triggered.connect(self.visualize_survey)
+
+        transcription_tools_menu = toolsMenu.addMenu('Transcription Data')
+        action_add_transcription = QAction('Add Transcription Data', self)
+        transcription_tools_menu.addAction(action_add_transcription)
+        action_add_transcription.triggered.connect(self.add_transcription)
+        self.action_vis_transcription = QAction('Visualize Transcription Data', self)
+        transcription_tools_menu.addAction(self.action_vis_transcription)
+        # self.action_vis_transcription.setEnabled(False)
+        self.action_vis_transcription.triggered.connect(self.visualize_transcription)
 
         self.action_vis_electrodes = QAction('Visualize Electrodes Tables', self)
         toolsMenu.addAction(self.action_vis_electrodes)
@@ -651,6 +660,34 @@ class Application(QMainWindow):
                             if v.neurodata_type == 'SurveyTable']
             if len(list_surveys) > 0:
                 ShowSurveyDialog(nwbfile=self.model.nwb)
+
+    def add_transcription(self):
+        """Add transcription behavioral data to current nwb file."""
+        # # Test if current nwb file already contains Survey table
+        # if 'behavior' in self.model.nwb.processing:
+        #     list_surveys = [v for v in self.model.nwb.processing['behavior'].data_interfaces.values()
+        #                     if v.neurodata_type == 'SurveyTable']
+        #     if len(list_surveys) > 0:
+        #         ExistSurveyDialog()
+        #         return None
+        # Open dir dialog
+        dir_path = QFileDialog.getExistingDirectory(self, 'Open TimitSounds dir', '', QtGui.QFileDialog.ShowDirsOnly)
+        if os.path.isdir(dir_path):
+            add_transcription_data(nwbfile=self.model.nwb, path_transcription_dir=dir_path)
+            self.action_vis_transcription.setEnabled(True)
+            # Write changes to NWB file
+            self.model.io.write(self.model.nwb)
+
+    def visualize_transcription(self):
+        """Visualize transcription behavioral data in current nwb file."""
+        # # Test if current nwb file contains Survey table
+        # if 'behavior' in self.model.nwb.processing:
+        #     list_surveys = [v for v in self.model.nwb.processing['behavior'].data_interfaces.values()
+        #                     if v.neurodata_type == 'SurveyTable']
+        #     if len(list_surveys) > 0:
+        #         ShowSurveyDialog(nwbfile=self.model.nwb)
+        ShowTranscriptionDialog(nwbfile=self.model.nwb)
+        pass
 
     def visualize_electrodes(self):
         """Visualize electrodes tables in current nwb file."""
