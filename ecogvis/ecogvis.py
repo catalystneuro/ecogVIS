@@ -203,9 +203,17 @@ class Application(QMainWindow):
         self.action_vis_survey.triggered.connect(self.visualize_survey)
 
         transcription_tools_menu = toolsMenu.addMenu('Transcription Data')
-        action_add_transcription = QAction('Add Transcription Data', self)
-        transcription_tools_menu.addAction(action_add_transcription)
-        action_add_transcription.triggered.connect(self.add_transcription)
+        transcriptionadd_tools_menu = transcription_tools_menu.addMenu('Add Transcription Data')
+        action_add_timitsounds = QAction('TimitSounds', self)
+        transcriptionadd_tools_menu.addAction(action_add_timitsounds)
+        action_add_timitsounds.triggered.connect(self.add_transcription_timitsounds)
+        action_add_textgrid = QAction('TextGrid', self)
+        transcriptionadd_tools_menu.addAction(action_add_textgrid)
+        action_add_textgrid.triggered.connect(self.add_transcription_textgrid)
+        action_add_mocha = QAction('Mocha', self)
+        transcriptionadd_tools_menu.addAction(action_add_mocha)
+        action_add_mocha.triggered.connect(self.add_transcription_mocha)
+
         self.action_vis_transcription = QAction('Visualize Transcription Data', self)
         transcription_tools_menu.addAction(self.action_vis_transcription)
         # self.action_vis_transcription.setEnabled(False)
@@ -661,8 +669,8 @@ class Application(QMainWindow):
             if len(list_surveys) > 0:
                 ShowSurveyDialog(nwbfile=self.model.nwb)
 
-    def add_transcription(self):
-        """Add transcription behavioral data to current nwb file."""
+    def add_transcription_timitsounds(self):
+        """Add TimitSounds transcription data to current nwb file."""
         # # Test if current nwb file already contains Survey table
         # if 'behavior' in self.model.nwb.processing:
         #     list_surveys = [v for v in self.model.nwb.processing['behavior'].data_interfaces.values()
@@ -677,6 +685,14 @@ class Application(QMainWindow):
             self.action_vis_transcription.setEnabled(True)
             # Write changes to NWB file
             self.model.io.write(self.model.nwb)
+
+    def add_transcription_textgrid(self):
+        """Add TextGrid transcription data to current nwb file."""
+        raise NotImplementedError('TODO')
+
+    def add_transcription_mocha(self):
+        """Add Mocha transcription data to current nwb file."""
+        raise NotImplementedError('TODO')
 
     def visualize_transcription(self):
         """Visualize transcription behavioral data in current nwb file."""
