@@ -681,18 +681,42 @@ class Application(QMainWindow):
         # Open dir dialog
         dir_path = QFileDialog.getExistingDirectory(self, 'Open TimitSounds dir', '', QtGui.QFileDialog.ShowDirsOnly)
         if os.path.isdir(dir_path):
-            add_transcription_data(nwbfile=self.model.nwb, path_transcription_dir=dir_path)
+            add_transcription_data(
+                nwbfile=self.model.nwb,
+                path_transcription=dir_path,
+                type='timitsounds'
+            )
+            self.action_vis_transcription.setEnabled(True)
+            # Write changes to NWB file
+            self.model.io.write(self.model.nwb)
+
+    def add_transcription_mocha(self):
+        """Add Mocha transcription data to current nwb file."""
+        dir_path = QFileDialog.getExistingDirectory(self, 'Open Mocha dir', '', QtGui.QFileDialog.ShowDirsOnly)
+        if os.path.isdir(dir_path):
+            add_transcription_data(
+                nwbfile=self.model.nwb,
+                path_transcription=dir_path,
+                type='mocha',
+                subject_id='EC118',
+                session_id='B6'
+            )
             self.action_vis_transcription.setEnabled(True)
             # Write changes to NWB file
             self.model.io.write(self.model.nwb)
 
     def add_transcription_textgrid(self):
         """Add TextGrid transcription data to current nwb file."""
-        raise NotImplementedError('TODO')
-
-    def add_transcription_mocha(self):
-        """Add Mocha transcription data to current nwb file."""
-        raise NotImplementedError('TODO')
+        filename, _ = QFileDialog.getOpenFileName(None, 'Open file', '', "(*.TextGrid)")
+        if os.path.isfile(filename):
+            add_transcription_data(
+                nwbfile=self.model.nwb,
+                path_transcription=filename,
+                type='textgrid'
+            )
+            self.action_vis_transcription.setEnabled(True)
+            # Write changes to NWB file
+            self.model.io.write(self.model.nwb)
 
     def visualize_transcription(self):
         """Visualize transcription behavioral data in current nwb file."""
