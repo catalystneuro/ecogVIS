@@ -24,6 +24,9 @@ class ERPDialog(QMainWindow):
         self.transparent = []
         self.Yscale = {}
 
+        self.all_regions = np.unique(self.parent.model.all_regions)
+        self.regions_mask = np.ones(len(self.all_regions))
+
         self.source = self.parent.model.nwb.processing['ecephys'].data_interfaces['high_gamma'].data
         self.fs = self.parent.model.nwb.processing['ecephys'].data_interfaces['high_gamma'].rate
         self.electrodes = self.parent.model.nwb.processing['ecephys'].data_interfaces['high_gamma'].electrodes
@@ -416,7 +419,7 @@ class ERPDialog(QMainWindow):
 
     def areas_select(self):
         # Dialog to choose channels from specific brain regions
-        w = SelectChannelsDialog(self.parent.model.all_regions, self.parent.model.regions_mask)
+        w = SelectChannelsDialog(self.all_regions, self.regions_mask)
         self.transparent = []
         for ind, ch in enumerate(self.grid_order):
             loc = self.parent.model.nwb.electrodes['location'][ch]
