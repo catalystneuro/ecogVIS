@@ -656,6 +656,7 @@ class Application(QMainWindow):
         if os.path.isfile(path_file):
             add_survey_data(nwbfile=self.model.nwb, path_survey_file=path_file)
             self.action_vis_survey.setEnabled(True)
+            self.action_add_survey.setEnabled(False)
             # Write changes to NWB file
             self.model.io.write(self.model.nwb)
 
@@ -672,7 +673,7 @@ class Application(QMainWindow):
         """Add TimitSounds transcription data to current nwb file."""
         dir_path = QFileDialog.getExistingDirectory(self, 'Open TimitSounds dir', '', QtGui.QFileDialog.ShowDirsOnly)
         if os.path.isdir(dir_path):
-            add_transcription_data(
+            _ = add_transcription_data(
                 nwbfile=self.model.nwb,
                 path_transcription=dir_path,
                 type='timitsounds'
@@ -681,22 +682,28 @@ class Application(QMainWindow):
             self.transcriptionadd_tools_menu.setEnabled(False)
             # Write changes to NWB file
             self.model.io.write(self.model.nwb)
+            print('Transcription data added successfully!')
 
     def add_transcription_mocha(self):
         """Add Mocha transcription data to current nwb file."""
         dir_path = QFileDialog.getExistingDirectory(self, 'Open Mocha dir', '', QtGui.QFileDialog.ShowDirsOnly)
         if os.path.isdir(dir_path):
-            add_transcription_data(
+            nwbfile = add_transcription_data(
                 nwbfile=self.model.nwb,
                 path_transcription=dir_path,
                 type='mocha',
-                subject_id='EC118',
-                session_id='B6'
+                subject_id=self.model.subject_id,  # 'EC118',
+                session_id='B' + self.model.block,  # 'B6'
             )
-            self.action_vis_transcription.setEnabled(True)
-            self.transcriptionadd_tools_menu.setEnabled(False)
-            # Write changes to NWB file
-            self.model.io.write(self.model.nwb)
+            if nwbfile is None:
+                print('No transcription data for {}_B{}'.format(self.model.subject_id, self.model.block))
+            else:
+                self.action_vis_transcription.setEnabled(True)
+                self.transcriptionadd_tools_menu.setEnabled(False)
+                # Write changes to NWB file
+                self.model.nwb = nwbfile
+                self.model.io.write(self.model.nwb)
+                print('Transcription data added successfully!')
 
     def add_transcription_textgrid(self):
         """Add TextGrid transcription data to current nwb file."""
@@ -711,6 +718,7 @@ class Application(QMainWindow):
             self.transcriptionadd_tools_menu.setEnabled(False)
             # Write changes to NWB file
             self.model.io.write(self.model.nwb)
+            print('Transcription data added successfully!')
 
     def visualize_transcription(self):
         """Visualize transcription behavioral data in current nwb file."""

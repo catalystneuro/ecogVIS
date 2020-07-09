@@ -27,6 +27,12 @@ def add_transcription_data(nwbfile, path_transcription, type, subject_id=None,
             subject_id=subject_id,
             session_id=session_id
         )
+        if sentences is None:  # If no transcription data for given session
+            return None
+    elif type == 'textgrid':
+        raise NotImplementedError('TODO')
+    else:
+        raise TypeError('Invalid transcription type')
 
     # Create behavioral processing module, if not existent
     if 'behavior' not in nwbfile.processing:
@@ -40,7 +46,8 @@ def add_transcription_data(nwbfile, path_transcription, type, subject_id=None,
     nwbfile.processing['behavior'].add(syllables)
     nwbfile.processing['behavior'].add(words)
     nwbfile.processing['behavior'].add(sentences)
-    print('Transcription data added successfully!')
+
+    return nwbfile
 
 
 def get_mocha(path_transcription, subject_id, session_id):
@@ -55,13 +62,16 @@ def get_mocha(path_transcription, subject_id, session_id):
         session_id=session_id,  # 'B6'
         trial_id='...'
     )
-    phonemes, syllables, words, sentences = mocha_converter(
-        re_phoneme_data=re_phoneme_data,
-        re_syllable_data=re_syllable_data,
-        re_word_data=re_word_data,
-        re_sentence_data=re_sentence_data
-    )
-    return phonemes, syllables, words, sentences
+    if re_sentence_data.shape[0] == 0:
+        return None, None, None, None
+    else:
+        phonemes, syllables, words, sentences = mocha_converter(
+            re_phoneme_data=re_phoneme_data,
+            re_syllable_data=re_syllable_data,
+            re_word_data=re_word_data,
+            re_sentence_data=re_sentence_data
+        )
+        return phonemes, syllables, words, sentences
 
 
 def get_timitsounds(path_transcription):
