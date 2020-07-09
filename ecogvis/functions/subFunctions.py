@@ -160,7 +160,7 @@ class TimeSeriesPlotter:
         # Test if current nwb file contains Transcription tables
         if 'behavior' in self.nwb.processing:
             list_transcripts = [v for v in self.nwb.processing['behavior'].data_interfaces.values()
-                                if v.neurodata_type == 'HierarchicalBehavioralTable']
+                                if v.name in ['phonemes', 'syllables', 'words', 'sentences']]
             if len(list_transcripts) > 0:
                 self.parent.transcriptionadd_tools_menu.setEnabled(False)
                 self.parent.action_vis_transcription.setEnabled(True)
