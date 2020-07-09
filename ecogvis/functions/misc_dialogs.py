@@ -701,12 +701,30 @@ class ShowTranscriptionDialog(QtGui.QDialog):
         self.setLayout(vbox)
         self.setWindowTitle('Transcription Data')
         self.resize(800, 600)
+
+        # Check for HierarchicalTable vs TimeIntervals
+        transcript_name = self.combo.currentText()
+        transcript_table = self.nwbfile.processing['behavior'].data_interfaces[transcript_name]
+        if transcript_table.neurodata_type != 'HierarchicalBehavioralTable':
+            self.radio_1.setEnabled(False)
+            self.radio_2.setEnabled(False)
+        else:
+            self.radio_1.setEnabled(True)
+            self.radio_2.setEnabled(True)
+
         self.exec_()
 
     def render_table(self):
         """Renders table in html"""
         transcript_name = self.combo.currentText()
         transcript_table = self.nwbfile.processing['behavior'].data_interfaces[transcript_name]
+        if transcript_table.neurodata_type != 'HierarchicalBehavioralTable':
+            self.radio_1.setEnabled(False)
+            self.radio_2.setEnabled(False)
+        else:
+            self.radio_1.setEnabled(True)
+            self.radio_2.setEnabled(True)
+
         if self.mode == 'Simple':
             html = transcript_table.to_dataframe().to_html()
         elif self.mode == 'Hierarchical':
