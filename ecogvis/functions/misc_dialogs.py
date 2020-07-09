@@ -621,24 +621,6 @@ class LoadHTKDialog(QtGui.QDialog):
         self.accept()
 
 
-# Warning that Survey data already exists in the NWB file --------------------
-class ExistSurveyDialog(QtGui.QDialog):
-    def __init__(self):
-        super().__init__()
-        self.text = QLabel("Survey data already exists in the current NWB file.")
-        self.okButton = QtGui.QPushButton("OK")
-        self.okButton.clicked.connect(self.onAccepted)
-        vbox = QtGui.QVBoxLayout()
-        vbox.addWidget(self.text)
-        vbox.addWidget(self.okButton)
-        self.setLayout(vbox)
-        self.setWindowTitle('Survey data already exists')
-        self.exec_()
-
-    def onAccepted(self):
-        self.accept()
-
-
 # Show Survey data in a separate window --------------------------------------
 class ShowSurveyDialog(QtGui.QDialog):
     def __init__(self, nwbfile):

@@ -28,7 +28,7 @@ from ecogvis.functions.misc_dialogs import (CustomIntervalDialog, SelectChannels
                                             PeriodogramGridDialog, NoSpectrumDialog,
                                             PreprocessingDialog, NoRawDialog,
                                             NoAudioDialog, ExistIntervalsDialog,
-                                            ExistSurveyDialog, ShowSurveyDialog,
+                                            ShowSurveyDialog,
                                             ShowElectrodesDialog, ShowTranscriptionDialog)
 from ecogvis.functions.audio_event_detection import AudioEventDetection
 from ecogvis.functions.event_related_potential import ERPDialog
@@ -195,9 +195,9 @@ class Application(QMainWindow):
         action_event_detection.triggered.connect(self.audio_event_detection)
 
         survey_tools_menu = toolsMenu.addMenu('Survey')
-        action_add_survey = QAction('Add Survey', self)
-        survey_tools_menu.addAction(action_add_survey)
-        action_add_survey.triggered.connect(self.add_survey)
+        self.action_add_survey = QAction('Add Survey', self)
+        survey_tools_menu.addAction(self.action_add_survey)
+        self.action_add_survey.triggered.connect(self.add_survey)
         self.action_vis_survey = QAction('Visualize Survey', self)
         survey_tools_menu.addAction(self.action_vis_survey)
         self.action_vis_survey.setEnabled(False)
@@ -216,7 +216,6 @@ class Application(QMainWindow):
         action_add_mocha.triggered.connect(self.add_transcription_mocha)
         self.action_vis_transcription = QAction('Visualize Transcription Data', self)
         transcription_tools_menu.addAction(self.action_vis_transcription)
-        # self.action_vis_transcription.setEnabled(False)
         self.action_vis_transcription.triggered.connect(self.visualize_transcription)
 
         self.action_vis_electrodes = QAction('Visualize Electrodes Tables', self)
@@ -652,14 +651,6 @@ class Application(QMainWindow):
 
     def add_survey(self):
         """Add survey data from .mat file to current nwb file."""
-        # Test if current nwb file already contains Survey table
-        if 'behavior' in self.model.nwb.processing:
-            list_surveys = [v for v in self.model.nwb.processing['behavior'].data_interfaces.values()
-                            if v.neurodata_type == 'SurveyTable']
-            if len(list_surveys) > 0:
-                ExistSurveyDialog()
-                return None
-
         # Open file dialog
         path_file, _ = QFileDialog.getOpenFileName(None, 'Open file', '', "(*.mat)")
         if os.path.isfile(path_file):

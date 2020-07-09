@@ -149,10 +149,13 @@ class TimeSeriesPlotter:
                             if v.neurodata_type == 'SurveyTable']
             if len(list_surveys) > 0:
                 self.parent.action_vis_survey.setEnabled(True)
+                self.parent.action_add_survey.setEnabled(False)
             else:
                 self.parent.action_vis_survey.setEnabled(False)
+                self.parent.action_add_survey.setEnabled(True)
         else:
             self.parent.action_vis_survey.setEnabled(False)
+            self.parent.action_add_survey.setEnabled(True)
 
         # Add Speaker and Mic Intervals if they exist
         self.SpeakerAndMicIntervalAdd()
