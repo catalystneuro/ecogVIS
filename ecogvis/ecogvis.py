@@ -36,6 +36,7 @@ from ecogvis.functions.save_to_nwb import SaveToNWBDialog
 from ecogvis.functions.nwb_copy_file import nwb_copy_file
 from ecogvis.functions.survey_data import add_survey_data
 from ecogvis.functions.transcription_data import add_transcription_data
+from ecogvis.functions.htk_to_nwb.chang2nwb import chang2nwb
 
 
 annotationAdd_ = False
@@ -213,7 +214,6 @@ class Application(QMainWindow):
         action_add_mocha = QAction('Mocha', self)
         transcriptionadd_tools_menu.addAction(action_add_mocha)
         action_add_mocha.triggered.connect(self.add_transcription_mocha)
-
         self.action_vis_transcription = QAction('Visualize Transcription Data', self)
         transcription_tools_menu.addAction(self.action_vis_transcription)
         # self.action_vis_transcription.setEnabled(False)
@@ -510,8 +510,16 @@ class Application(QMainWindow):
         """
         w = LoadHTKDialog(parent=self)
         if w.value == 1 and w.htk_config:
-            self.source_path = Path(w.htk_config['ecephys_path'])
+            self.model.io.close()
+            htk_source_path = Path(w.htk_config['ecephys_path'])
             self.metadata = w.htk_config['metadata']
+            # Run conversion
+            _, source_path, _, _ = chang2nwb(
+                blockpath=htk_source_path,
+                save_to_file=True,
+                htk_config=w.htk_config,
+            )
+            self.source_path = source_path.absolute()
             # Reset file specific variables on GUI
             self.combo3.setCurrentIndex(self.combo3.findText('raw'))
             self.combo4.clear()
@@ -527,7 +535,7 @@ class Application(QMainWindow):
             self.win2.clear()
             self.win3.clear()
             # Rebuild the model
-            self.model = TimeSeriesPlotter(par=self, htk_config=w.htk_config)
+            self.model = TimeSeriesPlotter(par=self)
 
     def save_file(self):
         """
