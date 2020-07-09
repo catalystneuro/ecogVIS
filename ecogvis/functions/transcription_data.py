@@ -1,5 +1,6 @@
 from ndx_hierarchical_behavioral_data.transcription_io import timitsounds_df, timitsounds_converter
 from ndx_hierarchical_behavioral_data.mocha_io import mocha_df, mocha_re_df, mocha_converter
+from ndx_hierarchical_behavioral_data.text_grid_io import textgriddf_reader, textgriddf_df, textgriddf_converter
 
 
 def add_transcription_data(nwbfile, path_transcription, type, subject_id=None,
@@ -30,7 +31,8 @@ def add_transcription_data(nwbfile, path_transcription, type, subject_id=None,
         if sentences is None:  # If no transcription data for given session
             return None
     elif type == 'textgrid':
-        raise NotImplementedError('TODO')
+        phonemes, syllables, words = None, None, None
+        sentences = get_textgrid(path_transcription=path_transcription)
     else:
         raise TypeError('Invalid transcription type')
 
@@ -42,12 +44,25 @@ def add_transcription_data(nwbfile, path_transcription, type, subject_id=None,
         )
 
     # Add transcription tables to behavioral processing module
-    nwbfile.processing['behavior'].add(phonemes)
-    nwbfile.processing['behavior'].add(syllables)
-    nwbfile.processing['behavior'].add(words)
-    nwbfile.processing['behavior'].add(sentences)
+    if phonemes is not None:
+        nwbfile.processing['behavior'].add(phonemes)
+    if syllables is not None:
+        nwbfile.processing['behavior'].add(syllables)
+    if words is not None:
+        nwbfile.processing['behavior'].add(words)
+    if sentences is not None:
+        nwbfile.processing['behavior'].add(sentences)
 
     return nwbfile
+
+
+def get_textgrid(path_transcription):
+    """Get data from TextGrid file"""
+    data = textgriddf_reader(path_file=path_transcription)
+    text_df = textgriddf_df(data, item_no=2)
+    sentences = textgriddf_converter(text_df)
+
+    return sentences
 
 
 def get_mocha(path_transcription, subject_id, session_id):
