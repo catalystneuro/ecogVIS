@@ -665,7 +665,7 @@ class ShowTranscriptionDialog(QtGui.QDialog):
         self.nwbfile = nwbfile
         self.mode = 'Simple'
         self.list_transcripts = [v for v in nwbfile.processing['behavior'].data_interfaces.values()
-                                 if v.neurodata_type == 'HierarchicalBehavioralTable']
+                                 if v.name in ['phonemes', 'syllables', 'words', 'sentences']]
 
         self.combo = QComboBox()
         self.combo.activated.connect(self.render_table)

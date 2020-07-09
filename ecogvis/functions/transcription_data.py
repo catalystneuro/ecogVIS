@@ -3,7 +3,7 @@ from ndx_hierarchical_behavioral_data.mocha_io import mocha_df, mocha_re_df, moc
 from ndx_hierarchical_behavioral_data.text_grid_io import textgriddf_reader, textgriddf_df, textgriddf_converter
 
 
-def add_transcription_data(nwbfile, path_transcription, type, subject_id=None,
+def add_transcription_data(nwbfile, path_transcription, tr_type, subject_id=None,
                            session_id=None):
     """
     Add transcription data to nwb file
@@ -12,7 +12,7 @@ def add_transcription_data(nwbfile, path_transcription, type, subject_id=None,
     -----------
     nwbfile : nwbfile
     path_transcription : path
-    type : str
+    tr_type : str
         Transcriptions data type: timitsounds, textgrid or mocha
     subject_id : str
         Used for Mocha
@@ -20,9 +20,9 @@ def add_transcription_data(nwbfile, path_transcription, type, subject_id=None,
         Used for Mocha
     """
 
-    if type == 'timitsounds':
+    if tr_type == 'timitsounds':
         phonemes, syllables, words, sentences = get_timitsounds(path_transcription=path_transcription)
-    elif type == 'mocha':
+    elif tr_type == 'mocha':
         phonemes, syllables, words, sentences = get_mocha(
             path_transcription=path_transcription,
             subject_id=subject_id,
@@ -30,7 +30,7 @@ def add_transcription_data(nwbfile, path_transcription, type, subject_id=None,
         )
         if sentences is None:  # If no transcription data for given session
             return None
-    elif type == 'textgrid':
+    elif tr_type == 'textgrid':
         phonemes, syllables, words = None, None, None
         sentences = get_textgrid(path_transcription=path_transcription)
     else:

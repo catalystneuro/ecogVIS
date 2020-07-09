@@ -676,7 +676,7 @@ class Application(QMainWindow):
             _ = add_transcription_data(
                 nwbfile=self.model.nwb,
                 path_transcription=dir_path,
-                type='timitsounds'
+                tr_type='timitsounds'
             )
             self.action_vis_transcription.setEnabled(True)
             self.transcriptionadd_tools_menu.setEnabled(False)
@@ -691,7 +691,7 @@ class Application(QMainWindow):
             nwbfile = add_transcription_data(
                 nwbfile=self.model.nwb,
                 path_transcription=dir_path,
-                type='mocha',
+                tr_type='mocha',
                 subject_id=self.model.subject_id,  # 'EC118',
                 session_id='B' + self.model.block,  # 'B6'
             )
@@ -712,7 +712,7 @@ class Application(QMainWindow):
             add_transcription_data(
                 nwbfile=self.model.nwb,
                 path_transcription=filename,
-                type='textgrid'
+                tr_type='textgrid'
             )
             self.action_vis_transcription.setEnabled(True)
             self.transcriptionadd_tools_menu.setEnabled(False)
