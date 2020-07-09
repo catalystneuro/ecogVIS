@@ -204,15 +204,15 @@ class Application(QMainWindow):
         self.action_vis_survey.triggered.connect(self.visualize_survey)
 
         transcription_tools_menu = toolsMenu.addMenu('Transcription Data')
-        transcriptionadd_tools_menu = transcription_tools_menu.addMenu('Add Transcription Data')
+        self.transcriptionadd_tools_menu = transcription_tools_menu.addMenu('Add Transcription Data')
         action_add_timitsounds = QAction('TimitSounds', self)
-        transcriptionadd_tools_menu.addAction(action_add_timitsounds)
+        self.transcriptionadd_tools_menu.addAction(action_add_timitsounds)
         action_add_timitsounds.triggered.connect(self.add_transcription_timitsounds)
         action_add_textgrid = QAction('TextGrid', self)
-        transcriptionadd_tools_menu.addAction(action_add_textgrid)
+        self.transcriptionadd_tools_menu.addAction(action_add_textgrid)
         action_add_textgrid.triggered.connect(self.add_transcription_textgrid)
         action_add_mocha = QAction('Mocha', self)
-        transcriptionadd_tools_menu.addAction(action_add_mocha)
+        self.transcriptionadd_tools_menu.addAction(action_add_mocha)
         action_add_mocha.triggered.connect(self.add_transcription_mocha)
         self.action_vis_transcription = QAction('Visualize Transcription Data', self)
         transcription_tools_menu.addAction(self.action_vis_transcription)
@@ -670,14 +670,6 @@ class Application(QMainWindow):
 
     def add_transcription_timitsounds(self):
         """Add TimitSounds transcription data to current nwb file."""
-        # # Test if current nwb file already contains Survey table
-        # if 'behavior' in self.model.nwb.processing:
-        #     list_surveys = [v for v in self.model.nwb.processing['behavior'].data_interfaces.values()
-        #                     if v.neurodata_type == 'SurveyTable']
-        #     if len(list_surveys) > 0:
-        #         ExistSurveyDialog()
-        #         return None
-        # Open dir dialog
         dir_path = QFileDialog.getExistingDirectory(self, 'Open TimitSounds dir', '', QtGui.QFileDialog.ShowDirsOnly)
         if os.path.isdir(dir_path):
             add_transcription_data(
@@ -686,6 +678,7 @@ class Application(QMainWindow):
                 type='timitsounds'
             )
             self.action_vis_transcription.setEnabled(True)
+            self.transcriptionadd_tools_menu.setEnabled(False)
             # Write changes to NWB file
             self.model.io.write(self.model.nwb)
 
@@ -701,6 +694,7 @@ class Application(QMainWindow):
                 session_id='B6'
             )
             self.action_vis_transcription.setEnabled(True)
+            self.transcriptionadd_tools_menu.setEnabled(False)
             # Write changes to NWB file
             self.model.io.write(self.model.nwb)
 
@@ -714,6 +708,7 @@ class Application(QMainWindow):
                 type='textgrid'
             )
             self.action_vis_transcription.setEnabled(True)
+            self.transcriptionadd_tools_menu.setEnabled(False)
             # Write changes to NWB file
             self.model.io.write(self.model.nwb)
 

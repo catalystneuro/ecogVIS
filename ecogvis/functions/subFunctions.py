@@ -157,6 +157,20 @@ class TimeSeriesPlotter:
             self.parent.action_vis_survey.setEnabled(False)
             self.parent.action_add_survey.setEnabled(True)
 
+        # Test if current nwb file contains Transcripts tables
+        if 'behavior' in self.nwb.processing:
+            list_transcripts = [v for v in self.nwb.processing['behavior'].data_interfaces.values()
+                                if v.neurodata_type == 'HierarchicalBehavioralTable']
+            if len(list_transcripts) > 0:
+                self.parent.transcriptionadd_tools_menu.setEnabled(False)
+                self.parent.action_vis_transcription.setEnabled(True)
+            else:
+                self.parent.transcriptionadd_tools_menu.setEnabled(True)
+                self.parent.action_vis_transcription.setEnabled(False)
+        else:
+            self.parent.transcriptionadd_tools_menu.setEnabled(True)
+            self.parent.action_vis_transcription.setEnabled(False)
+
         # Add Speaker and Mic Intervals if they exist
         self.SpeakerAndMicIntervalAdd()
 
