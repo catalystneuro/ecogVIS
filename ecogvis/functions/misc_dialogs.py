@@ -621,24 +621,6 @@ class LoadHTKDialog(QtGui.QDialog):
         self.accept()
 
 
-# Warning that Survey data already exists in the NWB file --------------------
-class ExistSurveyDialog(QtGui.QDialog):
-    def __init__(self):
-        super().__init__()
-        self.text = QLabel("Survey data already exists in the current NWB file.")
-        self.okButton = QtGui.QPushButton("OK")
-        self.okButton.clicked.connect(self.onAccepted)
-        vbox = QtGui.QVBoxLayout()
-        vbox.addWidget(self.text)
-        vbox.addWidget(self.okButton)
-        self.setLayout(vbox)
-        self.setWindowTitle('Survey data already exists')
-        self.exec_()
-
-    def onAccepted(self):
-        self.accept()
-
-
 # Show Survey data in a separate window --------------------------------------
 class ShowSurveyDialog(QtGui.QDialog):
     def __init__(self, nwbfile):
@@ -671,6 +653,93 @@ class ShowSurveyDialog(QtGui.QDialog):
 
         self.html_viewer.setHtml(html)
         self.html_viewer.show()
+
+    def onAccepted(self):
+        self.accept()
+
+
+# Show Transcription data in a separate window ----------------------
+class ShowTranscriptionDialog(QtGui.QDialog):
+    def __init__(self, nwbfile):
+        super().__init__()
+        self.nwbfile = nwbfile
+        self.mode = 'Simple'
+        self.list_transcripts = [v for v in nwbfile.processing['behavior'].data_interfaces.values()
+                                 if v.name in ['phonemes', 'syllables', 'words', 'sentences']]
+
+        self.combo = QComboBox()
+        self.combo.activated.connect(self.render_table)
+        for sv in self.list_transcripts:
+            self.combo.addItem(sv.name)
+
+        self.groupBox0 = QGroupBox("Visualization Mode:")
+        self.radio_0 = QRadioButton("Simple")
+        self.radio_1 = QRadioButton("Hierarchical")
+        self.radio_2 = QRadioButton("Denormalized")
+        self.radio_0.setChecked(True)
+        vbox0 = QVBoxLayout()
+        vbox0.addWidget(self.radio_0)
+        vbox0.addWidget(self.radio_1)
+        vbox0.addWidget(self.radio_2)
+        vbox0.addStretch()
+        self.groupBox0.setLayout(vbox0)
+        self.radio_0.toggled.connect(self.change_mode)
+        self.radio_1.toggled.connect(self.change_mode)
+        self.radio_2.toggled.connect(self.change_mode)
+
+        hbox1 = QHBoxLayout()
+        hbox1.addWidget(self.combo)
+        hbox1.addWidget(self.groupBox0)
+
+        # Web Engine Viewer
+        self.html_viewer = QWebEngineView()
+        self.render_table()
+
+        vbox = QVBoxLayout()
+        vbox.addLayout(hbox1)
+        vbox.addWidget(self.html_viewer)
+        self.setLayout(vbox)
+        self.setWindowTitle('Transcription Data')
+        self.resize(800, 600)
+
+        # Check for HierarchicalTable vs TimeIntervals
+        transcript_name = self.combo.currentText()
+        transcript_table = self.nwbfile.processing['behavior'].data_interfaces[transcript_name]
+        if transcript_table.neurodata_type != 'HierarchicalBehavioralTable':
+            self.radio_1.setEnabled(False)
+            self.radio_2.setEnabled(False)
+        else:
+            self.radio_1.setEnabled(True)
+            self.radio_2.setEnabled(True)
+
+        self.exec_()
+
+    def render_table(self):
+        """Renders table in html"""
+        transcript_name = self.combo.currentText()
+        transcript_table = self.nwbfile.processing['behavior'].data_interfaces[transcript_name]
+        if transcript_table.neurodata_type != 'HierarchicalBehavioralTable':
+            self.radio_1.setEnabled(False)
+            self.radio_2.setEnabled(False)
+        else:
+            self.radio_1.setEnabled(True)
+            self.radio_2.setEnabled(True)
+
+        if self.mode == 'Simple':
+            html = transcript_table.to_dataframe().to_html()
+        elif self.mode == 'Hierarchical':
+            html = transcript_table.to_hierarchical_dataframe().to_html()
+        elif self.mode == 'Denormalized':
+            html = transcript_table.to_denormalized_dataframe().to_html()
+        self.html_viewer.setHtml(html)
+        self.html_viewer.show()
+
+    def change_mode(self):
+        """Change mode of Dataframe visualization"""
+        radio_btn = self.sender()
+        if radio_btn.isChecked():
+            self.mode = str(radio_btn.text())
+            self.render_table()
 
     def onAccepted(self):
         self.accept()

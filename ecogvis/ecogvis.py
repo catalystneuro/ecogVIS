@@ -28,14 +28,15 @@ from ecogvis.functions.misc_dialogs import (CustomIntervalDialog, SelectChannels
                                             PeriodogramGridDialog, NoSpectrumDialog,
                                             PreprocessingDialog, NoRawDialog,
                                             NoAudioDialog, ExistIntervalsDialog,
-                                            ExistSurveyDialog, ShowSurveyDialog,
-                                            ShowElectrodesDialog)
+                                            ShowSurveyDialog,
+                                            ShowElectrodesDialog, ShowTranscriptionDialog)
 from ecogvis.functions.audio_event_detection import AudioEventDetection
 from ecogvis.functions.event_related_potential import ERPDialog
 from ecogvis.functions.save_to_nwb import SaveToNWBDialog
 from ecogvis.functions.nwb_copy_file import nwb_copy_file
 from ecogvis.functions.survey_data import add_survey_data
-
+from ecogvis.functions.transcription_data import add_transcription_data
+from ecogvis.functions.htk_to_nwb.chang2nwb import chang2nwb
 
 
 annotationAdd_ = False
@@ -194,13 +195,28 @@ class Application(QMainWindow):
         action_event_detection.triggered.connect(self.audio_event_detection)
 
         survey_tools_menu = toolsMenu.addMenu('Survey')
-        action_add_survey = QAction('Add Survey', self)
-        survey_tools_menu.addAction(action_add_survey)
-        action_add_survey.triggered.connect(self.add_survey)
+        self.action_add_survey = QAction('Add Survey', self)
+        survey_tools_menu.addAction(self.action_add_survey)
+        self.action_add_survey.triggered.connect(self.add_survey)
         self.action_vis_survey = QAction('Visualize Survey', self)
         survey_tools_menu.addAction(self.action_vis_survey)
         self.action_vis_survey.setEnabled(False)
         self.action_vis_survey.triggered.connect(self.visualize_survey)
+
+        transcription_tools_menu = toolsMenu.addMenu('Transcription Data')
+        self.transcriptionadd_tools_menu = transcription_tools_menu.addMenu('Add Transcription Data')
+        action_add_timitsounds = QAction('TimitSounds', self)
+        self.transcriptionadd_tools_menu.addAction(action_add_timitsounds)
+        action_add_timitsounds.triggered.connect(self.add_transcription_timitsounds)
+        action_add_textgrid = QAction('TextGrid', self)
+        self.transcriptionadd_tools_menu.addAction(action_add_textgrid)
+        action_add_textgrid.triggered.connect(self.add_transcription_textgrid)
+        action_add_mocha = QAction('Mocha', self)
+        self.transcriptionadd_tools_menu.addAction(action_add_mocha)
+        action_add_mocha.triggered.connect(self.add_transcription_mocha)
+        self.action_vis_transcription = QAction('Visualize Transcription Data', self)
+        transcription_tools_menu.addAction(self.action_vis_transcription)
+        self.action_vis_transcription.triggered.connect(self.visualize_transcription)
 
         self.action_vis_electrodes = QAction('Visualize Electrodes Tables', self)
         toolsMenu.addAction(self.action_vis_electrodes)
@@ -493,8 +509,16 @@ class Application(QMainWindow):
         """
         w = LoadHTKDialog(parent=self)
         if w.value == 1 and w.htk_config:
-            self.source_path = Path(w.htk_config['ecephys_path'])
+            self.model.io.close()
+            htk_source_path = Path(w.htk_config['ecephys_path'])
             self.metadata = w.htk_config['metadata']
+            # Run conversion
+            _, source_path, _, _ = chang2nwb(
+                blockpath=htk_source_path,
+                save_to_file=True,
+                htk_config=w.htk_config,
+            )
+            self.source_path = source_path.absolute()
             # Reset file specific variables on GUI
             self.combo3.setCurrentIndex(self.combo3.findText('raw'))
             self.combo4.clear()
@@ -510,7 +534,7 @@ class Application(QMainWindow):
             self.win2.clear()
             self.win3.clear()
             # Rebuild the model
-            self.model = TimeSeriesPlotter(par=self, htk_config=w.htk_config)
+            self.model = TimeSeriesPlotter(par=self)
 
     def save_file(self):
         """
@@ -627,19 +651,12 @@ class Application(QMainWindow):
 
     def add_survey(self):
         """Add survey data from .mat file to current nwb file."""
-        # Test if current nwb file already contains Survey table
-        if 'behavior' in self.model.nwb.processing:
-            list_surveys = [v for v in self.model.nwb.processing['behavior'].data_interfaces.values()
-                            if v.neurodata_type == 'SurveyTable']
-            if len(list_surveys) > 0:
-                ExistSurveyDialog()
-                return None
-
         # Open file dialog
         path_file, _ = QFileDialog.getOpenFileName(None, 'Open file', '', "(*.mat)")
         if os.path.isfile(path_file):
             add_survey_data(nwbfile=self.model.nwb, path_survey_file=path_file)
             self.action_vis_survey.setEnabled(True)
+            self.action_add_survey.setEnabled(False)
             # Write changes to NWB file
             self.model.io.write(self.model.nwb)
 
@@ -651,6 +668,68 @@ class Application(QMainWindow):
                             if v.neurodata_type == 'SurveyTable']
             if len(list_surveys) > 0:
                 ShowSurveyDialog(nwbfile=self.model.nwb)
+
+    def add_transcription_timitsounds(self):
+        """Add TimitSounds transcription data to current nwb file."""
+        dir_path = QFileDialog.getExistingDirectory(self, 'Open TimitSounds dir', '', QtGui.QFileDialog.ShowDirsOnly)
+        if os.path.isdir(dir_path):
+            _ = add_transcription_data(
+                nwbfile=self.model.nwb,
+                path_transcription=dir_path,
+                tr_type='timitsounds'
+            )
+            self.action_vis_transcription.setEnabled(True)
+            self.transcriptionadd_tools_menu.setEnabled(False)
+            # Write changes to NWB file
+            self.model.io.write(self.model.nwb)
+            print('Transcription data added successfully!')
+
+    def add_transcription_mocha(self):
+        """Add Mocha transcription data to current nwb file."""
+        dir_path = QFileDialog.getExistingDirectory(self, 'Open Mocha dir', '', QtGui.QFileDialog.ShowDirsOnly)
+        if os.path.isdir(dir_path):
+            nwbfile = add_transcription_data(
+                nwbfile=self.model.nwb,
+                path_transcription=dir_path,
+                tr_type='mocha',
+                subject_id=self.model.subject_id,  # 'EC118',
+                session_id='B' + self.model.block,  # 'B6'
+            )
+            if nwbfile is None:
+                print('No transcription data for {}_B{}'.format(self.model.subject_id, self.model.block))
+            else:
+                self.action_vis_transcription.setEnabled(True)
+                self.transcriptionadd_tools_menu.setEnabled(False)
+                # Write changes to NWB file
+                self.model.nwb = nwbfile
+                self.model.io.write(self.model.nwb)
+                print('Transcription data added successfully!')
+
+    def add_transcription_textgrid(self):
+        """Add TextGrid transcription data to current nwb file."""
+        filename, _ = QFileDialog.getOpenFileName(None, 'Open file', '', "(*.TextGrid)")
+        if os.path.isfile(filename):
+            add_transcription_data(
+                nwbfile=self.model.nwb,
+                path_transcription=filename,
+                tr_type='textgrid'
+            )
+            self.action_vis_transcription.setEnabled(True)
+            self.transcriptionadd_tools_menu.setEnabled(False)
+            # Write changes to NWB file
+            self.model.io.write(self.model.nwb)
+            print('Transcription data added successfully!')
+
+    def visualize_transcription(self):
+        """Visualize transcription behavioral data in current nwb file."""
+        # # Test if current nwb file contains Survey table
+        # if 'behavior' in self.model.nwb.processing:
+        #     list_surveys = [v for v in self.model.nwb.processing['behavior'].data_interfaces.values()
+        #                     if v.neurodata_type == 'SurveyTable']
+        #     if len(list_surveys) > 0:
+        #         ShowSurveyDialog(nwbfile=self.model.nwb)
+        ShowTranscriptionDialog(nwbfile=self.model.nwb)
+        pass
 
     def visualize_electrodes(self):
         """Visualize electrodes tables in current nwb file."""

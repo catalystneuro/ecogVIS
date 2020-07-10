@@ -9,7 +9,6 @@ import pyqtgraph as pg
 import datetime
 import pynwb
 import ndx_ecog
-from ecogvis.functions.htk_to_nwb.chang2nwb import chang2nwb
 
 
 class TimeSeriesPlotter:
@@ -18,11 +17,11 @@ class TimeSeriesPlotter:
     It also holds information of the currently open NWB file, as well as user
     annotations and intervals.
     """
-    def __init__(self, par, htk_config=None):
+    def __init__(self, par):
         self.parent = par
         self.source_path = Path(par.source_path)
 
-        # Makes nwbfile object from nwb file or from HTK directory
+        # Makes nwbfile object from nwb file
         if self.source_path.is_file():
             if '_' in self.source_path.name:
                 self.subject_id = self.source_path.name.split('_')[0][2:]
@@ -32,13 +31,8 @@ class TimeSeriesPlotter:
                 self.block = ''
             self.io = pynwb.NWBHDF5IO(str(self.source_path), 'r+', load_namespaces=True)
             self.nwb = self.io.read()      # reads NWB file
-        elif self.source_path.is_dir():
-            self.nwb, self.source_path, self.subject_id, self.block = chang2nwb(
-                blockpath=str(par.source_path),
-                save_to_file=True,
-                htk_config=htk_config,
-            )
-            self.parent.source_path = self.source_path.absolute()
+        else:
+            raise TypeError("Invalid file type")
 
         title = ' '.join(['EcogVIS -', self.parent.current_session,
                           self.source_path.name, '-', self.block])
@@ -155,10 +149,27 @@ class TimeSeriesPlotter:
                             if v.neurodata_type == 'SurveyTable']
             if len(list_surveys) > 0:
                 self.parent.action_vis_survey.setEnabled(True)
+                self.parent.action_add_survey.setEnabled(False)
             else:
                 self.parent.action_vis_survey.setEnabled(False)
+                self.parent.action_add_survey.setEnabled(True)
         else:
             self.parent.action_vis_survey.setEnabled(False)
+            self.parent.action_add_survey.setEnabled(True)
+
+        # Test if current nwb file contains Transcription tables
+        if 'behavior' in self.nwb.processing:
+            list_transcripts = [v for v in self.nwb.processing['behavior'].data_interfaces.values()
+                                if v.name in ['phonemes', 'syllables', 'words', 'sentences']]
+            if len(list_transcripts) > 0:
+                self.parent.transcriptionadd_tools_menu.setEnabled(False)
+                self.parent.action_vis_transcription.setEnabled(True)
+            else:
+                self.parent.transcriptionadd_tools_menu.setEnabled(True)
+                self.parent.action_vis_transcription.setEnabled(False)
+        else:
+            self.parent.transcriptionadd_tools_menu.setEnabled(True)
+            self.parent.action_vis_transcription.setEnabled(False)
 
         # Add Speaker and Mic Intervals if they exist
         self.SpeakerAndMicIntervalAdd()

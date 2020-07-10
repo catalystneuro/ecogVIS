@@ -153,7 +153,7 @@ def preprocess_raw_data(block_path, config):
             # Downsampling
             if config['Downsample'] is not None:
                 print("Downsampling signals to " + str(config['Downsample']) + " Hz.")
-                print("Please wait, this might take around 30 minutes.")
+                print("Please wait...")
                 start = time.time()
                 # Note: zero padding the signal to make the length
                 # a power of 2 won't help, since resample will further pad it
