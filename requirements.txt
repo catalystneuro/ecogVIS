@@ -13,6 +13,7 @@ ndx-spectrum
 ndx-survey-data
 ndx-bipolar-scheme>=0.3.1
 ndx-hierarchical-behavioral-data
+ndx-icephys-meta
 pyopengl
 process_nwb
 PyYAML
