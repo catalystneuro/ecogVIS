@@ -74,7 +74,7 @@ class Application(QMainWindow):
 
         # Check source of data
         if not os.path.exists(source_path):
-            source_path = self.open_file()
+            source_path = '.'
         self.source_path = Path(source_path).absolute()
 
         # Check metadata file
@@ -102,8 +102,9 @@ class Application(QMainWindow):
         else:
             self.current_session = session
 
-        # Run the main function
-        self.model = TimeSeriesPlotter(self)
+        # Run the main plotting function
+        if self.source_path.is_file():
+            self.model = TimeSeriesPlotter(self)
 
     def closeEvent(self, event):
         """Before exiting, checks if there are any unsaved changes and inform the user."""
@@ -483,7 +484,8 @@ class Application(QMainWindow):
         if filename is None:  # Opens new file dialog
             filename, _ = QFileDialog.getOpenFileName(None, 'Open file', '', "(*.nwb)")
         if os.path.isfile(filename):
-            self.model.io.close()
+            if hasattr(self, 'model'):
+                self.model.io.close()
             self.source_path = Path(filename)
             # Reset file specific variables on GUI
             self.combo3.setCurrentIndex(self.combo3.findText('raw'))
@@ -509,7 +511,8 @@ class Application(QMainWindow):
         """
         w = LoadHTKDialog(parent=self)
         if w.value == 1 and w.htk_config:
-            self.model.io.close()
+            if hasattr(self, 'model'):
+                self.model.io.close()
             htk_source_path = Path(w.htk_config['ecephys_path'])
             self.metadata = w.htk_config['metadata']
             # Run conversion
