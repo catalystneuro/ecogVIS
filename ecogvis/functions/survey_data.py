@@ -25,7 +25,7 @@ def add_survey_data(nwbfile, path_survey_file):
     # Mpq data values
     def mpq_values(val):
         if math.isnan(val):
-            return 'no answer'
+            return 'NaN'
         elif int(val) == 1:
             return 'mild'
         elif int(val) == 2:
@@ -36,7 +36,7 @@ def add_survey_data(nwbfile, path_survey_file):
     # NRS and VAS data values
     def nrs_values(val):
         if math.isnan(val):
-            return 'no answer'
+            return 'NaN'
         else:
             return str(int(val))
 
@@ -46,10 +46,10 @@ def add_survey_data(nwbfile, path_survey_file):
         nrs_null = all([math.isnan(v) for v in row[0:4]])
         if not nrs_null:
             survey_definitions.nrs_survey_table.add_row(
-                nrs_pain_intensity_rating=nrs_values(row[0]),
-                nrs_relative_pain_intensity_rating=nrs_values(row[1]),
-                nrs_pain_unpleasantness=nrs_values(row[2]),
-                nrs_pain_relief_rating=nrs_values(row[3]),
+                pain_intensity_rating=nrs_values(row[0]),
+                relative_pain_intensity_rating=nrs_values(row[1]),
+                pain_unpleasantness=nrs_values(row[2]),
+                pain_relief_rating=nrs_values(row[3]),
                 unix_timestamp=survey_dt[i]
             )
 
@@ -57,10 +57,10 @@ def add_survey_data(nwbfile, path_survey_file):
         vas_null = all([math.isnan(v) for v in row[4:8]])
         if not vas_null:
             survey_definitions.vas_survey_table.add_row(
-                vas_pain_intensity_rating=nrs_values(row[4]),
-                vas_pain_relief_rating=nrs_values(row[5]),
-                vas_relative_pain_intensity_rating=nrs_values(row[6]),
-                vas_pain_unpleasantness=nrs_values(row[7]),
+                pain_intensity_rating=nrs_values(row[4]),
+                pain_relief_rating=nrs_values(row[5]),
+                relative_pain_intensity_rating=nrs_values(row[6]),
+                pain_unpleasantness=nrs_values(row[7]),
                 unix_timestamp=survey_dt[i]
             )
 
