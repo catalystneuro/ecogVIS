@@ -60,7 +60,7 @@ def get_analog(anin_path, num=1):
 def readhtks(htk_path, elecs=None, use_tqdm=True):
     # First fix the order of htk files
     all_files = np.array([f for f in Path(htk_path).glob('*.htk')])
-    numbers = [f.name.split('.')[0].split('Wav')[1] for f in Path(htk_path).glob('*.htk')]
+    numbers = [f.name.split('.')[0].split('Wav')[1] for f in Path(htk_path).glob('*.htk') if '._' not in str(f)]
     new_numbers = [n[0] + '0' + n[1] if len(n) == 2 else n for n in numbers]
     sorted_index = np.argsort(new_numbers)
     sorted_files = all_files[sorted_index]

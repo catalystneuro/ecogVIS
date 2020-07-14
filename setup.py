@@ -34,7 +34,6 @@ setup(
         'tqdm',
         'pyopengl',
         'process_nwb',
-        'tdt',
         'PyQtWebEngine',
         'ndx-icephys-meta',
         'ndx-hierarchical-behavioral-data'],
