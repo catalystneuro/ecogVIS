@@ -19,6 +19,7 @@ class SaveToNWBDialog(QtGui.QDialog):
         self.btn_newfile.setIcon(self.style().standardIcon(QStyle.SP_DriveFDIcon))
         self.btn_newfile.clicked.connect(self.newfile_path)
         self.lin_newfile = QLineEdit('')
+        self.lin_newfile.setEnabled(False)
 
         self.panel_0 = QGridLayout()
         self.panel_0.addWidget(self.btn_newfile, 0, 0)
