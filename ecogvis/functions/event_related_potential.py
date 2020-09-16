@@ -19,7 +19,6 @@ class ERPDialog(QMainWindow):
         self.resize(1300, 600)
 
         self.parent = parent
-        self.nCols = 16
         self.grid_order = np.arange(256)
         self.transparent = []
         self.Yscale = {}
@@ -62,6 +61,11 @@ class ERPDialog(QMainWindow):
         self.combo_alignment = QComboBox()
         self.combo_alignment.activated.connect(self.set_alignment)
         self.find_intervals()
+        label_ncols = QLabel('Columns:')
+        self.qline_ncols = QLineEdit()
+        label_nrows = QLabel('Rows:')
+        self.qline_nrows = QLineEdit() # will never be enabled (must be nElecs/nCols)
+        self.qline_ncols.returnPressed.connect(self.set_grid)
 
         label2 = QLabel('Width (sec):')
         self.qline2 = QLineEdit('2')
@@ -100,6 +104,7 @@ class ERPDialog(QMainWindow):
         self.push5_5.clicked.connect(lambda: self.rearrange_grid('2FL'))
         self.push5_5.setToolTip('Double flip')
 
+        self.qline_nrows.setEnabled(False)
         self.qline2.setEnabled(False)
         self.combo1.setEnabled(False)
         self.push2_0.setEnabled(False)
@@ -118,25 +123,29 @@ class ERPDialog(QMainWindow):
         grid0.addWidget(label1, 1, 0, 1, 6)
         grid0.addWidget(self.combo_interval, 2, 0, 1, 6)
         grid0.addWidget(self.combo_alignment, 3, 0, 1, 6)
-        grid0.addWidget(QHLine(), 4, 0, 1, 6)
-        grid0.addWidget(label2, 5, 0, 1, 6)
-        grid0.addWidget(self.qline2, 6, 0, 1, 6)
-        grid0.addWidget(QHLine(), 7, 0, 1, 6)
-        grid0.addWidget(label3, 8, 0, 1, 6)
-        grid0.addWidget(self.combo1, 9, 0, 1, 6)
-        grid0.addWidget(QHLine(), 10, 0, 1, 6)
-        grid0.addWidget(self.push2_0, 11, 0, 1, 6)
-        grid0.addWidget(self.push3_0, 12, 0, 1, 6)
-        grid0.addWidget(self.push4_0, 13, 0, 1, 6)
-        grid0.addWidget(QHLine(), 14, 0, 1, 6)
-        grid0.addWidget(label4, 15, 0, 1, 6)
-        grid0.addWidget(self.push5_0, 16, 0, 1, 2)
-        grid0.addWidget(self.push5_1, 16, 2, 1, 2)
-        grid0.addWidget(self.push5_2, 16, 4, 1, 2)
-        grid0.addWidget(label5, 17, 0, 1, 6)
-        grid0.addWidget(self.push5_3, 18, 0, 1, 2)
-        grid0.addWidget(self.push5_4, 18, 2, 1, 2)
-        grid0.addWidget(self.push5_5, 18, 4, 1, 2)
+        grid0.addWidget(label_ncols, 4, 0, 1, 3)
+        grid0.addWidget(label_nrows, 4, 3, 1, 3)
+        grid0.addWidget(self.qline_ncols, 5, 0, 1, 3)
+        grid0.addWidget(self.qline_nrows, 5, 3, 1, 3)
+        grid0.addWidget(QHLine(), 6, 0, 1, 6)
+        grid0.addWidget(label2, 7, 0, 1, 6)
+        grid0.addWidget(self.qline2, 8, 0, 1, 6)
+        grid0.addWidget(QHLine(), 9, 0, 1, 6)
+        grid0.addWidget(label3, 10, 0, 1, 6)
+        grid0.addWidget(self.combo1, 11, 0, 1, 6)
+        grid0.addWidget(QHLine(), 12, 0, 1, 6)
+        grid0.addWidget(self.push2_0, 13, 0, 1, 6)
+        grid0.addWidget(self.push3_0, 14, 0, 1, 6)
+        grid0.addWidget(self.push4_0, 15, 0, 1, 6)
+        grid0.addWidget(QHLine(), 16, 0, 1, 6)
+        grid0.addWidget(label4, 17, 0, 1, 6)
+        grid0.addWidget(self.push5_0, 18, 0, 1, 2)
+        grid0.addWidget(self.push5_1, 18, 2, 1, 2)
+        grid0.addWidget(self.push5_2, 18, 4, 1, 2)
+        grid0.addWidget(label5, 19, 0, 1, 6)
+        grid0.addWidget(self.push5_3, 20, 0, 1, 2)
+        grid0.addWidget(self.push5_4, 20, 2, 1, 2)
+        grid0.addWidget(self.push5_5, 20, 4, 1, 2)
         grid0.setAlignment(QtCore.Qt.AlignTop)
 
         panel0 = QGroupBox('Controls:')
@@ -201,10 +210,17 @@ class ERPDialog(QMainWindow):
         self.elec_group = self.combo0.currentText()
         self.grid_order = np.where(self.electrodes.table['group_name'].data[:] == self.elec_group)[0]
         self.nElecs = len(self.grid_order)
-        self.nCols = 16
-        self.nRows = int(np.ceil(self.nElecs / self.nCols))
+        self.qline_ncols.setText(str(self.guess_ncols()))
+        self.qline_ncols.setEnabled(True)
         self.set_grid()
-        self.draw_erp()
+
+    def guess_ncols(self):
+        if self.nElecs == 64:
+            return 8
+        elif self.nElecs in [128,256]:
+            return 16
+        else: # depths, strips
+            return min(self.nElecs, 16)
 
     def set_interval(self, sel=None):
         if isinstance(sel, int):
@@ -232,17 +248,30 @@ class ERPDialog(QMainWindow):
 
     def set_grid(self):
         # remove previous items
-        for i in np.arange(16):
-            for j in np.arange(16):
-                it = self.win.getItem(i, j)
-                if it is not None:
-                    self.win.removeItem(it)
+        for it in self.win.items():
+            if isinstance(it,pg.graphicsItems.PlotItem.PlotItem):
+                self.win.removeItem(it)
+
+        # Update grid parameters
+        try:
+            self.nCols = int(self.qline_ncols.text())
+        except x:
+            self.nCols = self.guess_ncols()
+            self.qline_ncols.setText(str(self.nCols))
+        self.nRows = int(np.ceil(self.nElecs / self.nCols))
+        self.qline_nrows.setText(str(self.nRows))
+        self.qline_ncols.repaint()
+        self.qline_nrows.repaint()
+
+        # add new items
         for j in np.arange(self.nCols):
             self.win.ci.layout.setColumnFixedWidth(j, 60)
             self.win.ci.layout.setColumnSpacing(j, 3)
         for i in np.arange(self.nRows):
             self.win.ci.layout.setRowFixedHeight(i, 60)
             self.win.ci.layout.setRowSpacing(i, 3)
+
+        self.draw_erp()
 
     def set_width(self):
         for interval_type, interval_dict in self.intervals.items():
@@ -258,23 +287,17 @@ class ERPDialog(QMainWindow):
         if angle == -90:
             grid = np.rot90(grid, axes=(1, 0))
             if self.nRows != self.nCols:
-                aux = np.copy(self.nRows)
-                self.nRows = np.copy(self.nCols)
-                self.nCols = aux
+                self.qline_ncols.setText(str(self.nRows))
         # 90 degrees conter-clockwise
         elif angle == 90:
             grid = np.rot90(grid, axes=(0, 1))
             if self.nRows != self.nCols:
-                aux = np.copy(self.nRows)
-                self.nRows = np.copy(self.nCols)
-                self.nCols = aux
+                self.qline_ncols.setText(str(self.nRows))
         # Transpose
         elif angle == 'T':
             grid = grid.T
             if self.nRows != self.nCols:
-                aux = np.copy(self.nRows)
-                self.nRows = np.copy(self.nCols)
-                self.nCols = aux
+                self.qline_ncols.setText(str(self.nRows))
         # Flip left-right
         elif angle == 'FLR':
             grid = np.flip(grid, 1)
@@ -286,7 +309,8 @@ class ERPDialog(QMainWindow):
             grid = np.flip(grid, 1)
             grid = np.flip(grid, 0)
         self.grid_order = grid.flatten()    # re-arranges as 1D array
-        self.draw_erp()
+        self.qline_ncols.setEnabled(False) # User should set ncols before doing any transposing
+        self.set_grid()
 
     def save_image(self):
         p = self.win.getItem(row=0, col=0)
@@ -359,7 +383,6 @@ class ERPDialog(QMainWindow):
             self.push5_4.setEnabled(False)
             self.push5_5.setEnabled(False)
         self.combo1.setCurrentIndex(self.combo1.findText('individual'))
-        self.set_grid()
         cmap = get_lut()
         ymin, ymax = 0, 0
         ystd = 0
