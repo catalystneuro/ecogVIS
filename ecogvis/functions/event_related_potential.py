@@ -255,7 +255,7 @@ class ERPDialog(QMainWindow):
         # Update grid parameters
         try:
             self.nCols = int(self.qline_ncols.text())
-        except x:
+        except:
             self.nCols = self.guess_ncols()
             self.qline_ncols.setText(str(self.nCols))
         self.nRows = int(np.ceil(self.nElecs / self.nCols))
