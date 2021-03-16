@@ -25,7 +25,7 @@ setup(
         'h5py',
         'pyqtgraph',
         'pandas',
-        'pynwb>=1.1.2',
+        'pynwb==1.3.2',
         'PyYAML',
         'ndx-ecog',
         'ndx-spectrum',
