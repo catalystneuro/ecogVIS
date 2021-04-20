@@ -131,7 +131,7 @@ def elecs_to_electrode_table(nwbfile, elecspath):
 
     # Get MNI warped electrode coordinates.
     if Path(elecspath.as_posix().split('.')[0] + '_warped.mat').is_file():
-        elec_mat_warped = sio.loadmat(elecspath.split('.')[0] + '_warped.mat')
+        elec_mat_warped = sio.loadmat(str(elecspath).split('.')[0] + '_warped.mat')
         x_warped = elec_mat_warped['elecmatrix'][:, 0]
         y_warped = elec_mat_warped['elecmatrix'][:, 1]
         z_warped = elec_mat_warped['elecmatrix'][:, 2]
@@ -263,7 +263,7 @@ def chang2nwb(blockpath, out_file_path=None, save_to_file=False, htk_config=None
     subject_id = blockpath.parent.parent.name[2:]
 
     if out_file_path is None:
-        out_file_path = blockpath.resolve().parent / ''.join(['EC', subject_id, '_', blockname, '.nwb'])
+        out_file_path = blockpath.resolve().parent / ''.join([blockname, '.nwb'])
 
     # file paths
     ecog_path = blockpath
