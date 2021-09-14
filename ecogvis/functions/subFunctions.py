@@ -261,7 +261,7 @@ class TimeSeriesPlotter:
 
         # constrains the plotData to the chosen interval (and transpose matix)
         # plotData dims=[self.nChToShow, plotInterval]
-        data = self.plotData[startSamp:endSamp, self.selectedChannels - 1].T
+        data = self.plotData[startSamp:endSamp, self.selectedChannels].T
         data = data[:, bins_to_plot - startSamp - 1]
         means = np.reshape(np.mean(data, 1), (-1, 1))  # to align each trace around its reference trace
         plotData = data + scaleV - means  # data + offset
