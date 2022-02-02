@@ -1,0 +1,26 @@
+name: ecog_vis
+channels:
+- defaults
+- anaconda
+- conda-forge
+dependencies:
+- python=3.8
+- ipython
+- pip
+- numpy
+- scipy
+- pandas
+- jupyter
+- matplotlib
+- cycler
+- h5py
+- pyqtgraph
+- pynwb>=1.1.2
+- pyopengl
+- hdmf
+- pip:
+  - PyQt5
+  - ndx-ecog
+  - ndx-spectrum
+  - -r requirements.txt
+  - -e .
