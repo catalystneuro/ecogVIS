@@ -22,4 +22,5 @@ dependencies:
   - PyQt5
   - ndx-ecog
   - ndx-spectrum
+  - -r requirements.txt
   - -e .
