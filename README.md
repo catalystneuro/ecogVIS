@@ -10,17 +10,50 @@ A collaboration with the [Chang Lab](http://changlab.ucsf.edu/).
 ![](media/screenshot_1.png)
 
 ## Installation
-```
+
+### From PyPI
+```bash
 $ pip install ecogVIS
 ```
 
-After activating the correct environment, **ecogVIS** can be started from the terminal:
+### From source
+First download the **ecogVIS** source code from this repo.
+```bash
+$ git clone https://github.com/catalystneuro/ecogVIS.git
+$ cd ecogVIS
 ```
+
+If you're installing into an active environment:
+```bash
+$ pip install -e . -r requirements.txt
+```
+
+You can also create a fresh environment with **ecogVIS** installed:
+```bash
+$ conda env create -f make_env.yml
+```
+
+### Troubleshooting
+* If you're using macOS 11+ (e.g. Big Sur or Monterey), you may experience 
+errors related to OpenGL. Using Python 3.8 should solve these, and you can 
+  use the file `make_env_py38.yml` to create the correct 
+  environment.
+* If you're using macOS 11+ (e.g. Big Sur or Monterey), you may also 
+  experience errors with PyQt freezing and not opening the GUI window. Try 
+  setting the following environment variable (which can be added to your 
+  `~/.bashrc` or `~/.bash_profile`):
+  ```bash
+  $ export QT_MAC_WANTS_LAYER=1
+  ```
+
+## Use
+After activating the correct environment, **ecogVIS** can be started from the terminal:
+```bash
 $ ecogvis
 ```
 
 You can also directly pass a file to be opened:
-```
+```bash
 $ ecogvis --source 'filename.nwb'
 ```
 
