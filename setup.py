@@ -33,7 +33,7 @@ setup(
         'ndx-bipolar-scheme',
         'tqdm',
         'pyopengl',
-        'process_nwb',
+        'process_nwb==0.1.0',
         'PyQtWebEngine',
         'ndx-icephys-meta',
         'ndx-hierarchical-behavioral-data'],
