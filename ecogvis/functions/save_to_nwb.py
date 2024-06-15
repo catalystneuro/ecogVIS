@@ -1,4 +1,4 @@
-from PyQt5 import QtGui
+from PyQt5 import QtGui, QtWidgets
 from PyQt5.QtWidgets import (QGridLayout, QGroupBox, QLabel, QPushButton,
                              QVBoxLayout, QHBoxLayout, QCheckBox, QLineEdit,
                              QStyle, QFileDialog)
@@ -6,7 +6,7 @@ import pynwb
 
 
 # Save to NWB file dialog ------------------------------------------------------
-class SaveToNWBDialog(QtGui.QDialog):
+class SaveToNWBDialog(QtWidgets.QDialog):
     def __init__(self, parent):
         super().__init__()
         self.parent = parent

@@ -1,4 +1,4 @@
-from PyQt5 import QtGui, QtCore
+from PyQt5 import QtGui, QtCore, QtWidgets
 from PyQt5.QtWidgets import (QGridLayout, QGroupBox, QLineEdit, QHBoxLayout,
                              QWidget, QLabel, QPushButton, QVBoxLayout,
                              QComboBox, QScrollArea, QMainWindow)
@@ -463,7 +463,7 @@ class CustomViewBox(pg.ViewBox):
 
 
 # Individual Event-Related Potential dialog ------------------------------------
-class IndividualERPDialog(QtGui.QDialog):
+class IndividualERPDialog(QtWidgets.QDialog):
     def __init__(self, parent):
         super().__init__()
         # Enable antialiasing for prettier plots
@@ -629,8 +629,8 @@ class IndividualERPDialog(QtGui.QDialog):
 
 
 # Gray line for visual separation of buttons -----------------------------------
-class QHLine(QtGui.QFrame):
+class QHLine(QtWidgets.QFrame):
     def __init__(self):
         super().__init__()
-        self.setFrameShape(QtGui.QFrame.HLine)
-        self.setFrameShadow(QtGui.QFrame.Sunken)
+        self.setFrameShape(QtWidgets.QFrame.HLine)
+        self.setFrameShadow(QtWidgets.QFrame.Sunken)

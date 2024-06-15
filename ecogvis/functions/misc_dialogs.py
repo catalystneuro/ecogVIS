@@ -10,7 +10,7 @@ import pandas as pd
 import pyqtgraph as pg
 import pyqtgraph.opengl as gl
 from PyQt5.QtWebEngineWidgets import QWebEngineView
-from PyQt5 import QtGui, QtCore, uic
+from PyQt5 import QtGui, QtCore, QtWidgets, uic
 from PyQt5.QtWidgets import (QTableWidgetItem, QGridLayout, QGroupBox,
                              QLineEdit, QStyle, QMainWindow, QCheckBox,
                              QWidget, QLabel, QPushButton, QVBoxLayout,
@@ -35,13 +35,13 @@ ui_path = os.path.join(os.path.dirname(__file__), '..', 'ui')
 Ui_CustomInterval, _ = uic.loadUiType(os.path.join(ui_path, "intervals_gui.ui"))
 
 
-class CustomIntervalDialog(QtGui.QDialog, Ui_CustomInterval):
+class CustomIntervalDialog(QtWidgets.QDialog, Ui_CustomInterval):
     def __init__(self):
         super().__init__()
         self.setupUi(self)
 
     def getResults(self):
-        if self.exec_() == QtGui.QDialog.Accepted:
+        if self.exec_() == QtWidgets.QDialog.Accepted:
             # get all values
             int_type = str(self.lineEdit_1.text())
             color = str(self.comboBox.currentText())
@@ -51,16 +51,16 @@ class CustomIntervalDialog(QtGui.QDialog, Ui_CustomInterval):
 
 
 # Warning of no High gamma data in the NWB file ------------ -----------------
-class NoHighGammaDialog(QtGui.QDialog):
+class NoHighGammaDialog(QtWidgets.QDialog):
     def __init__(self):
         super().__init__()
         self.text = QLabel(
             "There is no high gamma data in the current NWB file.\n"
             "To calculate high gamma power traces, use button:\n"
             "High Gamma")
-        self.okButton = QtGui.QPushButton("OK")
+        self.okButton = QtWidgets.QPushButton("OK")
         self.okButton.clicked.connect(self.onAccepted)
-        vbox = QtGui.QVBoxLayout()
+        vbox = QtWidgets.QVBoxLayout()
         vbox.addWidget(self.text)
         vbox.addWidget(self.okButton)
         self.setLayout(vbox)
@@ -72,16 +72,16 @@ class NoHighGammaDialog(QtGui.QDialog):
 
 
 # Warning of no High gamma data in the NWB file ------------------------------
-class NoPreprocessedDialog(QtGui.QDialog):
+class NoPreprocessedDialog(QtWidgets.QDialog):
     def __init__(self):
         super().__init__()
         self.text = QLabel(
             "There is no preprocessed data in the current NWB file.\n"
             "To generate preprocessed voltage traces, use button:\n"
             "Preprocess")
-        self.okButton = QtGui.QPushButton("OK")
+        self.okButton = QtWidgets.QPushButton("OK")
         self.okButton.clicked.connect(self.onAccepted)
-        vbox = QtGui.QVBoxLayout()
+        vbox = QtWidgets.QVBoxLayout()
         vbox.addWidget(self.text)
         vbox.addWidget(self.okButton)
         self.setLayout(vbox)
@@ -93,13 +93,13 @@ class NoPreprocessedDialog(QtGui.QDialog):
 
 
 # Warning of no Raw data in the NWB file --------------------------------
-class NoRawDialog(QtGui.QDialog):
+class NoRawDialog(QtWidgets.QDialog):
     def __init__(self):
         super().__init__()
         self.text = QLabel("There is no raw data in the current NWB file.")
-        self.okButton = QtGui.QPushButton("OK")
+        self.okButton = QtWidgets.QPushButton("OK")
         self.okButton.clicked.connect(self.onAccepted)
-        vbox = QtGui.QVBoxLayout()
+        vbox = QtWidgets.QVBoxLayout()
         vbox.addWidget(self.text)
         vbox.addWidget(self.okButton)
         self.setLayout(vbox)
@@ -111,15 +111,15 @@ class NoRawDialog(QtGui.QDialog):
 
 
 # Warning of no Trials data in the NWB file ----------------------------------
-class NoTrialsDialog(QtGui.QDialog):
+class NoTrialsDialog(QtWidgets.QDialog):
     def __init__(self):
         super().__init__()
         self.text = QLabel(
             "There is no trials data in the current NWB file.\n"
             "Trial times are needed to generate ERP.")
-        self.okButton = QtGui.QPushButton("OK")
+        self.okButton = QtWidgets.QPushButton("OK")
         self.okButton.clicked.connect(self.onAccepted)
-        vbox = QtGui.QVBoxLayout()
+        vbox = QtWidgets.QVBoxLayout()
         vbox.addWidget(self.text)
         vbox.addWidget(self.okButton)
         self.setLayout(vbox)
@@ -131,15 +131,15 @@ class NoTrialsDialog(QtGui.QDialog):
 
 
 # Warning that Trials data already exists in the NWB file --------------------
-class ExistIntervalsDialog(QtGui.QDialog):
+class ExistIntervalsDialog(QtWidgets.QDialog):
     def __init__(self):
         super().__init__()
         self.text = QLabel(
             "Speaker intervals data already exists in the current NWB file.\n"
             "It is not possible to substitute it.")
-        self.okButton = QtGui.QPushButton("OK")
+        self.okButton = QtWidgets.QPushButton("OK")
         self.okButton.clicked.connect(self.onAccepted)
-        vbox = QtGui.QVBoxLayout()
+        vbox = QtWidgets.QVBoxLayout()
         vbox.addWidget(self.text)
         vbox.addWidget(self.okButton)
         self.setLayout(vbox)
@@ -151,13 +151,13 @@ class ExistIntervalsDialog(QtGui.QDialog):
 
 
 # Warning of no Audio data in the NWB file -----------------------------------
-class NoAudioDialog(QtGui.QDialog):
+class NoAudioDialog(QtWidgets.QDialog):
     def __init__(self):
         super().__init__()
         self.text = QLabel("There is no audio data in the current NWB file.")
-        self.okButton = QtGui.QPushButton("OK")
+        self.okButton = QtWidgets.QPushButton("OK")
         self.okButton.clicked.connect(self.onAccepted)
-        vbox = QtGui.QVBoxLayout()
+        vbox = QtWidgets.QVBoxLayout()
         vbox.addWidget(self.text)
         vbox.addWidget(self.okButton)
         self.setLayout(vbox)
@@ -169,7 +169,7 @@ class NoAudioDialog(QtGui.QDialog):
 
 
 # Warning of no Spectrum data in the NWB file --------------------------------
-class NoSpectrumDialog(QtGui.QDialog):
+class NoSpectrumDialog(QtWidgets.QDialog):
     def __init__(self, parent, type):
         super().__init__()
         self.parent = parent
@@ -178,14 +178,14 @@ class NoSpectrumDialog(QtGui.QDialog):
         self.text = QLabel(
             "There is no Spectrum data for " + self.type + " data in the current NWB file.\n"
             "To calculate the Power Spectral Density, click Calculate.")
-        self.cancelButton = QtGui.QPushButton("Cancel")
+        self.cancelButton = QtWidgets.QPushButton("Cancel")
         self.cancelButton.clicked.connect(lambda: self.out_close(val=-1))
-        self.calculateButton = QtGui.QPushButton("Calculate")
+        self.calculateButton = QtWidgets.QPushButton("Calculate")
         self.calculateButton.clicked.connect(self.run_estimation)
-        hbox = QtGui.QHBoxLayout()
+        hbox = QtWidgets.QHBoxLayout()
         hbox.addWidget(self.cancelButton)
         hbox.addWidget(self.calculateButton)
-        vbox = QtGui.QVBoxLayout()
+        vbox = QtWidgets.QVBoxLayout()
         vbox.addWidget(self.text)
         vbox.addLayout(hbox)
         self.setLayout(vbox)
@@ -225,7 +225,7 @@ class PSDCalcFunction(QtCore.QThread):
 Ui_Exit, _ = uic.loadUiType(os.path.join(ui_path, "exit_gui.ui"))
 
 
-class ExitDialog(QtGui.QDialog, Ui_Exit):
+class ExitDialog(QtWidgets.QDialog, Ui_Exit):
     def __init__(self, parent):
         super().__init__()
         self.setupUi(self)
@@ -259,7 +259,7 @@ class ExitDialog(QtGui.QDialog, Ui_Exit):
 
 
 # Import Electrophysiology and Analog data from HTK files -----------------
-class LoadHTKDialog(QtGui.QDialog):
+class LoadHTKDialog(QtWidgets.QDialog):
     def __init__(self, parent):
         super().__init__()
         self.parent = parent
@@ -320,7 +320,7 @@ class LoadHTKDialog(QtGui.QDialog):
         self.line2 = QLineEdit('')
 
         groupBox1 = QGroupBox("Analog data")
-        hbox2 = QtGui.QHBoxLayout()
+        hbox2 = QtWidgets.QHBoxLayout()
         hbox2.addWidget(label_analogdir)
         hbox2.addWidget(self.push2)
         hbox2.addWidget(self.line2)
@@ -351,7 +351,7 @@ class LoadHTKDialog(QtGui.QDialog):
         self.radio_11 = QRadioButton("Acquisition")
         self.radio_12 = QRadioButton("Stimulus")
         self.radio_11.setChecked(True)
-        hbox_11 = QtGui.QHBoxLayout()
+        hbox_11 = QtWidgets.QHBoxLayout()
         hbox_11.addWidget(self.label_11)
         hbox_11.addWidget(self.combo_11)
         hbox_11.addWidget(self.line_11)
@@ -373,7 +373,7 @@ class LoadHTKDialog(QtGui.QDialog):
         self.radio_21 = QRadioButton("Acquisition")
         self.radio_22 = QRadioButton("Stimulus")
         self.radio_22.setChecked(True)
-        hbox_21 = QtGui.QHBoxLayout()
+        hbox_21 = QtWidgets.QHBoxLayout()
         hbox_21.addWidget(self.label_21)
         hbox_21.addWidget(self.combo_21)
         hbox_21.addWidget(self.line_21)
@@ -395,7 +395,7 @@ class LoadHTKDialog(QtGui.QDialog):
         self.radio_31 = QRadioButton("Acquisition")
         self.radio_32 = QRadioButton("Stimulus")
         self.radio_32.setChecked(True)
-        hbox_31 = QtGui.QHBoxLayout()
+        hbox_31 = QtWidgets.QHBoxLayout()
         hbox_31.addWidget(self.label_31)
         hbox_31.addWidget(self.combo_31)
         hbox_31.addWidget(self.line_31)
@@ -417,7 +417,7 @@ class LoadHTKDialog(QtGui.QDialog):
         self.radio_41 = QRadioButton("Acquisition")
         self.radio_42 = QRadioButton("Stimulus")
         self.radio_41.setChecked(True)
-        hbox_41 = QtGui.QHBoxLayout()
+        hbox_41 = QtWidgets.QHBoxLayout()
         hbox_41.addWidget(self.label_41)
         hbox_41.addWidget(self.combo_41)
         hbox_41.addWidget(self.line_41)
@@ -467,16 +467,16 @@ class LoadHTKDialog(QtGui.QDialog):
         groupBox5.setLayout(vbox5)
 
         # Load and Cancel buttons
-        self.btn_load = QtGui.QPushButton("Load")
+        self.btn_load = QtWidgets.QPushButton("Load")
         self.btn_load.clicked.connect(lambda: self.out_close(val=1))
         self.btn_cancel = QPushButton("Cancel")
         self.btn_cancel.clicked.connect(lambda: self.out_close(val=-1))
-        hbox3 = QtGui.QHBoxLayout()
+        hbox3 = QtWidgets.QHBoxLayout()
         hbox3.addStretch(1)
         hbox3.addWidget(self.btn_load)
         hbox3.addWidget(self.btn_cancel)
 
-        vbox = QtGui.QVBoxLayout()
+        vbox = QtWidgets.QVBoxLayout()
         vbox.addWidget(groupBox00)
         vbox.addWidget(groupBox0)
         vbox.addWidget(groupBox1)
@@ -503,7 +503,7 @@ class LoadHTKDialog(QtGui.QDialog):
         data to be loaded.
         """
         dir_path = QFileDialog.getExistingDirectory(
-            self, 'Open HTK dir', '', QtGui.QFileDialog.ShowDirsOnly)
+            self, 'Open HTK dir', '', QtWidgets.QFileDialog.ShowDirsOnly)
         if os.path.isdir(dir_path):
             self.line1.setText(dir_path)
 
@@ -526,7 +526,7 @@ class LoadHTKDialog(QtGui.QDialog):
     def open_analog_dir(self):
         """Opens directory containing the HTK files with analog data."""
         dir_path = QFileDialog.getExistingDirectory(
-            self, 'Open Analog dir', '', QtGui.QFileDialog.ShowDirsOnly)
+            self, 'Open Analog dir', '', QtWidgets.QFileDialog.ShowDirsOnly)
         if os.path.isdir(dir_path):
             self.line2.setText(dir_path)
             files_list = [f for f in Path(dir_path).glob('ANIN*.htk')]
@@ -622,7 +622,7 @@ class LoadHTKDialog(QtGui.QDialog):
 
 
 # Show Survey data in a separate window --------------------------------------
-class ShowSurveyDialog(QtGui.QDialog):
+class ShowSurveyDialog(QtWidgets.QDialog):
     def __init__(self, nwbfile):
         super().__init__()
         self.nwbfile = nwbfile
@@ -637,7 +637,7 @@ class ShowSurveyDialog(QtGui.QDialog):
         self.html_viewer = QWebEngineView()
         self.render_survey_table()
 
-        vbox = QtGui.QVBoxLayout()
+        vbox = QtWidgets.QVBoxLayout()
         vbox.addWidget(self.combo)
         vbox.addWidget(self.html_viewer)
         self.setLayout(vbox)
@@ -659,7 +659,7 @@ class ShowSurveyDialog(QtGui.QDialog):
 
 
 # Show Transcription data in a separate window ----------------------
-class ShowTranscriptionDialog(QtGui.QDialog):
+class ShowTranscriptionDialog(QtWidgets.QDialog):
     def __init__(self, nwbfile):
         super().__init__()
         self.nwbfile = nwbfile
@@ -746,7 +746,7 @@ class ShowTranscriptionDialog(QtGui.QDialog):
 
 
 # Show Electrodes tables in a separate window --------------------------------------
-class ShowElectrodesDialog(QtGui.QDialog):
+class ShowElectrodesDialog(QtWidgets.QDialog):
     def __init__(self, parent):
         super().__init__()
         self.parent = parent
@@ -775,7 +775,7 @@ class ShowElectrodesDialog(QtGui.QDialog):
         self.html_viewer = QWebEngineView()
         self.render_table()
 
-        vbox = QtGui.QVBoxLayout()
+        vbox = QtWidgets.QVBoxLayout()
         vbox.addWidget(self.combo)
         vbox.addWidget(self.html_viewer)
         self.setLayout(vbox)
@@ -799,7 +799,7 @@ class ShowElectrodesDialog(QtGui.QDialog):
 
 
 # Selects channels from specific brain regions to be plotted -----------------
-class SelectChannelsDialog(QtGui.QDialog):
+class SelectChannelsDialog(QtWidgets.QDialog):
     def __init__(self, stringlist, checked):
         super().__init__()
 
@@ -811,20 +811,20 @@ class SelectChannelsDialog(QtGui.QDialog):
             item.setCheckState(check)
             self.model.appendRow(item)
 
-        self.listView = QtGui.QListView()
+        self.listView = QtWidgets.QListView()
         self.listView.setModel(self.model)
 
-        self.okButton = QtGui.QPushButton("OK")
-        self.selectButton = QtGui.QPushButton("Select All")
-        self.unselectButton = QtGui.QPushButton("Unselect All")
+        self.okButton = QtWidgets.QPushButton("OK")
+        self.selectButton = QtWidgets.QPushButton("Select All")
+        self.unselectButton = QtWidgets.QPushButton("Unselect All")
 
-        hbox = QtGui.QHBoxLayout()
+        hbox = QtWidgets.QHBoxLayout()
         hbox.addStretch(1)
         hbox.addWidget(self.okButton)
         hbox.addWidget(self.selectButton)
         hbox.addWidget(self.unselectButton)
 
-        vbox = QtGui.QVBoxLayout()
+        vbox = QtWidgets.QVBoxLayout()
         vbox.addWidget(self.listView)
         # vbox.addStretch(1)
         vbox.addLayout(hbox)
@@ -863,7 +863,7 @@ Ui_SpectralChoice, _ = uic.loadUiType(
     os.path.join(ui_path, "spectral_choice_gui.ui"))
 
 
-class SpectralChoiceDialog(QtGui.QDialog, Ui_SpectralChoice):
+class SpectralChoiceDialog(QtWidgets.QDialog, Ui_SpectralChoice):
     def __init__(self, parent):
         super().__init__()
         self.setupUi(self)
@@ -908,7 +908,7 @@ class SpectralChoiceDialog(QtGui.QDialog, Ui_SpectralChoice):
         self.pushButton_1.setEnabled(False)
         self.pushButton_2.setEnabled(False)
         self.tableWidget.setEditTriggers(
-            QtGui.QAbstractItemView.NoEditTriggers)
+            QtWidgets.QAbstractItemView.NoEditTriggers)
         text = "Spectral decomposition data does not exist in current " \
                "file.\n" \
                "It can be created from the bands shown in the table. " \
@@ -936,7 +936,7 @@ class SpectralChoiceDialog(QtGui.QDialog, Ui_SpectralChoice):
         self.tableWidget.setHorizontalHeaderLabels(['center [Hz]', 'sigma [Hz]'])
         self.tableWidget.setItem(0, 0, QTableWidgetItem(str(0)))
         self.tableWidget.setItem(0, 1, QTableWidgetItem(str(0)))
-        self.tableWidget.setEditTriggers(QtGui.QAbstractItemView.DoubleClicked)
+        self.tableWidget.setEditTriggers(QtWidgets.QAbstractItemView.DoubleClicked)
         self.pushButton_1.setEnabled(True)
         self.pushButton_2.setEnabled(True)
 
@@ -1007,7 +1007,7 @@ class ProcessingDataFunction(QtCore.QThread):
 Ui_HighGamma, _ = uic.loadUiType(os.path.join(ui_path, "high_gamma_gui.ui"))
 
 
-class HighGammaDialog(QtGui.QDialog, Ui_HighGamma):
+class HighGammaDialog(QtWidgets.QDialog, Ui_HighGamma):
     def __init__(self, parent):
         super().__init__()
         self.setupUi(self)
@@ -1099,7 +1099,7 @@ class HighGammaDialog(QtGui.QDialog, Ui_HighGamma):
     def choice_default(self):  # default chosen
         self.pushButton_1.setEnabled(False)
         self.pushButton_2.setEnabled(False)
-        self.tableWidget.setEditTriggers(QtGui.QAbstractItemView.NoEditTriggers)
+        self.tableWidget.setEditTriggers(QtWidgets.QAbstractItemView.NoEditTriggers)
         text = "'High gamma' power data can be created from the averaged power "\
                "of the bands shown in the table. "\
                "The results will be saved in the chosen NWB file.\nDo you want to create it?"
@@ -1111,13 +1111,13 @@ class HighGammaDialog(QtGui.QDialog, Ui_HighGamma):
         self.tableWidget.setColumnWidth(0, 14)
         self.tableWidget.horizontalHeader().setSectionResizeMode(0, QHeaderView.ResizeToContents)
         self.tableWidget.setFocusPolicy(QtCore.Qt.NoFocus)
-        self.tableWidget.setSelectionMode(QtGui.QAbstractItemView.NoSelection)
+        self.tableWidget.setSelectionMode(QtWidgets.QAbstractItemView.NoSelection)
         p0 = default_bands.chang_lab['cfs'][29:]
         p1 = default_bands.chang_lab['sds'][29:]
         self.tableWidget.setRowCount(len(p0))
         for i in np.arange(len(p0)):
             cell_widget = QWidget()
-            chk_bx = QtGui.QCheckBox()
+            chk_bx = QtWidgets.QCheckBox()
             chk_bx.setMaximumWidth(14)
             if i < 8:
                 chk_bx.setChecked(True)
@@ -1132,7 +1132,7 @@ class HighGammaDialog(QtGui.QDialog, Ui_HighGamma):
     def choice_custom(self):  # default chosen
         self.pushButton_1.setEnabled(False)
         self.pushButton_2.setEnabled(False)
-        self.tableWidget.setEditTriggers(QtGui.QAbstractItemView.NoEditTriggers)
+        self.tableWidget.setEditTriggers(QtWidgets.QAbstractItemView.NoEditTriggers)
         text = "'High gamma' power data can be created from the averaged power "\
                "of the bands shown in the table. "\
                "The results will be saved in the chosen NWB file.\nDo you want to create it?"
@@ -1144,13 +1144,13 @@ class HighGammaDialog(QtGui.QDialog, Ui_HighGamma):
         self.tableWidget.setColumnWidth(0, 14)
         self.tableWidget.horizontalHeader().setSectionResizeMode(0, QHeaderView.ResizeToContents)
         self.tableWidget.setFocusPolicy(QtCore.Qt.NoFocus)
-        self.tableWidget.setSelectionMode(QtGui.QAbstractItemView.NoSelection)
+        self.tableWidget.setSelectionMode(QtWidgets.QAbstractItemView.NoSelection)
         p0 = default_bands.chang_lab['cfs'][29:]
         p1 = default_bands.chang_lab['sds'][29:]
         self.tableWidget.setRowCount(len(p0))
         for i in np.arange(len(p0)):
             cell_widget = QWidget()
-            chk_bx = QtGui.QCheckBox()
+            chk_bx = QtWidgets.QCheckBox()
             chk_bx.setChecked(True)
             chk_bx.setMaximumWidth(14)
             self.tableWidget.setCellWidget(i, 0, chk_bx)
@@ -1159,7 +1159,7 @@ class HighGammaDialog(QtGui.QDialog, Ui_HighGamma):
             self.tableWidget.item(i, 1).setTextAlignment(QtCore.Qt.AlignRight | QtCore.Qt.AlignVCenter)
             self.tableWidget.item(i, 2).setTextAlignment(QtCore.Qt.AlignRight | QtCore.Qt.AlignVCenter)
         # Allows user to populate table with values
-        self.tableWidget.setEditTriggers(QtGui.QAbstractItemView.DoubleClicked)
+        self.tableWidget.setEditTriggers(QtWidgets.QAbstractItemView.DoubleClicked)
         self.pushButton_1.setEnabled(True)
         self.pushButton_2.setEnabled(True)
 
@@ -1167,7 +1167,7 @@ class HighGammaDialog(QtGui.QDialog, Ui_HighGamma):
         nRows = self.tableWidget.rowCount()
         self.tableWidget.insertRow(nRows)
         cell_widget = QWidget()
-        chk_bx = QtGui.QCheckBox()
+        chk_bx = QtWidgets.QCheckBox()
         chk_bx.setChecked(True)
         chk_bx.setMaximumWidth(14)
         self.tableWidget.setCellWidget(nRows, 0, chk_bx)
@@ -1223,7 +1223,7 @@ class HighGammaDialog(QtGui.QDialog, Ui_HighGamma):
 Ui_Preprocessing, _ = uic.loadUiType(os.path.join(ui_path, "preprocessing_gui.ui"))
 
 
-class PreprocessingDialog(QtGui.QDialog, Ui_Preprocessing):
+class PreprocessingDialog(QtWidgets.QDialog, Ui_Preprocessing):
     def __init__(self, parent):
         super().__init__()
         self.setupUi(self)
@@ -1659,7 +1659,7 @@ class CustomViewBoxPeriodogram(pg.ViewBox):
 
 
 # Individual Event-Related Potential dialog ----------------------------------
-class IndividualPeriodogramDialog(QtGui.QDialog):
+class IndividualPeriodogramDialog(QtWidgets.QDialog):
     def __init__(self, parent):
         super().__init__()
         # Enable antialiasing for prettier plots
@@ -1781,7 +1781,7 @@ class IndividualPeriodogramDialog(QtGui.QDialog):
 
 
 # Creates 3D Periodograms window --------------------------------------------
-class Periodograms3D(QtGui.QDialog):
+class Periodograms3D(QtWidgets.QDialog):
     def __init__(self, parent, psd):
         super().__init__()
         self.parent = parent
@@ -1833,7 +1833,7 @@ class Periodograms3D(QtGui.QDialog):
         self.fig1.setToolTip('Tooltip')
 
         self.rightbox = QGridLayout()  # QVBoxLayout()
-        self.rightbox.setSpacing(0.0)
+        self.rightbox.setSpacing(0)
         self.rightbox.setRowStretch(0, 2)
         # self.rightbox.setRowStretch(1, 1)
         self.rightbox.addWidget(self.fig1)
@@ -2136,8 +2136,8 @@ class CustomTextItem(gl.GLGraphicsItem.GLGraphicsItem):
 
 
 # Gray line for visual separation of buttons --------------------------------
-class QHLine(QtGui.QFrame):
+class QHLine(QtWidgets.QFrame):
     def __init__(self):
         super().__init__()
-        self.setFrameShape(QtGui.QFrame.HLine)
-        self.setFrameShadow(QtGui.QFrame.Sunken)
+        self.setFrameShape(QtWidgets.QFrame.HLine)
+        self.setFrameShadow(QtWidgets.QFrame.Sunken)

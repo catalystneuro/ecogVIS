@@ -441,7 +441,7 @@ class Application(QMainWindow):
         self.win3.hideAxis('bottom')
 
         form_3 = QGridLayout()
-        form_3.setSpacing(0.0)
+        form_3.setSpacing(0)
         form_3.setRowStretch(0, 1)
         form_3.setRowStretch(1, 8)
         form_3.setRowStretch(2, 1)

@@ -1,4 +1,4 @@
-from PyQt5 import QtGui, QtCore
+from PyQt5 import QtGui, QtCore, QtWidgets
 from PyQt5.QtWidgets import (QGridLayout, QGroupBox, QLineEdit, QLabel, QComboBox,
                              QPushButton, QVBoxLayout, QHBoxLayout)
 import pyqtgraph as pg
@@ -10,7 +10,7 @@ import numpy as np
 
 
 # Creates Audio Event Detection window -----------------------------------------
-class AudioEventDetection(QtGui.QDialog):
+class AudioEventDetection(QtWidgets.QDialog):
     def __init__(self, parent):
         super().__init__()
         self.parent = parent

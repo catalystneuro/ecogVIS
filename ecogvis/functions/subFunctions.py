@@ -4,7 +4,7 @@ from scipy import signal
 import numpy as np
 import pandas as pd
 from PyQt5.QtWidgets import QMessageBox
-from PyQt5 import QtGui
+from PyQt5 import QtGui, QtWidgets
 import pyqtgraph as pg
 import datetime
 import pynwb
@@ -131,13 +131,13 @@ class TimeSeriesPlotter:
             start = obj.start
             stop = obj.stop
             # on timeline
-            c = pg.QtGui.QGraphicsRectItem(start, -1, max(stop - start, 0.01), 2)
+            c = pg.QtWidgets.QGraphicsRectItem(start, -1, max(stop - start, 0.01), 2)
             self.IntRects1 = np.append(self.IntRects1, c)
             c.setPen(pg.mkPen(color='r'))
             c.setBrush(QtGui.QColor(255, 0, 0, 120))
             self.parent.win2.addItem(c)
             # on signals plot
-            c = pg.QtGui.QGraphicsRectItem(start, -1, max(stop - start, 0.01), 2)
+            c = pg.QtWidgets.QGraphicsRectItem(start, -1, max(stop - start, 0.01), 2)
             self.IntRects2 = np.append(self.IntRects2, c)
             c.setPen(pg.mkPen(color='r'))
             c.setBrush(QtGui.QColor(255, 0, 0, 120))
@@ -250,7 +250,7 @@ class TimeSeriesPlotter:
 
         # Use the same scaling factor for all channels, to keep things comparable
         self.verticalScaleFactor = float(self.parent.qline4.text())
-        scaleFac = 2 * np.std(self.plotData[startSamp:endSamp, self.selectedChannels - 1], axis=0) / self.verticalScaleFactor
+        scaleFac = 2 * np.std(self.plotData[startSamp:endSamp][:, self.selectedChannels - 1], axis=0) / self.verticalScaleFactor
 
         # Scale variance_units, offset for each channel
         scale_va = np.max(scaleFac)
@@ -261,7 +261,7 @@ class TimeSeriesPlotter:
 
         # constrains the plotData to the chosen interval (and transpose matix)
         # plotData dims=[self.nChToShow, plotInterval]
-        data = self.plotData[startSamp:endSamp, self.selectedChannels].T
+        data = self.plotData[startSamp:endSamp][:, self.selectedChannels].T
         data = data[:, bins_to_plot - startSamp - 1]
         means = np.reshape(np.mean(data, 1), (-1, 1))  # to align each trace around its reference trace
         plotData = data + scaleV - means  # data + offset
@@ -333,7 +333,7 @@ class TimeSeriesPlotter:
         self.current_rect = CustomBox(self, x, -1000, w, 2000)
         self.current_rect.setPen(pg.mkPen(color=(0, 0, 0, 50)))
         self.current_rect.setBrush(QtGui.QColor(0, 0, 0, 50))
-        self.current_rect.setFlags(QtGui.QGraphicsItem.ItemIsMovable)
+        self.current_rect.setFlags(QtWidgets.QGraphicsItem.ItemIsMovable)
         plt1.addItem(self.current_rect)
         plt1.setLabel('left', 'Span')
         plt1.getAxis('left').setWidth(w=53)
@@ -671,12 +671,12 @@ class TimeSeriesPlotter:
         x = interval[0]
         w = np.diff(np.array(interval))[0]
         # add rectangle to upper plot
-        c = pg.QtGui.QGraphicsRectItem(x, -1, w, 2)
+        c = pg.QtWidgets.QGraphicsRectItem(x, -1, w, 2)
         c.setPen(pg.mkPen(color=QtGui.QColor(bc[0], bc[1], bc[2], 255)))
         c.setBrush(QtGui.QColor(bc[0], bc[1], bc[2], bc[3]))
         self.IntRects1 = np.append(self.IntRects1, [c])
         # add rectangle to middle signal plot
-        c = pg.QtGui.QGraphicsRectItem(x, -1, w, 2)
+        c = pg.QtWidgets.QGraphicsRectItem(x, -1, w, 2)
         c.setPen(pg.mkPen(color=QtGui.QColor(bc[0], bc[1], bc[2], 255)))
         c.setBrush(QtGui.QColor(bc[0], bc[1], bc[2], bc[3]))
         self.IntRects2 = np.append(self.IntRects2, [c])
@@ -814,7 +814,7 @@ class TimeSeriesPlotter:
     def DrawMarkTime(self, position):
         """Marks temporary reference line when adding a new interval."""
         plt = self.parent.win1     # middle signal plot
-        self.current_mark = pg.QtGui.QGraphicsRectItem(position, 0, 0, 1)
+        self.current_mark = pg.QtWidgets.QGraphicsRectItem(position, 0, 0, 1)
         self.current_mark.setPen(pg.mkPen(color='k'))
         self.current_mark.setBrush(QtGui.QColor(150, 150, 150, 100))
         plt.addItem(self.current_mark)
@@ -886,10 +886,10 @@ class CustomAnnotation:
         self.session = ''
 
 
-class CustomBox(pg.QtGui.QGraphicsRectItem):
+class CustomBox(pg.QtWidgets.QGraphicsRectItem):
     """Upper visualization window rectangle that can be dragged by the user."""
     def __init__(self, parent, x, y, w, h):
-        pg.QtGui.QGraphicsRectItem.__init__(self, x, y, w, h)
+        pg.QtWidgets.QGraphicsRectItem.__init__(self, x, y, w, h)
         self.parent = parent
 
     def mouseReleaseEvent(self, event):
