@@ -199,6 +199,17 @@ def nwb_copy_file(old_file, new_file, cp_objs={}, save_to_file=True):
                 for ind in np.arange(nInt):
                     obj.add_interval(start_time=obj_old['start_time'][ind],
                                      stop_time=obj_old['stop_time'][ind])
+                # if there are custom variables
+                new_vars = list(obj_old.colnames)
+                default_vars = ['start_time', 'stop_time']
+                [new_vars.remove(var) for var in default_vars]
+                for var in new_vars:
+                    dat = obj_old[var].data[:]
+                    obj.add_column(
+                        name=var,
+                        description=obj_old[var].description,
+                        data=dat.astype(str) if dat.dtype=='O' else dat
+                    )
                 # Add to file
                 nwb_new.add_time_intervals(obj)
 
@@ -415,7 +426,8 @@ def copy_obj(obj_old, nwb_old, nwb_new):
             resolution=obj_old.resolution,
             conversion=obj_old.conversion,
             starting_time=obj_old.starting_time,
-            unit=obj_old.unit
+            unit=obj_old.unit,
+            timestamps=obj_old.timestamps
         )
 
     # DecompositionSeries -----------------------------------------------------
